@@ -19,7 +19,8 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 Open this repository (or any repository that has a `.devcontainer/` symlink
 to this one) in a GitHub Codespace. The `postCreateCommand` in
-`.devcontainer/devcontainer.json` runs `setup.sh` automatically.
+`.devcontainer/devcontainer.json` runs `.devcontainer/post-create.sh`, which
+resolves the shared repository path and then runs `setup.sh` automatically.
 
 ### Manual
 

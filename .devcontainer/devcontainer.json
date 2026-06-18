@@ -1,7 +1,7 @@
 {
   "name": "codespaces-setup",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "postCreateCommand": "bash setup.sh",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
       "settings": {
