@@ -38,6 +38,8 @@ deploy "${CONFIGS_DIR}/.gitconfig_managed" "${HOME}/.gitconfig_managed"
 GITCONFIG="${HOME}/.gitconfig"
 MARKER_START="# BEGIN codespaces-setup git include"
 MARKER_END="# END codespaces-setup git include"
+GIT_USER_NAME="John Mathews"
+GIT_USER_EMAIL="john.mathews@simmons-simmons.com"
 
 if ! grep -qF "${MARKER_START}" "${GITCONFIG}" 2>/dev/null; then
   log "Adding git include to ${GITCONFIG}..."
@@ -51,6 +53,24 @@ EOF
 else
   log "${GITCONFIG}: git include already present."
 fi
+
+set_git_config() {
+  local key="$1"
+  local value="$2"
+  local current_value
+  current_value="$(git config --global --get "${key}" || true)"
+
+  if [[ "${current_value}" == "${value}" ]]; then
+    log "git ${key}: already set to ${value}."
+    return
+  fi
+
+  git config --global "${key}" "${value}"
+  log "git ${key}: set to ${value}."
+}
+
+set_git_config "user.name" "${GIT_USER_NAME}"
+set_git_config "user.email" "${GIT_USER_EMAIL}"
 
 # Change default shell to zsh if it is currently something else
 ZSH_PATH="$(command -v zsh)"
