@@ -27,6 +27,7 @@ run_step() {
 
 run_step "01-apt-packages.sh"   "Installing apt packages and CLI tools"
 run_step "11-dotfiles.sh"       "Deploying dotfiles (.zshrc, aliases, gitconfig)"
+run_step "14-fonts.sh"          "Installing MesloLGS NF (Nerd Font)"
 run_step "02-nodejs.sh"         "Installing Node.js 20"
 run_step "03-neovim.sh"         "Installing Neovim"
 run_step "04-neovim-config.sh"  "Setting up Neovim configuration"
@@ -81,6 +82,13 @@ check_tool "lazygit"    lazygit    --version
 check_tool "atuin"      atuin      --version
 check_tool "uv"         uv         --version
 check_tool "claude"     claude     --version
+
+FONT_DIR="${HOME}/.local/share/fonts/MesloLGS-NF"
+if [[ -f "${FONT_DIR}/MesloLGS NF Regular.ttf" ]]; then
+  printf "  ✅  %-18s installed in %s\n" "MesloLGS NF" "${FONT_DIR}"
+else
+  printf "  ❌  %-18s not found\n" "MesloLGS NF"
+fi
 
 NVIM_LOG="${NVIM_LOG:-${HOME}/.cache/nvim-setup.log}"
 
