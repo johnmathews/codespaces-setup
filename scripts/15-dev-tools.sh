@@ -50,10 +50,23 @@ esac
 # ---------------------------------------------------------------------------
 # npm-based tools: prettierd, biome, eslint_d, markdownlint
 # ---------------------------------------------------------------------------
+npm_install_global() {
+  # Prefer a non-root install: it inherits this script's NODE_EXTRA_CA_CERTS
+  # (so it works behind a TLS-intercepting proxy) and avoids leaving root-owned
+  # files in a user-writable nvm prefix. Fall back to sudo for root-owned
+  # prefixes, explicitly forwarding PATH *and* the CA env (sudo strips it).
+  if npm install -g --no-fund --no-audit "$@" 2>/dev/null; then
+    return 0
+  fi
+  log "Non-root npm install failed; retrying with sudo..."
+  local env_args=("PATH=${PATH}")
+  [[ -f "${SYSTEM_CA}" ]] && env_args+=("NODE_EXTRA_CA_CERTS=${SYSTEM_CA}")
+  sudo env "${env_args[@]}" npm install -g --no-fund --no-audit "$@"
+}
+
 if command -v npm >/dev/null 2>&1; then
   log "Installing npm CLI tools globally (prettierd, biome, eslint_d, markdownlint)..."
-  # `sudo env PATH=...` keeps node/npm resolvable regardless of where they live.
-  sudo env "PATH=${PATH}" npm install -g --no-fund --no-audit \
+  npm_install_global \
     @fsouza/prettierd \
     @biomejs/biome \
     eslint_d \
