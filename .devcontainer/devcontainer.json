@@ -1,0 +1,21 @@
+{
+  "name": "codespaces-setup",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "bash setup.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/usr/bin/zsh"
+          }
+        },
+        "editor.fontFamily": "'MesloLGS NF', 'Cascadia Code', Consolas, monospace",
+        "editor.fontSize": 14
+      },
+      "extensions": []
+    }
+  },
+  "features": {}
+}

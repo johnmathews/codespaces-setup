@@ -1,0 +1,94 @@
+# vim: ft=zsh
+# Shell aliases for GitHub Codespaces
+# Managed by codespaces-setup - edit configs/.zsh_aliases in the repo to change.
+
+# Editor
+alias vi='nvim'
+alias v='nvim'
+alias vim='nvim'
+
+# Navigation
+alias c='cd'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias -- -='cd -'
+
+# Directory listing (eza preferred, fallback to ls)
+if command -v eza &>/dev/null; then
+  alias l='eza -lha --git --group-directories-first --icons'
+  alias ls='eza -lh --git --group-directories-first --icons'
+  alias la='eza -lah --git --group-directories-first --icons'
+  alias lsa='eza -lah --git --group-directories-first --icons'
+  alias lt='eza --tree --level=1'
+  alias lt1='eza --tree --level=1'
+  alias lt2='eza --tree --level=2'
+  alias ltt='lt2'
+  alias lt3='eza --tree --level=3'
+  alias lttt='lt3'
+  alias lt4='eza --tree --level=4'
+  alias ltttt='lt4'
+  alias ld='eza --icons --long --git --tree --level=0 */'
+  alias lsd='ld'
+else
+  alias ls='ls --color=auto'
+  alias ll='ls -lah'
+  alias la='ls -lA'
+  alias lsa='ls -lA'
+  alias l='ls -lF'
+  alias ld='ls -ld'
+fi
+
+# Yazi
+if command -v yazi &>/dev/null; then
+  alias y='yazi'
+  alias yz='yazi'
+fi
+
+# Docker
+alias d='docker'
+alias dps='docker ps --format "table {{.Names}}\t{{.Image}}\t{{.CreatedAt}}\t{{.Status}}" | (read -r header; echo "$header"; sort)'
+alias dpsa='docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.CreatedAt}}\t{{.Status}}" | (read -r header; echo "$header"; sort)'
+alias dl='docker compose logs -f -n 1000'
+alias dexec='docker exec -it'
+
+# Git
+alias gst='git status'
+alias glog='git log --oneline -10'
+alias gtr='git tr'
+alias gr='git remote -v update'
+
+# Grep (always coloured)
+alias grep='grep --color=auto'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+
+# Utility
+alias cl='clear'
+alias b='clear'
+alias x='exit'
+alias reload='exec $SHELL -l'
+alias readme='vi readme.md'
+alias todo="grep -rHn 'TODO' --exclude-dir={.git,__pycache__,node_modules}"
+alias clean="find . -type f -name '*.DS_Store' -ls -delete"
+
+# History / jobs
+alias shi='history'
+alias sj='jobs'
+
+# Python
+alias python='python3'
+
+# SSH (xterm-256color for italic support through remote terminals)
+alias ssh='TERM=xterm-256color ssh'
+
+# Bat (batcat on Debian/Ubuntu)
+if command -v batcat &>/dev/null; then
+  alias bat='batcat'
+fi
+
+# Enable sudo-able aliases
+alias sudo='sudo '
+
+# Local customisations (not managed by codespaces-setup)
+[[ -f ~/.zsh_aliases.local ]] && source ~/.zsh_aliases.local
