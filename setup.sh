@@ -36,8 +36,20 @@ run_step "08-atuin.sh"          "Installing atuin (shell history)"
 run_step "09-uv.sh"             "Installing uv (Python package manager)"
 run_step "10-zsh-setup.sh"      "Setting up Zsh + Oh My Zsh + Powerlevel10k"
 run_step "11-dotfiles.sh"       "Deploying dotfiles (.zshrc, aliases, gitconfig)"
+run_step "12-claude-code.sh"    "Installing Claude Code"
+
+log ""
+log "Core setup complete. Starting Neovim plugin pre-load in background..."
+mkdir -p "${HOME}/.cache"
+NVIM_LOG="${HOME}/.cache/nvim-setup.log"
+bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >"${NVIM_LOG}" 2>&1 &
+NVIM_SETUP_PID=$!
+log "Neovim plugin pre-load running in background (PID: ${NVIM_SETUP_PID})"
+log "Monitor progress : tail -f ${NVIM_LOG}"
+log "Wait for it      : wait ${NVIM_SETUP_PID}"
 
 log ""
 log "Setup complete!"
 log ""
 log "To finish: open a new shell or run: exec zsh"
+log "Neovim plugins are pre-loading in the background – check ~/.cache/nvim-setup.log"

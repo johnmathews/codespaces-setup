@@ -13,6 +13,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 | **lazygit** | v0.60.0 | Git TUI |
 | **atuin** | latest | Shell history (local, no sync in Codespaces) |
 | **uv** | latest | Python package manager |
+| **Claude Code** | latest | AI coding assistant CLI |
 | **Zsh** + **Oh My Zsh** | — | Shell |
 | **Powerlevel10k** (lean) | — | Zsh theme |
 | **zsh-autosuggestions** | — | Fish-style suggestions |
@@ -63,7 +64,10 @@ scripts/
   09-uv.sh              # Install uv Python package manager
   10-zsh-setup.sh       # Install Oh My Zsh, plugins, Powerlevel10k
   11-dotfiles.sh        # Deploy .zshrc, aliases, gitconfig; set default shell to zsh
-setup.sh                # Main entry point – calls all scripts in order
+  12-claude-code.sh     # Install Claude Code CLI
+  13-nvim-plugins.sh    # Pre-load Neovim plugins headlessly (run in background)
+setup.sh                # Main entry point – calls all scripts in order, then
+                        # launches 13-nvim-plugins.sh in background
 ```
 
 ## Customisation
@@ -79,7 +83,17 @@ setup.sh                # Main entry point – calls all scripts in order
 The Neovim config is pulled directly from
 [johnmathews/neovim](https://github.com/johnmathews/neovim) into `~/.config/nvim`.
 Plugins are managed by [lazy.nvim](https://github.com/folke/lazy.nvim) and are
-installed automatically on first launch of `nvim`.
+**pre-loaded in the background** during Codespace creation so that `nvim` is
+ready to use immediately. Progress is logged to `~/.cache/nvim-setup.log`.
+
+```bash
+# Monitor plugin installation progress
+tail -f ~/.cache/nvim-setup.log
+```
+
+If the background pre-load is still running when you first open `nvim`, plugins
+will already be partially or fully installed – lazy.nvim will not re-download
+what it has already cached.
 
 ## Related repositories
 

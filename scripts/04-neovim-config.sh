@@ -11,7 +11,7 @@ NVIM_REPO="https://github.com/johnmathews/neovim.git"
 
 if [[ -d "${NVIM_CONFIG_DIR}/.git" ]]; then
   log "Neovim config already cloned, pulling latest changes..."
-  git -C "${NVIM_CONFIG_DIR}" pull --ff-only
+  git -C "${NVIM_CONFIG_DIR}" pull --rebase
 else
   if [[ -d "${NVIM_CONFIG_DIR}" ]]; then
     log "Backing up existing config to ${NVIM_CONFIG_DIR}.bak..."
