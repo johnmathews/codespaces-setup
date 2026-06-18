@@ -1,45 +1,52 @@
 #!/usr/bin/env bash
-# Install Node.js (LTS) and npm.
-# Prefers Node 20 from NodeSource, but always guarantees a working `node` AND
-# `npm`. This matters because:
-#   - Ubuntu's `nodejs` package does NOT bundle npm (it's a separate package).
-#   - Behind a TLS-intercepting proxy / with broken third-party apt repos, the
-#     NodeSource setup can silently no-op, leaving distro node without npm.
+# Install Node.js (LTS) + npm from the official nodejs.org tarball into /usr/local.
+#
+# Why not NodeSource or apt:
+#   - Behind a TLS-intercepting proxy / broken third-party apt repos, the
+#     NodeSource setup silently no-ops, leaving Ubuntu's nodejs (no npm bundled).
+#   - Ubuntu's node is too old: current editor tools (eslint_d, markdownlint,
+#     biome, ...) require Node >= 20/22 and warn/fail on Node 18.
+#
+# The tarball is a plain HTTPS download (works behind the proxy via the system
+# CA) and extracting into /usr/local puts node/npm/npx on PATH for every shell,
+# with npm's global prefix at /usr/local so `npm i -g` bins also land on PATH.
 
 set -euo pipefail
 
 log() { echo "[nodejs] $*"; }
 
-NODE_MAJOR="20"
+NODE_VERSION="v22.14.0"
+PREFIX="/usr/local"
 
-have_node_and_npm() {
-  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1
-}
-
-if have_node_and_npm && [[ "$(node --version 2>/dev/null)" == v${NODE_MAJOR}.* ]]; then
-  log "Node.js $(node --version) and npm $(npm --version) already installed, skipping."
+if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 &&
+  [[ "$(node --version 2>/dev/null)" == "${NODE_VERSION}" ]]; then
+  log "Node.js ${NODE_VERSION} and npm $(npm --version) already installed, skipping."
   exit 0
 fi
 
-log "Attempting Node.js ${NODE_MAJOR}.x install via NodeSource..."
-if curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -; then
-  sudo apt-get install -y -q nodejs || log "WARNING: NodeSource 'apt-get install nodejs' failed."
-else
-  log "WARNING: NodeSource setup failed (proxy/repo?); falling back to distro packages."
-fi
+ARCH="$(uname -m)"
+case "${ARCH}" in
+  aarch64 | arm64) NODE_ARCH="arm64" ;;
+  *) NODE_ARCH="x64" ;;
+esac
 
-# Guarantee node + npm exist regardless of how the NodeSource step went.
-if ! command -v node >/dev/null 2>&1; then
-  log "node still missing; installing distro nodejs..."
-  sudo apt-get install -y -q nodejs
-fi
-if ! command -v npm >/dev/null 2>&1; then
-  log "npm missing (distro nodejs ships without it); installing the npm package..."
-  sudo apt-get install -y -q npm
-fi
+TARBALL="node-${NODE_VERSION}-linux-${NODE_ARCH}.tar.gz"
+URL="https://nodejs.org/dist/${NODE_VERSION}/${TARBALL}"
+TMP="$(mktemp -d)"
+
+log "Downloading Node.js ${NODE_VERSION} (${NODE_ARCH})..."
+curl -fsSL "${URL}" -o "${TMP}/${TARBALL}"
+
+# Extract bin/, lib/, include/, share/ straight into /usr/local.
+log "Installing into ${PREFIX}..."
+sudo tar -xzf "${TMP}/${TARBALL}" -C "${PREFIX}" --strip-components=1 \
+  --exclude='*/CHANGELOG.md' --exclude='*/LICENSE' --exclude='*/README.md'
+
+rm -rf "${TMP}"
+hash -r 2>/dev/null || true
 
 if ! command -v npm >/dev/null 2>&1; then
-  log "ERROR: npm could not be installed."
+  log "ERROR: npm not found after install."
   exit 1
 fi
 
