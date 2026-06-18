@@ -44,6 +44,15 @@ export EDITOR=nvim
 export VISUAL=nvim
 export PAGER=less
 
+# Clear the Codespaces-injected GitHub token for interactive shells.
+# Codespaces sets GITHUB_TOKEN (restricted to the originating repo) and gh
+# prefers it over stored credentials, so `gh auth login` refuses to save your
+# own token while it is set. Unsetting it lets you run `gh auth login` once and
+# then push to any repo as yourself (git uses gh as a credential helper - see
+# .gitconfig_managed). Override per-shell with `export GITHUB_TOKEN=...` if you
+# need the default token back (e.g. for headless automation).
+unset GITHUB_TOKEN GH_TOKEN
+
 # Trust the system CA bundle for tools that bundle their own (Node/npm, Python).
 # Behind a TLS-intercepting proxy this is what lets Neovim's Mason install
 # npm/pip-based tools (prettierd, biome, eslint_d, markdownlint, ruff, mypy)
@@ -95,6 +104,11 @@ fi
 # uv completions
 if command -v uv &>/dev/null; then
   eval "$(uv generate-shell-completion zsh 2>/dev/null)"
+fi
+
+# gh completions
+if command -v gh &>/dev/null; then
+  eval "$(gh completion -s zsh 2>/dev/null)"
 fi
 
 # Local customisations (not managed by codespaces-setup)

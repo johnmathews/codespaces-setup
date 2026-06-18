@@ -12,6 +12,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 - [What it installs](#what-it-installs)
 - [Structure](#structure)
 - [Customisation](#customisation)
+- [GitHub CLI authentication](#github-cli-authentication)
 - [Neovim configuration](#neovim-configuration)
 - [Related repositories](#related-repositories)
 
@@ -103,6 +104,7 @@ The script is idempotent – safe to run multiple times.
 | **atuin** | latest | Shell history (local, no sync in Codespaces) |
 | **uv** | latest | Python package manager |
 | **Claude Code** | latest | AI coding assistant CLI |
+| **GitHub CLI** (`gh`) | v2.95.0 | GitHub from the terminal; also used as git's credential helper |
 | **Zsh** + **Oh My Zsh** | — | Shell |
 | **Powerlevel10k** (lean) | — | Zsh theme |
 | **zsh-autosuggestions** | — | Fish-style suggestions |
@@ -139,6 +141,7 @@ scripts/
   12-claude-code.sh     # Install Claude Code CLI
   13-nvim-plugins.sh    # Pre-load Neovim plugins headlessly (run in background)
   15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
+  16-gh.sh              # Install GitHub CLI (gh) from release tarball
 setup.sh                # Main entry point – calls all scripts in order, then
                         # launches 13-nvim-plugins.sh in background
 ```
@@ -155,6 +158,28 @@ setup.sh                # Main entry point – calls all scripts in order, then
   TLS-intercepting proxy (otherwise installs fail with `SELF_SIGNED_CERT_IN_CHAIN`)
 - **Local overrides** (not managed here): `~/.zshrc.local` and `~/.zsh_aliases.local`
 - **Prompt**: run `p10k configure` after setup to customise the Powerlevel10k theme
+
+## GitHub CLI authentication
+
+Codespaces auto-injects a `GITHUB_TOKEN` environment variable that is **scoped
+to the repository the Codespace was created from**. `gh` (and git) prefer that
+token over any stored credentials, so `gh auth login` refuses to save your own
+token while it is set, and you can't push to *other* repos.
+
+To work around this, `configs/.zshrc` runs `unset GITHUB_TOKEN GH_TOKEN` for
+interactive shells. Once it's cleared, authenticate as yourself **once per
+Codespace**:
+
+```bash
+gh auth login          # choose GitHub.com → HTTPS → paste a PAT or use the web flow
+```
+
+After that, `git push`/`pull` work against any repo because
+`configs/.gitconfig_managed` registers `gh auth git-credential` as git's
+credential helper for `github.com`.
+
+If you specifically need the original restricted token back in a shell (e.g. for
+headless automation), re-export it: `export GITHUB_TOKEN=...`.
 
 ## Neovim configuration
 

@@ -67,5 +67,14 @@
 [init]
 	defaultBranch = main
 
+# Use the GitHub CLI as the credential helper so `git push`/`pull` reuse the
+# token from `gh auth login` (after GITHUB_TOKEN is cleared - see .zshrc).
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
+
 [help]
 	autocorrect = 1

@@ -34,6 +34,7 @@ STEPS=(
   "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
   "12-claude-code.sh|Installing Claude Code"
   "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
+  "16-gh.sh|Installing GitHub CLI (gh)"
 )
 
 TOTAL_STEPS="${#STEPS[@]}"
@@ -162,6 +163,7 @@ check_tool "lazygit"    lazygit    --version
 check_tool "atuin"      atuin      --version
 check_tool "uv"         uv         --version
 check_tool "claude"     claude     --version
+check_tool "gh"         gh         --version
 check_tool "glow"       glow       --version
 check_tool "ruff"       ruff       --version
 check_tool "stylua"     stylua     --version
