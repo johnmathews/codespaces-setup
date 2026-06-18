@@ -23,7 +23,7 @@ STEPS=(
   "01-apt-packages.sh|Installing apt packages and CLI tools"
   "11-dotfiles.sh|Deploying dotfiles (.zshrc, aliases, gitconfig)"
   "14-fonts.sh|Installing MesloLGS NF (Nerd Font)"
-  "02-nodejs.sh|Installing Node.js 20"
+  "02-nodejs.sh|Installing Node.js 22"
   "03-neovim.sh|Installing Neovim"
   "04-neovim-config.sh|Setting up Neovim configuration"
   "05-eza.sh|Installing eza (modern ls)"

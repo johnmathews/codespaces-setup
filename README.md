@@ -59,7 +59,7 @@ The script is idempotent – safe to run multiple times.
 | Tool | Version | Purpose |
 |------|---------|---------|
 | **Neovim** | v0.11.5 | Editor (config from [johnmathews/neovim](https://github.com/johnmathews/neovim)) |
-| **Node.js** | 20 LTS | Required for Neovim Mason LSP servers |
+| **Node.js** | 22 LTS | Required for Neovim Mason LSP servers / formatters |
 | **eza** | v0.20.14 | Modern `ls` replacement |
 | **yazi** | v0.4.2 | Terminal file manager |
 | **lazygit** | v0.60.0 | Git TUI |
@@ -89,7 +89,7 @@ configs/
   .gitconfig_managed    # Git aliases + portable settings (included from ~/.gitconfig)
 scripts/
   01-apt-packages.sh    # Install CLI tools via apt
-  02-nodejs.sh          # Install Node.js 20 via NodeSource
+  02-nodejs.sh          # Install Node.js 22 (official tarball into /usr/local)
   03-neovim.sh          # Install Neovim AppImage (v0.11.5)
   04-neovim-config.sh   # Clone johnmathews/neovim → ~/.config/nvim
   05-eza.sh             # Install eza binary
