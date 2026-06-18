@@ -48,6 +48,7 @@ The script is idempotent – safe to run multiple times.
 | **Powerlevel10k** (lean) | — | Zsh theme |
 | **zsh-autosuggestions** | — | Fish-style suggestions |
 | **zsh-syntax-highlighting** | — | Command highlighting |
+| **Git identity** | — | Sets global `user.name` and `user.email` for commits |
 
 ### CLI tools installed via apt
 
@@ -86,6 +87,7 @@ setup.sh                # Main entry point – calls all scripts in order, then
 - **Shell config**: edit `configs/.zshrc` then re-run `bash scripts/11-dotfiles.sh`
 - **Aliases**: edit `configs/.zsh_aliases` then re-run `bash scripts/11-dotfiles.sh`
 - **Git aliases**: edit `configs/.gitconfig_managed` then re-run `bash scripts/11-dotfiles.sh`
+- **Git identity**: `scripts/11-dotfiles.sh` sets global Git user details for the Codespace
 - **Local overrides** (not managed here): `~/.zshrc.local` and `~/.zsh_aliases.local`
 - **Prompt**: run `p10k configure` after setup to customise the Powerlevel10k theme
 
