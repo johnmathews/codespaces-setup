@@ -16,15 +16,22 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 ## Logs
 
-The Neovim plugin pre-load runs in the background during setup. Watch its
-progress (and check for errors) with:
+`setup.sh` mirrors all of its output to `~/.cache/codespaces-setup.log` as well
+as the screen, so you can follow progress from any other shell — or after the
+fact — even when it runs in the background (e.g. as the Codespaces
+`postCreateCommand`):
+
+```bash
+tail -f ~/.cache/codespaces-setup.log
+```
+
+The Neovim plugin pre-load runs in the background and logs separately:
 
 ```bash
 tail -f ~/.cache/nvim-setup.log
 ```
 
-The main `setup.sh` run logs each step to the terminal as it goes. If a step
-fails, the error line names the failing step and script, e.g.
+If a step fails, the error line names the failing step and script, e.g.
 `[setup] ERROR: Step failed: ... (current step: ...)`.
 
 ## Getting started
