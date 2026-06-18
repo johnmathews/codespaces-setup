@@ -62,23 +62,27 @@ echo "╚═══════════════════════�
 
 check_tool() {
   local label="$1"
-  local cmd="$2"
-  if version_output="$(eval "$cmd" 2>/dev/null | head -1)"; then
+  local bin="$2"
+  shift 2
+  local version_output
+  if version_output="$("$bin" "$@" 2>/dev/null | head -1)"; then
     printf "  ✅  %-18s %s\n" "${label}" "${version_output}"
   else
     printf "  ❌  %-18s not found\n" "${label}"
   fi
 }
 
-check_tool "zsh"        "zsh --version"
-check_tool "node"       "node --version"
-check_tool "nvim"       "nvim --version"
-check_tool "eza"        "eza --version"
-check_tool "yazi"       "yazi --version"
-check_tool "lazygit"    "lazygit --version"
-check_tool "atuin"      "atuin --version"
-check_tool "uv"         "uv --version"
-check_tool "claude"     "claude --version"
+check_tool "zsh"        zsh        --version
+check_tool "node"       node       --version
+check_tool "nvim"       nvim       --version
+check_tool "eza"        eza        --version
+check_tool "yazi"       yazi       --version
+check_tool "lazygit"    lazygit    --version
+check_tool "atuin"      atuin      --version
+check_tool "uv"         uv         --version
+check_tool "claude"     claude     --version
+
+NVIM_LOG="${NVIM_LOG:-${HOME}/.cache/nvim-setup.log}"
 
 echo ""
 echo "  Shell config : ${HOME}/.zshrc"
