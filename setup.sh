@@ -53,3 +53,36 @@ log "Setup complete!"
 log ""
 log "To finish: open a new shell or run: exec zsh"
 log "Neovim plugins are pre-loading in the background – check ~/.cache/nvim-setup.log"
+
+# Print a verification summary so the user can confirm every tool landed.
+echo ""
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║              SETUP VERIFICATION SUMMARY              ║"
+echo "╚══════════════════════════════════════════════════════╝"
+
+check_tool() {
+  local label="$1"
+  local cmd="$2"
+  if version_output="$(eval "$cmd" 2>/dev/null | head -1)"; then
+    printf "  ✅  %-18s %s\n" "${label}" "${version_output}"
+  else
+    printf "  ❌  %-18s not found\n" "${label}"
+  fi
+}
+
+check_tool "zsh"        "zsh --version"
+check_tool "node"       "node --version"
+check_tool "nvim"       "nvim --version"
+check_tool "eza"        "eza --version"
+check_tool "yazi"       "yazi --version"
+check_tool "lazygit"    "lazygit --version"
+check_tool "atuin"      "atuin --version"
+check_tool "uv"         "uv --version"
+check_tool "claude"     "claude --version"
+
+echo ""
+echo "  Shell config : ${HOME}/.zshrc"
+echo "  Aliases      : ${HOME}/.zsh_aliases"
+echo "  Git config   : ${HOME}/.gitconfig"
+echo "  Nvim plugins : tail -f ${NVIM_LOG}"
+echo ""
