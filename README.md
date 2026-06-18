@@ -4,6 +4,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 ## Table of contents
 
+- [Logs](#logs)
 - [Getting started](#getting-started)
   - [Automatic (GitHub Codespaces)](#automatic-github-codespaces)
   - [Manual](#manual)
@@ -12,6 +13,19 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 - [Customisation](#customisation)
 - [Neovim configuration](#neovim-configuration)
 - [Related repositories](#related-repositories)
+
+## Logs
+
+The Neovim plugin pre-load runs in the background during setup. Watch its
+progress (and check for errors) with:
+
+```bash
+tail -f ~/.cache/nvim-setup.log
+```
+
+The main `setup.sh` run logs each step to the terminal as it goes. If a step
+fails, the error line names the failing step and script, e.g.
+`[setup] ERROR: Step failed: ... (current step: ...)`.
 
 ## Getting started
 
@@ -98,12 +112,8 @@ The Neovim config is pulled directly from
 [johnmathews/neovim](https://github.com/johnmathews/neovim) into `~/.config/nvim`.
 Plugins are managed by [lazy.nvim](https://github.com/folke/lazy.nvim) and are
 **pre-loaded in the background** during Codespace creation so that `nvim` is
-ready to use immediately. Progress is logged to `~/.cache/nvim-setup.log`.
-
-```bash
-# Monitor plugin installation progress
-tail -f ~/.cache/nvim-setup.log
-```
+ready to use immediately. Progress is logged to `~/.cache/nvim-setup.log` (see
+[Logs](#logs)).
 
 If the background pre-load is still running when you first open `nvim`, plugins
 will already be partially or fully installed – lazy.nvim will not re-download
