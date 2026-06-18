@@ -2,6 +2,36 @@
 
 Scripts to set up a new GitHub Codespace with a full, opinionated development environment.
 
+## Table of contents
+
+- [Getting started](#getting-started)
+  - [Automatic (GitHub Codespaces)](#automatic-github-codespaces)
+  - [Manual](#manual)
+- [What it installs](#what-it-installs)
+- [Structure](#structure)
+- [Customisation](#customisation)
+- [Neovim configuration](#neovim-configuration)
+- [Related repositories](#related-repositories)
+
+## Getting started
+
+### Automatic (GitHub Codespaces)
+
+Open this repository (or any repository that has a `.devcontainer/` symlink
+to this one) in a GitHub Codespace. The `postCreateCommand` in
+`.devcontainer/devcontainer.json` runs `setup.sh` automatically.
+
+### Manual
+
+```bash
+git clone https://github.com/johnmathews/codespaces-setup.git ~/codespaces-setup
+cd ~/codespaces-setup
+bash setup.sh
+exec zsh
+```
+
+The script is idempotent – safe to run multiple times.
+
 ## What it installs
 
 | Tool | Version | Purpose |
@@ -22,26 +52,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 ### CLI tools installed via apt
 
 `htop`, `ffmpeg`, `7zip`, `jq`, `poppler-utils`, `fd-find`, `ripgrep`,
-`fzf`, `zoxide`, `imagemagick`, `tree`, `bat`, `tmux`, `rsync`
-
-## Usage
-
-### Automatic (GitHub Codespaces)
-
-Open this repository (or any repository that has a `.devcontainer/` symlink
-to this one) in a GitHub Codespace. The `postCreateCommand` in
-`.devcontainer/devcontainer.json` runs `setup.sh` automatically.
-
-### Manual
-
-```bash
-git clone https://github.com/johnmathews/codespaces-setup.git ~/codespaces-setup
-cd ~/codespaces-setup
-bash setup.sh
-exec zsh
-```
-
-The script is idempotent – safe to run multiple times.
+`fzf`, `zoxide`, `imagemagick`, `tree`, `bat`, `tmux`, `rsync`, `sqlite3`
 
 ## Structure
 
