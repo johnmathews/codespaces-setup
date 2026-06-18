@@ -71,6 +71,7 @@ The script is idempotent – safe to run multiple times.
 | **zsh-autosuggestions** | — | Fish-style suggestions |
 | **zsh-syntax-highlighting** | — | Command highlighting |
 | **Git identity** | — | Sets global `user.name` and `user.email` for commits |
+| **Editor tooling** | — | Formatters/linters on `PATH` (`prettierd`, `biome`, `eslint_d`, `markdownlint`, `ruff`, `mypy`, `stylua`, `shfmt`) + `glow` |
 
 ### CLI tools installed via apt
 
@@ -100,6 +101,7 @@ scripts/
   11-dotfiles.sh        # Deploy .zshrc, aliases, gitconfig; set default shell to zsh
   12-claude-code.sh     # Install Claude Code CLI
   13-nvim-plugins.sh    # Pre-load Neovim plugins headlessly (run in background)
+  15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
 setup.sh                # Main entry point – calls all scripts in order, then
                         # launches 13-nvim-plugins.sh in background
 ```
@@ -110,6 +112,10 @@ setup.sh                # Main entry point – calls all scripts in order, then
 - **Aliases**: edit `configs/.zsh_aliases` then re-run `bash scripts/11-dotfiles.sh`
 - **Git aliases**: edit `configs/.gitconfig_managed` then re-run `bash scripts/11-dotfiles.sh`
 - **Git identity**: `scripts/11-dotfiles.sh` sets global Git user details for the Codespace
+- **Editor tooling**: `scripts/15-dev-tools.sh` installs the formatters/linters
+  (and `glow`) that Neovim expects on `PATH`. `.zshrc` also points Node/Python
+  at the system CA bundle so Mason can install npm/pip tools behind a
+  TLS-intercepting proxy (otherwise installs fail with `SELF_SIGNED_CERT_IN_CHAIN`)
 - **Local overrides** (not managed here): `~/.zshrc.local` and `~/.zsh_aliases.local`
 - **Prompt**: run `p10k configure` after setup to customise the Powerlevel10k theme
 

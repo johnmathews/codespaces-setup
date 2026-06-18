@@ -33,6 +33,7 @@ STEPS=(
   "09-uv.sh|Installing uv (Python package manager)"
   "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
   "12-claude-code.sh|Installing Claude Code"
+  "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
 )
 
 TOTAL_STEPS="${#STEPS[@]}"
@@ -161,6 +162,12 @@ check_tool "lazygit"    lazygit    --version
 check_tool "atuin"      atuin      --version
 check_tool "uv"         uv         --version
 check_tool "claude"     claude     --version
+check_tool "glow"       glow       --version
+check_tool "ruff"       ruff       --version
+check_tool "stylua"     stylua     --version
+check_tool "shfmt"      shfmt      --version
+check_tool "prettierd"  prettierd  --version
+check_tool "biome"      biome      --version
 
 FONT_DIR="${HOME}/.local/share/fonts/MesloLGS-NF"
 if [[ -f "${FONT_DIR}/MesloLGS NF Regular.ttf" ]]; then

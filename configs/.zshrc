@@ -44,6 +44,16 @@ export EDITOR=nvim
 export VISUAL=nvim
 export PAGER=less
 
+# Trust the system CA bundle for tools that bundle their own (Node/npm, Python).
+# Behind a TLS-intercepting proxy this is what lets Neovim's Mason install
+# npm/pip-based tools (prettierd, biome, eslint_d, markdownlint, ruff, mypy)
+# instead of failing with SELF_SIGNED_CERT_IN_CHAIN.
+if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
+  export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+  export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+fi
+
 # History configuration
 HISTFILE=~/.zsh_history
 HISTSIZE=50000
