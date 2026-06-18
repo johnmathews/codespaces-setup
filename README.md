@@ -6,7 +6,8 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 - [Logs](#logs)
 - [Getting started](#getting-started)
-  - [Automatic (GitHub Codespaces)](#automatic-github-codespaces)
+  - [As account-wide dotfiles (any repo)](#as-account-wide-dotfiles-any-repo)
+  - [As this repo's devcontainer (this repo only)](#as-this-repos-devcontainer-this-repo-only)
   - [Manual](#manual)
 - [What it installs](#what-it-installs)
 - [Structure](#structure)
@@ -36,12 +37,48 @@ If a step fails, the error line names the failing step and script, e.g.
 
 ## Getting started
 
-### Automatic (GitHub Codespaces)
+There are two independent ways this runs in Codespaces. They do **not** depend
+on each other, and the dotfiles route is the one that works across *every* repo.
 
-Open this repository (or any repository that has a `.devcontainer/` symlink
-to this one) in a GitHub Codespace. The `postCreateCommand` in
-`.devcontainer/devcontainer.json` runs `.devcontainer/post-create.sh`, which
-resolves the shared repository path and then runs `setup.sh` automatically.
+| Mechanism | Scope | Runs when |
+|-----------|-------|-----------|
+| **Dotfiles** (account setting) | Every Codespace, **any** repo | On each Codespace you create, regardless of repository |
+| **`devcontainer.json`** (in this repo) | **This repo only** | Only when you open a Codespace on `codespaces-setup` (or a repo whose `.devcontainer` symlinks here) |
+
+### As account-wide dotfiles (any repo)
+
+Set `johnmathews/codespaces-setup` as your dotfiles repository under
+**GitHub → Settings → Codespaces → "Automatically install dotfiles"**. GitHub
+then clones it into every new Codespace and runs the first install script it
+recognises, in this order:
+
+```
+install.sh → install → bootstrap.sh → bootstrap → script/bootstrap → setup.sh → setup → script/setup
+```
+
+`setup.sh` is on that list, so it runs automatically. It derives its own
+location (so it works from wherever GitHub clones the dotfiles repo) and is
+fully self-contained (installs everything via apt/curl — it does **not** rely on
+this repo's `devcontainer.json` features or image).
+
+Notes:
+
+- Only **one** dotfiles repo can be designated per account.
+- The target repo's own `devcontainer.json` is **not** replaced — dotfiles run
+  *on top of* whatever base image/features that repo defines. `setup.sh` assumes
+  a Debian/Ubuntu (`apt`) base, which covers the default image and most
+  devcontainers, but not non-Debian images.
+- If the dotfiles install fails, the Codespace still starts; check the creation
+  log (Command Palette → "Codespaces: View Creation Log") or
+  `~/.cache/codespaces-setup.log`.
+
+### As this repo's devcontainer (this repo only)
+
+Opening a Codespace on this repository (or a repo whose `.devcontainer`
+symlinks here) runs the `postCreateCommand` in `.devcontainer/devcontainer.json`,
+which calls `.devcontainer/post-create.sh` → `setup.sh`. This applies **only**
+to this repo, not to others. (If you also have dotfiles enabled, `setup.sh` runs
+twice here — harmless, since it is idempotent.)
 
 ### Manual
 
