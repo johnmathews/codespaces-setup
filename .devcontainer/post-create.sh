@@ -11,4 +11,4 @@ if [[ ! -f "${REPO_DIR}/setup.sh" ]]; then
   exit 1
 fi
 
-exec bash "${REPO_DIR}/setup.sh"
+bash "${REPO_DIR}/setup.sh"
