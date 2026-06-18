@@ -64,8 +64,8 @@ bindkey -M viins 'kj' vi-cmd-mode
 # Change cursor shape for vi modes
 function zle-keymap-select {
   case $KEYMAP in
-    vicmd)      echo -ne '\e[1 q';;  # blinking block  (normal mode)
-    viins|main) echo -ne '\e[5 q';;  # blinking beam   (insert mode)
+    vicmd)      echo -ne '\e[1 q';;  # blinking block (normal mode)
+    viins|main) echo -ne '\e[5 q';;  # blinking beam (insert mode)
   esac
 }
 function zle-line-init { echo -ne '\e[5 q'; }
