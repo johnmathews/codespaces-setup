@@ -36,6 +36,13 @@ deploy "${CONFIGS_DIR}/.gitconfig_managed" "${HOME}/.gitconfig_managed"
 
 # Include managed git config from ~/.gitconfig
 GITCONFIG="${HOME}/.gitconfig"
+# Make sure every location `git config --global` might write to actually exists,
+# so configuring git can't fail with "could not lock config file ... No such
+# file or directory" on a fresh/unusual Codespace home.
+mkdir -p "$(dirname "${GITCONFIG}")"
+mkdir -p "${HOME}/.config/git"
+[[ -n "${XDG_CONFIG_HOME:-}" ]] && mkdir -p "${XDG_CONFIG_HOME}/git"
+touch "${GITCONFIG}"
 MARKER_START="# BEGIN codespaces-setup git include"
 MARKER_END="# END codespaces-setup git include"
 GIT_USER_NAME="John Mathews"
