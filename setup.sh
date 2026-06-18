@@ -26,6 +26,7 @@ run_step() {
 }
 
 run_step "01-apt-packages.sh"   "Installing apt packages and CLI tools"
+run_step "11-dotfiles.sh"       "Deploying dotfiles (.zshrc, aliases, gitconfig)"
 run_step "02-nodejs.sh"         "Installing Node.js 20"
 run_step "03-neovim.sh"         "Installing Neovim"
 run_step "04-neovim-config.sh"  "Setting up Neovim configuration"
@@ -35,7 +36,6 @@ run_step "07-lazygit.sh"        "Installing lazygit"
 run_step "08-atuin.sh"          "Installing atuin (shell history)"
 run_step "09-uv.sh"             "Installing uv (Python package manager)"
 run_step "10-zsh-setup.sh"      "Setting up Zsh + Oh My Zsh + Powerlevel10k"
-run_step "11-dotfiles.sh"       "Deploying dotfiles (.zshrc, aliases, gitconfig)"
 run_step "12-claude-code.sh"    "Installing Claude Code"
 
 log ""
