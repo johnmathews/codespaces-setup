@@ -63,3 +63,23 @@ else
 fi
 
 log "Dotfiles deployed."
+
+# Ensure bash terminals hand off to zsh automatically for interactive sessions.
+# This avoids requiring a manual `exec zsh` in each new terminal.
+BASHRC="${HOME}/.bashrc"
+BASH_MARKER_START="# BEGIN codespaces-setup zsh handoff"
+BASH_MARKER_END="# END codespaces-setup zsh handoff"
+
+if ! grep -qF "${BASH_MARKER_START}" "${BASHRC}" 2>/dev/null; then
+  log "Adding zsh handoff block to ${BASHRC}..."
+  cat >> "${BASHRC}" <<EOF
+
+${BASH_MARKER_START}
+if [[ -n "\${BASH_VERSION:-}" && -z "\${ZSH_VERSION:-}" && \$- == *i* ]] && command -v zsh >/dev/null 2>&1; then
+  exec zsh -l
+fi
+${BASH_MARKER_END}
+EOF
+else
+  log "${BASHRC}: zsh handoff block already present."
+fi

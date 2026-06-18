@@ -21,6 +21,11 @@ fi
 log "Neovim binary: ${NVIM_BIN}"
 log "Neovim version: $(nvim --version | head -1)"
 
+# Ensure sqlite-backed plugin history path exists before plugin init.
+NVIM_DB_DIR="${HOME}/.local/share/nvim/databases"
+mkdir -p "${NVIM_DB_DIR}"
+log "Ensured Neovim database directory exists: ${NVIM_DB_DIR}"
+
 # Bootstrap lazy.nvim and install/sync all plugins.
 # '+Lazy! sync' runs synchronously in headless mode.
 # '+qa' quits after the sync completes.

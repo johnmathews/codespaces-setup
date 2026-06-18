@@ -29,6 +29,7 @@ PACKAGES=(
   ffmpeg
   p7zip-full
   poppler-utils
+  sqlite3
   acl
   zsh
 )

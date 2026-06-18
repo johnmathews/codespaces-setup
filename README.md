@@ -22,7 +22,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 ### CLI tools installed via apt
 
 `htop`, `ffmpeg`, `7zip`, `jq`, `poppler-utils`, `fd-find`, `ripgrep`,
-`fzf`, `zoxide`, `imagemagick`, `tree`, `bat`, `tmux`, `rsync`
+`fzf`, `zoxide`, `imagemagick`, `tree`, `bat`, `tmux`, `rsync`, `sqlite3`
 
 ## Usage
 
