@@ -10,6 +10,15 @@ SCRIPTS_DIR="${REPO_DIR}/scripts"
 REPO_URL="https://github.com/johnmathews/codespaces-setup"
 README_URL="${REPO_URL}#readme"
 
+# Mirror every line of output to a log file as well as the terminal, so the run
+# can be followed from any other shell (or after it finishes) with:
+#   tail -f ~/.cache/codespaces-setup.log
+# This works even when setup.sh runs in the background, e.g. as the Codespaces
+# postCreateCommand.
+SETUP_LOG="${HOME}/.cache/codespaces-setup.log"
+mkdir -p "$(dirname "${SETUP_LOG}")"
+exec > >(tee -a "${SETUP_LOG}") 2>&1
+
 STEPS=(
   "01-apt-packages.sh|Installing apt packages and CLI tools"
   "11-dotfiles.sh|Deploying dotfiles (.zshrc, aliases, gitconfig)"
@@ -24,6 +33,7 @@ STEPS=(
   "09-uv.sh|Installing uv (Python package manager)"
   "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
   "12-claude-code.sh|Installing Claude Code"
+  "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
 )
 
 TOTAL_STEPS="${#STEPS[@]}"
@@ -68,6 +78,7 @@ print_header() {
   printf "  User       : %s\n" "$(whoami)"
   printf "  Home       : %s\n" "${HOME}"
   printf "  Steps      : %d foreground steps + Neovim preload in background\n" "${TOTAL_STEPS}"
+  printf "  Log        : %s  (follow from any shell: tail -f %s)\n" "${SETUP_LOG}" "${SETUP_LOG}"
   echo ""
 }
 
@@ -121,6 +132,7 @@ printf "  Core setup : completed in %ss\n" "${CORE_ELAPSED}"
 printf "  Next step  : run 'exec zsh' in this terminal if you want to switch now\n"
 printf "  New shells : should open in zsh automatically\n"
 printf "  README     : %s\n" "${README_URL}"
+printf "  Setup log  : %s\n" "${SETUP_LOG}"
 printf "  Nvim log   : %s\n" "${NVIM_LOG}"
 
 # Print a verification summary so the user can confirm every tool landed.
@@ -150,6 +162,12 @@ check_tool "lazygit"    lazygit    --version
 check_tool "atuin"      atuin      --version
 check_tool "uv"         uv         --version
 check_tool "claude"     claude     --version
+check_tool "glow"       glow       --version
+check_tool "ruff"       ruff       --version
+check_tool "stylua"     stylua     --version
+check_tool "shfmt"      shfmt      --version
+check_tool "prettierd"  prettierd  --version
+check_tool "biome"      biome      --version
 
 FONT_DIR="${HOME}/.local/share/fonts/MesloLGS-NF"
 if [[ -f "${FONT_DIR}/MesloLGS NF Regular.ttf" ]]; then
