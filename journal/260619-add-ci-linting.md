@@ -41,6 +41,14 @@
 - **`ci/` not `scripts/`.** CI tooling lives in `ci/` so it isn't mistaken for a
   provisioning step (and so `lint-steps.sh` doesn't flag itself as an orphan).
 
+## Wrap-up additions
+
+- Bumped `actions/checkout` v4 → v5 in the CI workflow (clears the Node 20
+  deprecation annotation; v5 runs on Node 24). CI re-verified green.
+- Added a conservative root `.gitignore` (the repo had none): ignores secret
+  patterns (`.env`, `*.pem`, `*.key`, `*.secret`, `credentials.json`,
+  `vault_password`) plus OS/editor cruft. Defensive — no secrets were present.
+
 ## Follow-ups (not done)
 
 - Idempotency smoke test: run `setup.sh` twice in an Ubuntu container in CI and

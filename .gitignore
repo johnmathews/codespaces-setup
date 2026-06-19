@@ -1,0 +1,13 @@
+# Secrets / credentials — never commit these
+.env
+.env.*
+*.pem
+*.key
+*.secret
+credentials.json
+vault_password
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*~
