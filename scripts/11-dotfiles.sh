@@ -50,7 +50,7 @@ GIT_USER_EMAIL="john.mathews@simmons-simmons.com"
 
 if ! grep -qF "${MARKER_START}" "${GITCONFIG}" 2>/dev/null; then
   log "Adding git include to ${GITCONFIG}..."
-  cat >> "${GITCONFIG}" <<EOF
+  cat >>"${GITCONFIG}"  <<EOF
 
 ${MARKER_START}
 [include]
@@ -99,7 +99,7 @@ BASH_MARKER_END="# END codespaces-setup zsh handoff"
 
 if ! grep -qF "${BASH_MARKER_START}" "${BASHRC}" 2>/dev/null; then
   log "Adding zsh handoff block to ${BASHRC}..."
-  cat >> "${BASHRC}" <<EOF
+  cat >>"${BASHRC}"  <<EOF
 
 ${BASH_MARKER_START}
 if [[ -n "\${BASH_VERSION:-}" && -z "\${ZSH_VERSION:-}" && \$- == *i* ]] && command -v zsh >/dev/null 2>&1; then

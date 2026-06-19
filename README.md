@@ -61,6 +61,7 @@ helper wired up in `configs/.gitconfig_managed`). Full details and the
 - [What it installs](#what-it-installs)
 - [Structure](#structure)
 - [Customisation](#customisation)
+- [Development](#development)
 - [GitHub CLI authentication](#github-cli-authentication)
 - [Neovim configuration](#neovim-configuration)
 - [Related repositories](#related-repositories)
@@ -189,11 +190,25 @@ scripts/
   11-dotfiles.sh        # Deploy .zshrc, aliases, gitconfig; set default shell to zsh
   12-claude-code.sh     # Install Claude Code CLI
   13-nvim-plugins.sh    # Pre-load Neovim plugins headlessly (run in background)
+  14-fonts.sh           # Install MesloLGS NF Nerd Font (in-container; SSH use)
   15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
   16-gh.sh              # Install GitHub CLI (gh) from release tarball
-setup.sh                # Main entry point – calls all scripts in order, then
+ci/
+  lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS
+.github/workflows/
+  ci.yml                # shellcheck + shfmt + lint-steps on push/PR
+docs/
+  development.md        # CI checks, local lint commands, how to add a step
+journal/                # Dated development-journal entries
+setup.sh                # Main entry point – runs the ordered STEPS array, then
                         # launches 13-nvim-plugins.sh in background
 ```
+
+> **Note:** `setup.sh` runs an explicit, ordered `STEPS` array — **not** every
+> file in `scripts/`. Filename number prefixes are labels, not run order, and
+> `13-nvim-plugins.sh` is deliberately excluded (launched in the background).
+> Adding a script means also adding it to `STEPS`; `ci/lint-steps.sh` enforces
+> this. See [docs/development.md](docs/development.md).
 
 ## Customisation
 
@@ -207,6 +222,21 @@ setup.sh                # Main entry point – calls all scripts in order, then
   TLS-intercepting proxy (otherwise installs fail with `SELF_SIGNED_CERT_IN_CHAIN`)
 - **Local overrides** (not managed here): `~/.zshrc.local` and `~/.zsh_aliases.local`
 - **Prompt**: run `p10k configure` after setup to customise the Powerlevel10k theme
+
+## Development
+
+There are no unit tests (the "product" is the provisioning scripts), but CI
+(`.github/workflows/ci.yml`) lints them on every push to `main` and PR, and you
+can run the same checks locally:
+
+```bash
+shellcheck setup.sh scripts/*.sh ci/*.sh    # shell correctness
+shfmt -i 2 -ci -kp -d setup.sh scripts ci    # formatting (-w to auto-fix)
+bash ci/lint-steps.sh                         # every scripts/NN-*.sh is wired into STEPS
+```
+
+Full details — the formatting convention, why `-kp`, and how to add a new
+provisioning step — are in [docs/development.md](docs/development.md).
 
 ## GitHub CLI authentication
 

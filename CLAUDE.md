@@ -65,9 +65,18 @@ bash scripts/NN-<name>.sh          # run a single step in isolation
 bash scripts/11-dotfiles.sh        # re-deploy shell/git config after editing configs/
 tail -f ~/.cache/codespaces-setup.log   # follow a run
 tail -f ~/.cache/nvim-setup.log          # follow the background Neovim plugin pre-load
+
+# Lint (also runs in CI; see docs/development.md)
+shellcheck setup.sh scripts/*.sh ci/*.sh   # shell correctness
+shfmt -i 2 -ci -kp -d setup.sh scripts ci  # formatting (‑w to auto-fix)
+bash ci/lint-steps.sh                       # every scripts/NN-*.sh is wired into STEPS
 ```
 
-There is no linter/test/CI configured. If you add shell tooling, the formatter convention used across the user's setup is `shfmt`.
+There are no unit tests (the "product" is the scripts), but CI
+(`.github/workflows/ci.yml`) runs `shellcheck`, `shfmt`, and `ci/lint-steps.sh`
+on every push to `main` and PR. The formatting convention is `shfmt -i 2 -ci -kp`
+(the `-kp` keeps the hand-aligned columns in `setup.sh`/`11-dotfiles.sh`); the
+shfmt version is pinned in the workflow. See [docs/development.md](docs/development.md).
 
 ## Related repositories
 

@@ -30,7 +30,7 @@ mkdir -p "${HOME}/.config/atuin"
 
 # Write a minimal atuin config suitable for a codespace (no sync server)
 if [[ ! -f "${HOME}/.config/atuin/config.toml" ]]; then
-  cat > "${HOME}/.config/atuin/config.toml" <<'EOF'
+  cat >"${HOME}/.config/atuin/config.toml"  <<'EOF'
 ## Atuin config for GitHub Codespaces
 ## Sync is disabled; history is local only.
 

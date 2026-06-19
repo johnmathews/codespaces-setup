@@ -54,7 +54,7 @@ die() {
 repeat_char() {
   local char="$1"
   local count="$2"
-  if (( count <= 0 )); then
+  if ((count <= 0)); then
     return 0
   fi
   printf "%${count}s" "" | tr " " "${char}"
@@ -64,8 +64,8 @@ progress_bar() {
   local current="$1"
   local total="$2"
   local width=24
-  local filled=$(( current * width / total ))
-  local empty=$(( width - filled ))
+  local filled=$((current * width / total))
+  local empty=$((width - filled))
   printf "[%s%s]" "$(repeat_char "=" "${filled}")" "$(repeat_char "." "${empty}")"
 }
 
@@ -96,7 +96,7 @@ run_step() {
   printf "  Script     : %s\n" "${script}"
 
   if bash "${SCRIPTS_DIR}/${script}"; then
-    elapsed=$(( $(date +%s) - started_at ))
+    elapsed=$(($( date +%s) - started_at))
     printf "✓ Completed  : %s (%ss)\n" "${name}" "${elapsed}"
   else
     die "Step failed: ${name} (${script})"
@@ -109,11 +109,11 @@ log "Ensuring setup scripts are executable..."
 chmod +x "${SCRIPTS_DIR}"/*.sh
 
 for i in "${!STEPS[@]}"; do
-  IFS="|" read -r script name <<< "${STEPS[$i]}"
-  run_step "$(( i + 1 ))" "${script}" "${name}"
+  IFS="|" read -r script name <<<"${STEPS[$i]}"
+  run_step "$((i + 1))"   "${script}" "${name}"
 done
 
-CORE_ELAPSED=$(( $(date +%s) - SETUP_START_TS ))
+CORE_ELAPSED=$(($( date +%s) - SETUP_START_TS))
 
 echo ""
 printf "▶ %s [BG] Starting Neovim plugin pre-load\n" "$(progress_bar "${TOTAL_STEPS}" "${TOTAL_STEPS}")"

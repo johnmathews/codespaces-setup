@@ -1,0 +1,39 @@
+name: ci
+
+# Lint the provisioning shell scripts. There is no application code to build or
+# unit-test here — the "product" is the scripts themselves — so CI focuses on:
+#   1. shellcheck     — catch shell bugs (quoting, set -e interactions, etc.)
+#   2. shfmt          — enforce the repo's formatting convention
+#   3. lint-steps.sh  — ensure every scripts/NN-*.sh is wired into setup.sh
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck setup.sh scripts/*.sh ci/*.sh
+
+      - name: shfmt
+        # Pinned to match the local shfmt convention; bump in lockstep with docs.
+        uses: docker://mvdan/shfmt:v3.13.1
+        with:
+          # Keep these flags in sync with docs/development.md and the local
+          # convention: 2-space indent, indent switch cases, keep alignment.
+          args: -i 2 -ci -kp -d setup.sh scripts ci
+
+      - name: steps-array wiring
+        run: bash ci/lint-steps.sh
