@@ -7,7 +7,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 `setup.sh` automates everything it can, but two things **cannot** be scripted and must be done by hand in **every**
 Codespace (any repo, not just this one). Do these and the environment is complete.
 
-### 0. If you need to run the script manually
+If you need to run the script manually:
 
 ```bash
 git clone https://github.com/johnmathews/codespaces-setup.git ~/codespaces-setup
