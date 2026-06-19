@@ -2,8 +2,57 @@
 
 Scripts to set up a new GitHub Codespace with a full, opinionated development environment.
 
+## Manual steps (do these yourself)
+
+`setup.sh` automates everything it can, but two things **cannot** be scripted and
+must be done by hand in **every** Codespace (any repo, not just this one). Do
+these and the environment is complete.
+
+### 1. Set the terminal font (UI step, browser Codespaces)
+
+The container installs **MesloLGS NF** (the Nerd Font that gives Powerlevel10k
+its icons/glyphs), but a **browser-based** Codespace renders the VS Code
+terminal on *your local machine*, so the in-container font does nothing there.
+You must install the font locally and point VS Code at it:
+
+1. **Install the font on your local machine** — download all four MesloLGS NF
+   variants and install them:
+   <https://github.com/romkatv/powerlevel10k#meslo-nerd-font-patched-for-powerlevel10k>
+2. **Tell VS Code to use it** — open the Settings UI
+   (`Cmd/Ctrl+,`), search for **`terminal.integrated.fontFamily`**, and set it to:
+
+   ```
+   MesloLGS NF
+   ```
+
+   (Or add `"terminal.integrated.fontFamily": "MesloLGS NF"` to `settings.json`.)
+
+This is a per-machine VS Code setting, so you only do it **once per local
+machine**, not once per Codespace. Without it, the prompt shows tofu boxes (□)
+instead of icons. The in-container install (`scripts/14-fonts.sh`) is only used
+when you access the Codespace over **SSH**. See also
+[Neovim configuration](#neovim-configuration).
+
+### 2. Authenticate the GitHub CLI (once per Codespace)
+
+Codespaces auto-injects a `GITHUB_TOKEN` that is **scoped to the repo the
+Codespace was created from**, and `gh`/git prefer it — so you can't push to
+*other* repos until you log in as yourself. `configs/.zshrc` already runs
+`unset GITHUB_TOKEN GH_TOKEN` for interactive shells; you just need to
+authenticate **once per Codespace**:
+
+```bash
+gh auth login          # GitHub.com → HTTPS → paste a PAT or use the web flow
+```
+
+After that, `git push`/`pull` work against any repo (via the `gh` credential
+helper wired up in `configs/.gitconfig_managed`). Full details and the
+"give me the restricted token back" escape hatch are in
+[GitHub CLI authentication](#github-cli-authentication).
+
 ## Table of contents
 
+- [Manual steps (do these yourself)](#manual-steps-do-these-yourself)
 - [Logs](#logs)
 - [Getting started](#getting-started)
   - [As account-wide dotfiles (any repo)](#as-account-wide-dotfiles-any-repo)
