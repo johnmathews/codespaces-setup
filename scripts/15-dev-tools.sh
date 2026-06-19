@@ -66,11 +66,17 @@ npm_install_global() {
 
 if command -v npm >/dev/null 2>&1; then
   log "Installing npm CLI tools globally (prettierd, biome, eslint_d, markdownlint)..."
-  npm_install_global \
+  # Warn and continue rather than aborting the whole run (matches the uv/release
+  # tools below). The editor still works; Mason can install these inside Neovim.
+  if ! npm_install_global \
     @fsouza/prettierd \
     @biomejs/biome \
     eslint_d \
-    markdownlint-cli
+    markdownlint-cli; then
+    log "WARNING: failed to install one or more npm tools (prettierd, biome, eslint_d, markdownlint)."
+    log "         Check network/proxy reachability and NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-unset}."
+    log "         Neovim's Mason can install them as a fallback."
+  fi
 else
   log "WARNING: npm not found; skipping prettierd, biome, eslint_d, markdownlint."
 fi

@@ -17,6 +17,16 @@ README_URL="${REPO_URL}#readme"
 # postCreateCommand.
 SETUP_LOG="${HOME}/.cache/codespaces-setup.log"
 mkdir -p "$(dirname "${SETUP_LOG}")"
+
+# Detect whether we're attached to a real terminal *before* redirecting stdout
+# through tee — afterwards stdout is a pipe and `[[ -t 1 ]]` is always false.
+# When interactive we animate a progress bar / spinner straight to /dev/tty, so
+# the live UI never pollutes the log file. Non-interactive runs (Codespaces
+# postCreateCommand, dotfiles auto-run, `tail -f` from another shell) get no
+# animation and behave exactly as before.
+HAS_TTY=0
+[[ -t 1 ]] && HAS_TTY=1
+
 exec > >(tee -a "${SETUP_LOG}") 2>&1
 
 STEPS=(
@@ -69,17 +79,45 @@ progress_bar() {
   printf "[%s%s]" "$(repeat_char "=" "${filled}")" "$(repeat_char "." "${empty}")"
 }
 
+# Spinner frames (Braille dots; single-width, terminal-only — never logged).
+SPINNER=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+
+# Restore the terminal (clear the spinner line, show the cursor) on any exit, so
+# an interrupted or failed run never leaves a hidden cursor or half-drawn bar.
+restore_tty() {
+  ((HAS_TTY)) || return 0
+  printf '\r\033[K\033[?25h' >/dev/tty 2>/dev/null || true
+}
+trap restore_tty EXIT
+
+# Animate a spinner + overall progress bar on the real terminal while a step
+# runs in the background. Writes only to /dev/tty, so nothing reaches the log.
+spin() {
+  local pid="$1" step="$2" name="$3"
+  local i=0 idx
+  printf '\033[?25l' >/dev/tty 2>/dev/null || true # hide cursor
+  while kill -0 "${pid}" 2>/dev/null; do
+    idx=$((i % ${#SPINNER[@]}))
+    printf '\r\033[K  %s %s %s' \
+      "$(progress_bar "${step}" "${TOTAL_STEPS}")" "${SPINNER[idx]}" "${name}" \
+      >/dev/tty 2>/dev/null || true
+    i=$((i + 1))
+    sleep 0.1
+  done
+  printf '\r\033[K\033[?25h' >/dev/tty 2>/dev/null || true # clear line + show cursor
+}
+
 print_header() {
   echo ""
   echo "╔══════════════════════════════════════════════════════════════════╗"
-  echo "║                     CODESPACES SETUP START                      ║"
+  echo "║                  🚀  CODESPACES SETUP START  🚀                  ║"
   echo "╚══════════════════════════════════════════════════════════════════╝"
-  printf "  Repository : %s\n" "${REPO_URL}"
-  printf "  README     : %s\n" "${README_URL}"
-  printf "  User       : %s\n" "$(whoami)"
-  printf "  Home       : %s\n" "${HOME}"
-  printf "  Steps      : %d foreground steps + Neovim preload in background\n" "${TOTAL_STEPS}"
-  printf "  Log        : %s  (follow from any shell: tail -f %s)\n" "${SETUP_LOG}" "${SETUP_LOG}"
+  printf "  📦 Repository : %s\n" "${REPO_URL}"
+  printf "  📖 README     : %s\n" "${README_URL}"
+  printf "  👤 User       : %s\n" "$(whoami)"
+  printf "  🏠 Home       : %s\n" "${HOME}"
+  printf "  🔢 Steps      : %d foreground steps + Neovim preload in background\n" "${TOTAL_STEPS}"
+  printf "  📝 Log        : %s  (follow from any shell: tail -f %s)\n" "${SETUP_LOG}" "${SETUP_LOG}"
   echo ""
 }
 
@@ -87,7 +125,7 @@ run_step() {
   local step_number="$1"
   local script="$2"
   local name="$3"
-  local started_at elapsed
+  local started_at elapsed rc
   started_at="$(date +%s)"
   CURRENT_STEP="${name}"
 
@@ -95,10 +133,29 @@ run_step() {
   printf "▶ %s [%02d/%02d] %s\n" "$(progress_bar "${step_number}" "${TOTAL_STEPS}")" "${step_number}" "${TOTAL_STEPS}" "${name}"
   printf "  Script     : %s\n" "${script}"
 
-  if bash "${SCRIPTS_DIR}/${script}"; then
-    elapsed=$(($( date +%s) - started_at))
+  rc=0
+  if ((HAS_TTY)); then
+    # Interactive: keep the step's verbose output out of the terminal (it still
+    # streams to the log) and show a live spinner + progress bar instead.
+    bash "${SCRIPTS_DIR}/${script}" >>"${SETUP_LOG}" 2>&1 &
+    local pid=$!
+    spin "${pid}" "${step_number}" "${name}"
+    wait "${pid}" || rc=$?
+  else
+    # Non-interactive: stream everything through tee, exactly as before.
+    bash "${SCRIPTS_DIR}/${script}" || rc=$?
+  fi
+
+  if ((rc == 0)); then
+    elapsed=$(($(date +%s) - started_at))
     printf "✓ Completed  : %s (%ss)\n" "${name}" "${elapsed}"
   else
+    if ((HAS_TTY)); then
+      # The output was hidden behind the spinner; surface recent log context.
+      printf '\r\033[K' >/dev/tty 2>/dev/null || true
+      echo "----- last 20 lines of ${SETUP_LOG} (full detail there) -----"
+      tail -n 20 "${SETUP_LOG}" 2>/dev/null || true
+    fi
     die "Step failed: ${name} (${script})"
   fi
 }
@@ -127,19 +184,19 @@ printf "  Wait       : wait %s\n" "${NVIM_SETUP_PID}"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                    CODESPACES SETUP COMPLETE                    ║"
+echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
 echo "╚══════════════════════════════════════════════════════════════════╝"
-printf "  Core setup : completed in %ss\n" "${CORE_ELAPSED}"
-printf "  Next step  : run 'exec zsh' in this terminal if you want to switch now\n"
-printf "  New shells : should open in zsh automatically\n"
-printf "  README     : %s\n" "${README_URL}"
-printf "  Setup log  : %s\n" "${SETUP_LOG}"
-printf "  Nvim log   : %s\n" "${NVIM_LOG}"
+printf "  🕒 Core setup : completed in %ss\n" "${CORE_ELAPSED}"
+printf "  👉 Next step  : run 'exec zsh' in this terminal if you want to switch now\n"
+printf "  🐚 New shells : should open in zsh automatically\n"
+printf "  📖 README     : %s\n" "${README_URL}"
+printf "  📝 Setup log  : %s\n" "${SETUP_LOG}"
+printf "  📋 Nvim log   : %s\n" "${NVIM_LOG}"
 
 # Print a verification summary so the user can confirm every tool landed.
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║              SETUP VERIFICATION SUMMARY              ║"
+echo "║          🔍  SETUP VERIFICATION SUMMARY  🔍          ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 check_tool() {
@@ -181,8 +238,8 @@ fi
 NVIM_LOG="${NVIM_LOG:-${HOME}/.cache/nvim-setup.log}"
 
 echo ""
-echo "  Shell config : ${HOME}/.zshrc"
-echo "  Aliases      : ${HOME}/.zsh_aliases"
-echo "  Git config   : ${HOME}/.gitconfig"
-echo "  Nvim plugins : tail -f ${NVIM_LOG}"
+echo "  🐚 Shell config : ${HOME}/.zshrc"
+echo "  📜 Aliases      : ${HOME}/.zsh_aliases"
+echo "  🔧 Git config   : ${HOME}/.gitconfig"
+echo "  🔌 Nvim plugins : tail -f ${NVIM_LOG}"
 echo ""

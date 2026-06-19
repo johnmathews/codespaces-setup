@@ -30,7 +30,12 @@ install_plugin() {
   local dest="${ZSH_PLUGINS_DIR}/${name}"
   if [[ -d "${dest}/.git" ]]; then
     log "Plugin ${name}: updating..."
-    git -C "${dest}" pull --ff-only -q
+    if ! git -C "${dest}" pull --ff-only -q; then
+      log "ERROR: failed to fast-forward plugin ${name} in ${dest}."
+      log "       It has local commits or has diverged from upstream."
+      log "       Re-clone it:  rm -rf ${dest} && bash scripts/10-zsh-setup.sh"
+      exit 1
+    fi
   else
     log "Plugin ${name}: cloning..."
     git clone --depth=1 "${repo}" "${dest}"
@@ -49,7 +54,12 @@ install_plugin "zsh-syntax-highlighting" \
 P10K_DIR="${ZSH_THEMES_DIR}/powerlevel10k"
 if [[ -d "${P10K_DIR}/.git" ]]; then
   log "Powerlevel10k: updating..."
-  git -C "${P10K_DIR}" pull --ff-only -q
+  if ! git -C "${P10K_DIR}" pull --ff-only -q; then
+    log "ERROR: failed to fast-forward Powerlevel10k in ${P10K_DIR}."
+    log "       It has local commits or has diverged from upstream."
+    log "       Re-clone it:  rm -rf ${P10K_DIR} && bash scripts/10-zsh-setup.sh"
+    exit 1
+  fi
 else
   log "Powerlevel10k: cloning..."
   mkdir -p "${ZSH_THEMES_DIR}"

@@ -36,6 +36,10 @@ log "Downloading yazi ${YAZI_VERSION}..."
 curl -fsSL "${URL}" -o "${ZIP}"
 
 log "Extracting..."
+# Clear any leftovers from a previous partial run: a stale extract dir would make
+# `mv` nest inside it, and a stale ${YAZI_DIR} would make `mv` nest there instead
+# of replacing it. Matches the rm-before-install pattern in 03-neovim/16-gh.
+sudo rm -rf "${INSTALL_DIR}/yazi-${YAZI_ARCH}" "${YAZI_DIR}"
 sudo unzip -q "${ZIP}" -d "${INSTALL_DIR}/"
 sudo mv "${INSTALL_DIR}/yazi-${YAZI_ARCH}" "${YAZI_DIR}"
 

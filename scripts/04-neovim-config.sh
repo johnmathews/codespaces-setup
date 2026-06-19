@@ -11,7 +11,14 @@ NVIM_REPO="https://github.com/johnmathews/neovim.git"
 
 if [[ -d "${NVIM_CONFIG_DIR}/.git" ]]; then
   log "Neovim config already cloned, pulling latest changes..."
-  git -C "${NVIM_CONFIG_DIR}" pull --rebase
+  if ! git -C "${NVIM_CONFIG_DIR}" pull --rebase; then
+    log "ERROR: 'git pull --rebase' failed in ${NVIM_CONFIG_DIR}."
+    log "       The local Neovim config has uncommitted changes or has diverged"
+    log "       from upstream, so it can't be fast-forwarded automatically."
+    log "       Inspect it:   git -C ${NVIM_CONFIG_DIR} status"
+    log "       Or re-clone:  rm -rf ${NVIM_CONFIG_DIR} && bash scripts/04-neovim-config.sh"
+    exit 1
+  fi
 else
   if [[ -d "${NVIM_CONFIG_DIR}" ]]; then
     log "Backing up existing config to ${NVIM_CONFIG_DIR}.bak..."
