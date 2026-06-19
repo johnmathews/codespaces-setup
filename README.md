@@ -2,6 +2,22 @@
 
 Scripts to set up a new GitHub Codespace with a full, opinionated development environment.
 
+## Table of contents
+
+- [Manual steps (do these yourself)](#manual-steps-do-these-yourself)
+- [Logs](#logs)
+- [Getting started](#getting-started)
+  - [As account-wide dotfiles (any repo)](#as-account-wide-dotfiles-any-repo)
+  - [As this repo's devcontainer (this repo only)](#as-this-repos-devcontainer-this-repo-only)
+  - [Manual](#manual)
+- [What it installs](#what-it-installs)
+- [Structure](#structure)
+- [Customisation](#customisation)
+- [Development](#development)
+- [GitHub CLI authentication](#github-cli-authentication)
+- [Neovim configuration](#neovim-configuration)
+- [Related repositories](#related-repositories)
+
 ## Manual steps (do these yourself)
 
 `setup.sh` automates everything it can, but two things **cannot** be scripted and must be done by hand in **every**
@@ -52,22 +68,6 @@ gh auth login          # GitHub.com → HTTPS → paste a PAT or use the web flo
 After that, `git push`/`pull` work against any repo (via the `gh` credential helper wired up in
 `configs/.gitconfig_managed`). Full details and the "give me the restricted token back" escape hatch are in
 [GitHub CLI authentication](#github-cli-authentication).
-
-## Table of contents
-
-- [Manual steps (do these yourself)](#manual-steps-do-these-yourself)
-- [Logs](#logs)
-- [Getting started](#getting-started)
-  - [As account-wide dotfiles (any repo)](#as-account-wide-dotfiles-any-repo)
-  - [As this repo's devcontainer (this repo only)](#as-this-repos-devcontainer-this-repo-only)
-  - [Manual](#manual)
-- [What it installs](#what-it-installs)
-- [Structure](#structure)
-- [Customisation](#customisation)
-- [Development](#development)
-- [GitHub CLI authentication](#github-cli-authentication)
-- [Neovim configuration](#neovim-configuration)
-- [Related repositories](#related-repositories)
 
 ## Logs
 
