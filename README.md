@@ -18,11 +18,6 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 - [Neovim configuration](#neovim-configuration)
 - [Related repositories](#related-repositories)
 
-## Manual steps (do these yourself)
-
-`setup.sh` automates everything it can, but two things **cannot** be scripted and must be done by hand in **every**
-Codespace (any repo, not just this one). Do these and the environment is complete.
-
 If you need to run the script manually:
 
 ```bash
@@ -33,6 +28,11 @@ exec zsh
 ```
 
 The script is idempotent – safe to run multiple times.
+
+## Manual steps (do these yourself)
+
+`setup.sh` automates everything it can, but two things **cannot** be scripted and must be done by hand in **every**
+Codespace (any repo, not just this one). Do these and the environment is complete.
 
 ### 1. Set the terminal font (UI step, browser Codespaces)
 
