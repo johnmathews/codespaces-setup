@@ -43,6 +43,7 @@ STEPS=(
   "09-uv.sh|Installing uv (Python package manager)"
   "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
   "12-claude-code.sh|Installing Claude Code"
+  "17-claude-skills.sh|Deploying Claude skills and slash commands"
   "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
   "16-gh.sh|Installing GitHub CLI (gh)"
 )
@@ -233,6 +234,14 @@ if [[ -f "${FONT_DIR}/MesloLGS NF Regular.ttf" ]]; then
   printf "  ✅  %-18s installed in %s\n" "MesloLGS NF" "${FONT_DIR}"
 else
   printf "  ❌  %-18s not found\n" "MesloLGS NF"
+fi
+
+if [[ -f "${HOME}/.claude/skills/engineering-team/SKILL.md" &&
+     -f "${HOME}/.claude/commands/done.md" &&
+     -f "${HOME}/.claude/commands/merge-push.md" ]]; then
+  printf "  ✅  %-18s engineering-team, /done, /merge-push\n" "Claude skills"
+else
+  printf "  ❌  %-18s missing (see %s)\n" "Claude skills" "${SETUP_LOG}"
 fi
 
 NVIM_LOG="${NVIM_LOG:-${HOME}/.cache/nvim-setup.log}"

@@ -150,6 +150,7 @@ The script is idempotent – safe to run multiple times.
 | **atuin**                   | latest   | Shell history (local, no sync in Codespaces)                                                                                |
 | **uv**                      | latest   | Python package manager                                                                                                      |
 | **Claude Code**             | latest   | AI coding assistant CLI                                                                                                     |
+| **Claude skills/commands**  | —        | Personal `/engineering-team` skill + `/done` and `/merge-push` slash commands, deployed into `~/.claude`                    |
 | **GitHub CLI** (`gh`)       | v2.95.0  | GitHub from the terminal; also used as git's credential helper                                                              |
 | **Zsh** + **Oh My Zsh**     | —        | Shell                                                                                                                       |
 | **Powerlevel10k** (lean)    | —        | Zsh theme                                                                                                                   |
@@ -172,6 +173,10 @@ configs/
   .zshrc                # Zsh configuration
   .zsh_aliases          # Shell aliases
   .gitconfig_managed    # Git aliases + portable settings (included from ~/.gitconfig)
+  claude/               # Personal Claude Code assets, deployed into ~/.claude
+    skills/engineering-team/   # /engineering-team skill (SKILL.md + phases/ + references/)
+    commands/done.md           # /done slash command
+    commands/merge-push.md     # /merge-push slash command
 scripts/
   01-apt-packages.sh    # Install CLI tools via apt
   02-nodejs.sh          # Install Node.js 22 (official tarball into /usr/local)
@@ -189,6 +194,7 @@ scripts/
   14-fonts.sh           # Install MesloLGS NF Nerd Font (in-container; SSH use)
   15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
   16-gh.sh              # Install GitHub CLI (gh) from release tarball
+  17-claude-skills.sh   # Deploy configs/claude/ skills + commands into ~/.claude
 ci/
   lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS
 .github/workflows/
@@ -211,6 +217,9 @@ setup.sh                # Main entry point – runs the ordered STEPS array, the
 - **Aliases**: edit `configs/.zsh_aliases` then re-run `bash scripts/11-dotfiles.sh`
 - **Git aliases**: edit `configs/.gitconfig_managed` then re-run `bash scripts/11-dotfiles.sh`
 - **Git identity**: `scripts/11-dotfiles.sh` sets global Git user details for the Codespace
+- **Claude skills/commands**: edit the files under `configs/claude/` then re-run `bash scripts/17-claude-skills.sh`. To
+  add another skill or command, drop it into `configs/claude/skills/<name>/` or `configs/claude/commands/<name>.md` and
+  wire it into the deploy calls in `scripts/17-claude-skills.sh`
 - **Editor tooling**: `scripts/15-dev-tools.sh` installs the formatters/linters (and `glow`) that Neovim expects on
   `PATH`. `.zshrc` also points Node/Python at the system CA bundle so Mason can install npm/pip tools behind a
   TLS-intercepting proxy (otherwise installs fail with `SELF_SIGNED_CERT_IN_CHAIN`)
