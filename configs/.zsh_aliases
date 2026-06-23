@@ -55,8 +55,9 @@ alias dexec='docker exec -it'
 # Git
 alias gst='git status'
 alias glog='git log --oneline -10'
-alias gtr='git tr'
+alias gtr="git log --all --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
 alias gr='git remote -v update'
+alias lg='lazygit'
 
 # Grep (always coloured)
 alias grep='grep --color=auto'
