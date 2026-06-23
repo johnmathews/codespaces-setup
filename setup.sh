@@ -218,6 +218,7 @@ check_tool "nvim"       nvim       --version
 check_tool "eza"        eza        --version
 check_tool "yazi"       yazi       --version
 check_tool "lazygit"    lazygit    --version
+check_tool "tig"        tig        --version
 check_tool "atuin"      atuin      --version
 check_tool "uv"         uv         --version
 check_tool "claude"     claude     --version

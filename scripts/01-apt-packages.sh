@@ -32,6 +32,7 @@ PACKAGES=(
   sqlite3
   acl
   zsh
+  tig
 )
 
 log "Updating apt cache..."
