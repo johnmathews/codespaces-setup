@@ -127,6 +127,30 @@ plans, journal history). Hierarchical numbers make it trivial to reference a
 specific section in conversation ("see 1.2.1") and make structural drift obvious
 when sections are added or removed.
 
+## Living-document status stamp
+
+Any **living** document — one that describes current truth and misleads when
+stale (README, spec, runbooks, architecture docs, security/controls registers,
+persistent plans) — carries a status stamp as the first line under its title:
+
+```
+**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD (how). **Supersedes:** <doc-or-none>.
+```
+
+- **Last updated** — when the prose last changed.
+- **Last verified** — when its claims were last checked against reality (the
+  code, a real run, the live config), and briefly how. Use "not yet — <reason>"
+  until first verified; never leave it blank.
+- When you edit a living doc, bump **Last updated**; when you confirm its claims
+  still hold (e.g. a runbook executed green, settings match the remote), bump
+  **Last verified** with the date and method.
+
+Point-in-time records (ADRs, accepted RFCs, journal entries) are exempt — they
+are historical by design and are allowed to age. ADRs instead carry a
+`Proposed | Accepted | Superseded by <id>` status. This stamp is what lets a
+reader, and the CI doc-freshness gate, tell live docs from stale ones at a
+glance.
+
 ## Cross-cutting references
 
 Load these on demand when their topic becomes relevant:
