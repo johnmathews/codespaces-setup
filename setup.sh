@@ -46,6 +46,7 @@ STEPS=(
   "17-claude-skills.sh|Deploying Claude skills and slash commands"
   "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
   "16-gh.sh|Installing GitHub CLI (gh)"
+  "18-azure-cli.sh|Installing Azure CLI (az)"
 )
 
 TOTAL_STEPS="${#STEPS[@]}"
@@ -223,6 +224,7 @@ check_tool "atuin"      atuin      --version
 check_tool "uv"         uv         --version
 check_tool "claude"     claude     --version
 check_tool "gh"         gh         --version
+check_tool "az"         az         --version
 check_tool "glow"       glow       --version
 check_tool "ruff"       ruff       --version
 check_tool "stylua"     stylua     --version
