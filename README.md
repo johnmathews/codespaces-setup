@@ -150,7 +150,7 @@ The script is idempotent – safe to run multiple times.
 | **atuin**                   | latest   | Shell history (local, no sync in Codespaces)                                                                                |
 | **uv**                      | latest   | Python package manager                                                                                                      |
 | **Claude Code**             | latest   | AI coding assistant CLI                                                                                                     |
-| **Claude skills/commands**  | —        | Personal `/engineering-team` skill + `/done` and `/merge-push` slash commands, deployed into `~/.claude`                    |
+| **Claude skills/commands**  | —        | Personal `/engineering-team` skill + `/done`, `/merge-push`, and `/prompt` slash commands, deployed into `~/.claude`                    |
 | **GitHub CLI** (`gh`)       | v2.95.0  | GitHub from the terminal; also used as git's credential helper                                                              |
 | **Zsh** + **Oh My Zsh**     | —        | Shell                                                                                                                       |
 | **Powerlevel10k** (lean)    | —        | Zsh theme                                                                                                                   |
@@ -177,6 +177,7 @@ configs/
     skills/engineering-team/   # /engineering-team skill (SKILL.md + phases/ + references/)
     commands/done.md           # /done slash command
     commands/merge-push.md     # /merge-push slash command
+    commands/prompt.md         # /prompt slash command
 scripts/
   01-apt-packages.sh    # Install CLI tools via apt
   02-nodejs.sh          # Install Node.js 22 (official tarball into /usr/local)
