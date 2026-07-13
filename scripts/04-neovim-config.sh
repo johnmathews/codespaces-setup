@@ -19,8 +19,10 @@ NVIM_REPO="https://github.com/johnmathews/neovim.git"
 if [[ -d "${NVIM_CONFIG_DIR}/.git" ]]; then
   log "Neovim config already cloned, resetting to latest upstream..."
   git -C "${NVIM_CONFIG_DIR}" fetch origin
-  # Resolve the branch upstream's HEAD points at (falls back to the current
-  # branch, then main), so we reset to whatever the repo's default branch is.
+  # Make sure origin/HEAD points at the remote's default branch (it may be unset
+  # in older clones), then resolve which branch that is. Fall back to the current
+  # branch, then main, so we reset to whatever the repo's default branch is.
+  git -C "${NVIM_CONFIG_DIR}" remote set-head origin --auto >/dev/null 2>&1 || true
   remote_branch="$(git -C "${NVIM_CONFIG_DIR}" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
   remote_branch="${remote_branch#origin/}"
   if [[ -z "${remote_branch}" ]]; then
