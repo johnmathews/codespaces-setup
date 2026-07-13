@@ -209,10 +209,11 @@ buried under execution sequencing).
 
 1. **Status header at the top.** Every persistent plan begins with:
    ```
-   **Status:** active. **Last updated:** YYYY-MM-DD. **Supersedes:** <doc-or-none>.
+   **Status:** active. **Last updated:** YYYY-MM-DD. **Supersedes:** <doc-or-none>. **Path:** <repo-relative-path>.
    ```
    This lets a future reader tell at a glance whether the doc is live, stale, or superseded —
-   without cross-referencing a roadmap.
+   without cross-referencing a roadmap. The `Path` field records the plan's own repo-relative
+   location so a printed or copied-out copy still shows where it came from.
 
 2. **Index it from the canonical roadmap immediately.** If the project has a `docs/roadmap.md`
    (or equivalent — check during Phase 1), add a link to the new plan from the roadmap in the

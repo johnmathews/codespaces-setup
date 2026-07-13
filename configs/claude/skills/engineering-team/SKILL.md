@@ -134,9 +134,12 @@ stale (README, spec, runbooks, architecture docs, security/controls registers,
 persistent plans) — carries a status stamp as the first line under its title:
 
 ```
-**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD (how). **Supersedes:** <doc-or-none>.
+**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD (how). **Supersedes:** <doc-or-none>. **Path:** <repo-relative-path>.
 ```
 
+- **Path** — the document's own repo-relative path (e.g. `docs/runbooks/deploy.md`),
+  so a printed or copied-out copy still shows where in the repo it came from. Keep
+  it in sync if the file is moved or renamed.
 - **Last updated** — when the prose last changed.
 - **Last verified** — when its claims were last checked against reality (the
   code, a real run, the live config), and briefly how. Use "not yet — <reason>"
