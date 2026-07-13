@@ -241,8 +241,9 @@ fi
 
 if [[ -f "${HOME}/.claude/skills/engineering-team/SKILL.md" &&
      -f "${HOME}/.claude/commands/done.md" &&
-     -f "${HOME}/.claude/commands/merge-push.md" ]]; then
-  printf "  ✅  %-18s engineering-team, /done, /merge-push\n" "Claude skills"
+     -f "${HOME}/.claude/commands/merge-push.md" &&
+     -f "${HOME}/.claude/commands/prompt.md" ]]; then
+  printf "  ✅  %-18s engineering-team, /done, /merge-push, /prompt\n" "Claude skills"
 else
   printf "  ❌  %-18s missing (see %s)\n" "Claude skills" "${SETUP_LOG}"
 fi

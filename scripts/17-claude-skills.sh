@@ -10,6 +10,7 @@
 #   - skills/engineering-team  -> /engineering-team
 #   - commands/done.md         -> /done
 #   - commands/merge-push.md   -> /merge-push
+#   - commands/prompt.md       -> /prompt
 #
 # Idempotent: a skill dir / command file is only (re)written when it differs
 # from what is already on disk, backing up any changed target to .bak first
@@ -78,5 +79,6 @@ deploy_skill "${SRC_DIR}/skills/engineering-team" "${SKILLS_DIR}/engineering-tea
 
 deploy_file "${SRC_DIR}/commands/done.md"       "${COMMANDS_DIR}/done.md"
 deploy_file "${SRC_DIR}/commands/merge-push.md" "${COMMANDS_DIR}/merge-push.md"
+deploy_file "${SRC_DIR}/commands/prompt.md"     "${COMMANDS_DIR}/prompt.md"
 
 log "Claude skills and commands deployed."
