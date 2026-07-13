@@ -193,6 +193,12 @@ As Lead Engineer, review each completed unit before marking it done. Check:
 - Are the tests meaningful (testing behavior, not implementation)?
 - Is the documentation accurate and clear?
 - Were any unnecessary changes introduced?
+- **Docs touched?** If the unit changed a public API, env var, setup step,
+  deploy step, or any other behaviour a living doc describes (README, spec,
+  runbooks, security/controls registers), the matching doc MUST be updated in
+  **this same unit** — or you must state explicitly why no doc change is needed.
+  A unit that alters behaviour but leaves the living docs stale is not done.
+  Update the affected doc's `Last verified` / `Last updated` stamp when you touch it.
 
 **Progress cadence (recap).** For every work unit you touch in this phase:
 announce "Starting W<n>: <title>" before dispatching the first subagent (or first

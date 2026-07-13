@@ -49,6 +49,29 @@ After `/done` completes, verify:
 2. `git log --oneline main..HEAD` shows clean, well-described commits.
 3. The journal entry was written by `/done` (not by you manually before invoking it).
 
+### Step 1.5: Living-docs reconciliation (mandatory before merge)
+
+Before merging, do a forced reconciliation of the change against the project's
+**living docs** — the docs that describe current truth and actively mislead when
+stale: the README, the spec, runbooks, and any controls/security registers
+(`/docs/`), plus CLAUDE.md.
+
+1. Diff the branch against `main` (`git diff --stat main..HEAD`) and identify
+   any change to public APIs, env vars, config, setup steps, deploy steps,
+   commands, or documented behaviour.
+2. For each such change, name **which living doc describes it** and confirm that
+   doc was updated in this branch. List them explicitly, e.g.
+   "changed deploy step → `docs/runbooks/deploy.md` updated ✓".
+3. If a living doc was affected but **not** updated, update it now (in this
+   branch, before merge) and bump its `Last verified` / `Last updated` stamp.
+4. If nothing living was affected, say so explicitly — do not let it pass
+   silently. "No living docs affected by this change" is a required statement,
+   not an omission.
+
+This is the human-side complement to the CI doc-freshness gate: the gate catches
+broken links and missing stamps; this step catches a doc that is still
+well-formed but no longer *true*.
+
 ### Step 2: Merge, Push & Cleanup
 
 Run `/merge-push` to handle merging into main, pushing, and worktree cleanup. `/merge-push` will

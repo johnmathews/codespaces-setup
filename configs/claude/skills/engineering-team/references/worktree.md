@@ -77,5 +77,26 @@ appropriate linter for the project's primary language:
 Use sensible defaults — don't over-configure. The goal is a working linter with reasonable rules that the
 user can customize later. Add a lint command to the `Makefile` if one exists (or create a simple one).
 
+### Documentation gates (new projects)
+
+When scaffolding a new project, also set up the machine half of the
+anti-doc-rot strategy — so living docs cannot silently drift:
+
+- **Link check** — a CI job (e.g. `lychee`) that fails on broken internal or
+  external links across `*.md`.
+- **Freshness / status-stamp check** — a CI job that asserts every living doc
+  (README, `/docs/` reference docs, runbooks) carries the status stamp (see the
+  router's "Living-document status stamp" section) with `Last updated` and
+  `Last verified` fields present, and optionally flags ones gone stale past a
+  window. Point-in-time docs (`/docs/adr/`, `/docs/rfc/`, `/journal/`) are
+  excluded.
+- **Runbook-executed-in-CI** — where a local-parity/setup runbook exists, make
+  its steps the same steps CI runs, so a stale step turns CI red.
+
+Register each of these as a required status check in branch protection so it
+actually blocks merges. These complement the wrap-up living-docs reconciliation
+step (Phase 4) and the per-unit "docs touched?" check (Phase 3): the gates are
+the machine enforcement, those steps are the human judgement.
+
 **Existing projects:** Check for a linter during Phase 1 (see `../phases/phase-1-evaluation.md`). If none is found, ask the user
 whether they'd like one set up before proceeding with the evaluation.
