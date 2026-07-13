@@ -10,7 +10,7 @@ Personal Codespace provisioning kit. `setup.sh` turns a fresh GitHub Codespace i
 
 Both are self-contained and assume a Debian/Ubuntu (`apt`) base. They do not depend on each other; running both (one machine with dotfiles enabled *and* this repo's devcontainer) is harmless because everything is idempotent.
 
-1. **Account-wide dotfiles** — `johnmathews/codespaces-setup` set as the GitHub Codespaces dotfiles repo. GitHub clones it into *every* Codespace and auto-runs `setup.sh` (it's on GitHub's recognized install-script list). Works across any repo.
+1. **Account-wide dotfiles** — `johnmathews/codespaces-setup` set as the GitHub Codespaces dotfiles repo. GitHub clones it into *every* Codespace (at `/workspaces/.codespaces/.persistedshare/dotfiles`) and auto-runs `setup.sh` (it's on GitHub's recognized install-script list). Works across any repo.
 2. **This repo's devcontainer** — `.devcontainer/devcontainer.json`'s `postCreateCommand` → `.devcontainer/post-create.sh` → `setup.sh`. Applies only to this repo (or repos that symlink `.devcontainer` here).
 
 ## Architecture

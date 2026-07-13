@@ -112,6 +112,12 @@ install.sh → install → bootstrap.sh → bootstrap → script/bootstrap → s
 clones the dotfiles repo) and is fully self-contained (installs everything via apt/curl — it does **not** rely on this
 repo's `devcontainer.json` features or image).
 
+**Where the scripts live:** GitHub clones your dotfiles repo into every new Codespace at
+`/workspaces/.codespaces/.persistedshare/dotfiles`, then runs `setup.sh` from there. So this repo's contents (including
+`scripts/` and `configs/`) end up under that path — for example `/workspaces/.codespaces/.persistedshare/dotfiles/setup.sh`.
+The tools it installs are placed elsewhere on the system (binaries under `/opt/<tool>-<version>` symlinked into
+`/usr/local/bin`, and dotfiles copied into `$HOME`); the path above is just where the checkout of _this_ repo lands.
+
 Notes:
 
 - Only **one** dotfiles repo can be designated per account.
