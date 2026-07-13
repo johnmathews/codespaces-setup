@@ -13,6 +13,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 alias -- -='cd -'
+alias setup='cd /workspaces/.codespaces/.persistedshare/dotfiles'
 
 # Directory listing (eza preferred, fallback to ls)
 if command -v eza &>/dev/null; then

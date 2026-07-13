@@ -39,6 +39,9 @@ ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
 # Load shell aliases
 [[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases
 
+# Named directory for the Codespaces dotfiles repo (use as ~setup, e.g. `cd ~setup`)
+hash -d setup=/workspaces/.codespaces/.persistedshare/dotfiles
+
 # Editor
 export EDITOR=nvim
 export VISUAL=nvim
