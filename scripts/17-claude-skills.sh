@@ -13,8 +13,23 @@
 #   - commands/prompt.md       -> /prompt
 #
 # Idempotent: a skill dir / command file is only (re)written when it differs
-# from what is already on disk, backing up any changed target to .bak first
-# (same convention as 11-dotfiles.sh).
+# from what is already on disk.
+#
+# NO .bak HERE — this script deliberately breaks the .bak convention that
+# 11-dotfiles.sh follows, and re-adding it would be a regression. Two reasons:
+#
+#   1. ~/.claude/skills/ is SCANNED. Claude Code registers every subdirectory
+#      holding a SKILL.md, so a backup does not sit inertly beside the original
+#      — it loads as a second skill with an identical name and description, and
+#      the choice between the live skill and a stale copy becomes arbitrary.
+#      A backup of a scanned directory is not a backup; it is a fork.
+#   2. It is redundant anyway. These assets are version-controlled in this repo,
+#      so the previous version is always a `git show` away. 11-dotfiles.sh backs
+#      up ~/.zshrc because that file may hold hand edits that exist nowhere else;
+#      nothing here does.
+#
+# The rule this generalises to, for anything added later: never write a
+# non-asset into an assets directory that something else scans.
 
 set -euo pipefail
 
@@ -28,7 +43,31 @@ SKILLS_DIR="${CLAUDE_DIR}/skills"
 COMMANDS_DIR="${CLAUDE_DIR}/commands"
 mkdir -p "${SKILLS_DIR}" "${COMMANDS_DIR}"
 
-# Deploy a single file, only when it differs; back up a changed target to .bak.
+# Remove backup artifacts left by older versions of this script.
+#
+# ~/.claude/skills/ is SCANNED: Claude Code registers every subdirectory that
+# contains a SKILL.md. A backup copy therefore does not sit inertly beside the
+# original — it loads as a SECOND skill, with a byte-identical `name:` and
+# description, so selection between the real skill and a stale copy of it is
+# arbitrary. Every deploy minted one, which is a duplicate whose whole purpose
+# is to hold the version we just deliberately replaced.
+#
+# This function is the self-heal for machines that already have them. It is
+# deliberately narrow: only `${SKILLS_DIR}/*.bak` and `${COMMANDS_DIR}/*.bak`,
+# both of which are unambiguously this script's own leftovers. Anything else
+# under ~/.claude is the user's and is never touched.
+reap_stale_backups() {
+  local path
+  for path in "${SKILLS_DIR}"/*.bak "${COMMANDS_DIR}"/*.bak; do
+    [[ -e "${path}" ]] || continue # unmatched glob
+    log "removing stale backup: ${path}"
+    rm -rf "${path}"
+  done
+}
+
+# Deploy a single file, only when it differs.
+#
+# No .bak — see reap_stale_backups() above and the note at the top of the file.
 deploy_file() {
   local src="$1"
   local dest="$2"
@@ -40,17 +79,15 @@ deploy_file() {
     log "${dest}: already up-to-date."
     return
   fi
-  if [[ -f "${dest}" ]]; then
-    log "${dest}: updating (backup at ${dest}.bak)..."
-    cp "${dest}" "${dest}.bak"
-  else
-    log "${dest}: deploying..."
-  fi
+  log "${dest}: deploying..."
   cp "${src}" "${dest}"
 }
 
-# Deploy a skill directory, only when its contents differ; back up a changed
-# target tree to .bak. diff -rq compares the two trees recursively.
+# Deploy a skill directory, only when its contents differ.
+# diff -rq compares the two trees recursively.
+#
+# No .bak — a backup here would register as a duplicate skill. See
+# reap_stale_backups() above.
 deploy_skill() {
   local src="$1"
   local dest="$2"
@@ -64,16 +101,12 @@ deploy_skill() {
     log "skill ${name}: already up-to-date."
     return
   fi
-  if [[ -d "${dest}" ]]; then
-    log "skill ${name}: updating (backup at ${dest}.bak)..."
-    rm -rf "${dest}.bak"
-    cp -a "${dest}" "${dest}.bak"
-    rm -rf "${dest}"
-  else
-    log "skill ${name}: deploying..."
-  fi
+  log "skill ${name}: deploying..."
+  rm -rf "${dest}"
   cp -a "${src}" "${dest}"
 }
+
+reap_stale_backups
 
 deploy_skill "${SRC_DIR}/skills/engineering-team" "${SKILLS_DIR}/engineering-team"
 
