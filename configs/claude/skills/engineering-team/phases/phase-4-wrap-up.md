@@ -72,41 +72,69 @@ This is the human-side complement to the CI doc-freshness gate: the gate catches
 broken links and missing stamps; this step catches a doc that is still
 well-formed but no longer *true*.
 
-### Step 2: Merge, Push & Cleanup
+### Step 2: Merge & Cleanup
 
-Run `/merge-push` to handle merging into main, pushing, and worktree cleanup. `/merge-push` will
-assess the branch state, check for conflicts, and ask for explicit confirmation before merging
-and before pushing.
+`/done` has already pushed the branch, opened the PR, and watched CI on it (its
+Phase 8). So by the time you get here the work is on a green PR, not on `main`.
 
-### Step 3: Monitor CI
+Run `/merge-push` to merge that PR and clean up. It detects whether the repo is
+governed (a remote with branch protections → squash-merge the PR once green; no
+remote → a local merge), checks for conflicts, and asks for explicit confirmation
+before merging.
 
-After pushing, **always watch the GitHub Actions CI workflow** to confirm it passes:
+**Merge is the irreversible step, so it is always confirmed.** Never merge
+because the PR looks ready — a green PR is a fact about the PR, not permission.
 
-1. Run `gh run watch` to monitor the triggered workflow.
-2. If CI passes, proceed to the summary.
-3. If CI fails:
-   a. Read the failure logs with `gh run view <id> --log-failed`.
-   b. Diagnose the root cause.
-   c. Write a failing test that reproduces the issue (when applicable).
-   d. Fix the code, run the full test suite locally, commit, and push.
-   e. Watch CI again. Repeat up to 3 times. If still failing, flag to the user.
+### Step 3: Confirm CI was green *before* the merge
 
-Do not consider the work complete until CI is green. This is not optional.
+CI ran on the PR, which is the point: `main` never sees a red commit. Confirm it
+actually passed rather than assuming:
+
+1. `gh pr checks <pr>` — every required check green, and **named**.
+2. If any check failed, fix it **on the branch** and push; CI re-runs on the PR.
+   Repeat up to 3 times, then flag to the user. Fixing forward on `main` is not
+   an option here, because the change never lands there red.
+3. If a required check is stuck at "Expected — Waiting for status", it is almost
+   certainly a path-filtered workflow that never started. See "Making a check
+   required" in `../references/worktree.md` — that is a repo config bug, not
+   something to wait out.
+
+Do not consider the work complete until CI is green on the PR and the PR is
+merged. And apply the vocabulary rule: **"green" means an executed check that
+passed, and you can name it.** A check that was skipped, or that cannot fail, is
+not evidence (`../references/general-guidelines.md`).
+
+### Step 3.5: Reconcile the lanes (multi-lane runs only)
+
+Skip this unless the run has lanes and you are the coordinator.
+
+The run is not complete until **every lane is merged, or explicitly abandoned
+with a reason**. Read the dashboard and check each one against reality
+(`gh pr list --state all`), not against what the board last said. Then:
+
+1. Update `progress.md` to final state.
+2. For any lane still open: say so plainly, name the blocker and its owner, and
+   do not describe the run as complete. "Five of six lanes merged" is a true
+   sentence; "the plan is done" is not.
+3. Fold anything learned from the lanes' surprises into the plan before closing
+   it, so a later reader sees what actually happened rather than what was
+   intended.
 
 ### Step 4: Summary
 
 Present a brief summary to the user:
 - What was evaluated/planned/implemented
-- The merge commit hash (from `git log -1 --oneline`)
-- CI status (passed / failed + what was fixed)
+- The PR number and the merge commit hash (from `git log -1 --oneline`)
+- CI status — **named checks**, green before the merge
 - Any issues encountered during wrap-up
+- What was reaped by `/done`'s housekeeping (stale worktrees/branches), if anything
 
-Then clear the run pointer: `rm -f .engineering-team/current.txt` (in
-the project root, not the worktree). The cycle is complete — leaving the
-pointer in place would make the next invocation "resume" this finished
-run instead of starting fresh. Do NOT clear it when the run ends early
-(partial cycle, or a pause still outstanding) — the pointer is what lets
-a later session resume.
+Then clear the run pointer: `rm -f .engineering-team/current.txt` in the **main
+checkout** (which is where `$RUN_DIR` lives — never the worktree). The cycle is
+complete; leaving the pointer would make the next invocation "resume" this
+finished run instead of starting fresh. Do NOT clear it when the run ends early
+(partial cycle, a pause still outstanding, or any lane unmerged) — the pointer is
+what lets a later session resume.
 
 ### Step 5: Next-unit handoff (when iterating through a plan)
 
@@ -235,11 +263,13 @@ where it left off.
 
 ### Simple Wrap-Up (no worktree, no merge needed)
 
-Use this path when no worktree was created (evaluation-only, non-git project, or user declined git).
+Use this path **only when a worktree was impossible**: a non-git project, or a repo where the
+user declined `git init`. Evaluation-only runs are *not* on this path any more — they work in a
+worktree like everything else (see "Always work in a worktree" in `../SKILL.md`), so they wrap up
+normally.
 
 1. **If this is a git repo:** Run the `/done` skill normally (it handles tests, lint, security scan,
-   code review, docs, journal, commit, and push). Adapt it to the project type as described above.
-   After pushing, watch CI and fix failures (same Step 3 loop as above).
+   code review, docs, journal, commit, and the PR). Adapt it to the project type as described above.
 2. **If this is NOT a git repo:**
    - Tell the user where the output files are (evaluation report, plan, etc.).
    - Ask if they'd like to initialize git and commit the results.

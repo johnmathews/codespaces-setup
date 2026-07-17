@@ -11,3 +11,7 @@ vault_password
 .DS_Store
 *.swp
 *~
+
+# engineering-team run artifacts — working state, not deliverables.
+# The skill writes evaluation reports, plans, and progress dashboards here.
+.engineering-team/

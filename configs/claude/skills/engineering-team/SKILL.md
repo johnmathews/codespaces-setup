@@ -24,10 +24,57 @@ sentinels and assumes no external loop driver. If the preamble contains a
 `RELAY_PHASE:` or `RELAY_RUN_DIR` line, you are in a relay-driven run —
 stop and use the `engineering-team-sentinels` skill instead.
 
+## Project configuration
+
+Some rules below reference a repo owner and a container registry. Detect
+them; do not hardcode them.
+
+- **Owner:** `git remote get-url origin`. If there is no remote, the
+  default owner is `johnmathews`.
+- **Registry:** default `ghcr.io/<owner>/<repo-name>`. If the project
+  already publishes images somewhere else, that is the registry — read it
+  out of the existing workflow rather than asserting a different one.
+- **Journal:** `/journal/` at the repo root unless the project already
+  keeps one elsewhere.
+
+A work repo is not a personal repo. Guidance that assumes `johnmathews`
+is wrong on a project owned by someone else, and a finding derived from
+that assumption is a false finding.
+
 ## The run directory
 
 All artifacts for a run — `evaluation-report.md`, `improvement-plan.md`,
-`discussions/`, anything else — live in a per-run directory.
+`progress.md`, `status-<lane>.md`, anything else — live in a per-run
+directory.
+
+**`$RUN_DIR` always lives in the main checkout, never inside a worktree.**
+Worktrees hold code; the main checkout holds the run. This matters for two
+reasons, both of which have bitten real runs:
+
+1. Wrap-up removes the worktree. A `$RUN_DIR` inside it would be deleted
+   by the step that ends the cycle — destroying the evaluation report and
+   the plan, the artifacts the whole cycle exists to produce.
+2. Parallel sessions each have their own worktree (see
+   `references/multi-session.md`). A per-worktree run dir means they
+   cannot read each other's artifacts, which is the entire coordination
+   mechanism.
+
+So resolve the main checkout like this, and put `.engineering-team/` there:
+
+```bash
+MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+RUN_DIR="$MAIN_CHECKOUT/.engineering-team/runs/<run-id>"
+```
+
+**`--path-format=absolute` is not optional.** Without it,
+`git rev-parse --git-common-dir` returns a path *relative to the current
+directory* (`.git` at the repo root, `../../.git` two levels down). The value
+is correct where it is computed and silently wrong the moment you `cd` — which
+this flow does constantly, since work happens in a worktree. A relative
+`$RUN_DIR` also cannot be handed to another session, which is what
+multi-session needs it for. (Needs git ≥ 2.31; on older git use
+`git worktree list --porcelain | head -1 | sed 's/^worktree //'`, whose first
+entry is always the main worktree.)
 
 - **Resuming:** if `.engineering-team/current.txt` exists and names a
   directory under `.engineering-team/runs/` that still exists, that is
@@ -35,18 +82,101 @@ All artifacts for a run — `evaluation-report.md`, `improvement-plan.md`,
   for a fresh one).
 - **Starting fresh:** on first write, create
   `.engineering-team/runs/manual-<utc-timestamp>/` (e.g.
-  `.engineering-team/runs/manual-20260610T142500Z/`) in the project root,
-  use it as `$RUN_DIR` for the rest of the run, and write its basename to
-  `.engineering-team/current.txt` so later sessions can find it.
+  `.engineering-team/runs/manual-20260610T142500Z/`) in the **main
+  checkout**, use it as `$RUN_DIR` for the rest of the run, and write its
+  basename to `.engineering-team/current.txt` so later sessions can find
+  it.
 
 Always write to `$RUN_DIR/<artifact>` — never to
-`.engineering-team/<artifact>` directly.
+`.engineering-team/<artifact>` directly. Add `.engineering-team/` to the
+project's `.gitignore` if it isn't already there: run artifacts are
+working state, not deliverables.
+
+## Always work in a worktree
+
+Every phase of every Build run happens inside a git worktree on a feature
+branch — not in the project's main checkout, and never on `main`. This
+holds for evaluation-only runs too, not just when code changes: it is what
+lets several sessions work at once without colliding, and it means the
+merge step always has something to merge. An evaluation that turns up a
+one-line fix becomes a code change, and by then it is too late to be on a
+branch.
+
+**First check whether you are already in one** — before creating anything:
+
+```bash
+# --path-format=absolute on BOTH sides, or this is wrong. See below.
+[ "$(git rev-parse --path-format=absolute --git-dir)" \
+  != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "already in a worktree"
+```
+
+The flags are load-bearing. Bare `git rev-parse --git-dir` returns an
+**absolute** path from a subdirectory while `--git-common-dir` returns a
+**relative** one — the same location, rendered differently, so a string
+comparison reports "different" and concludes you are in a worktree when you
+are standing in a subdirectory of the main checkout. Normalise both sides
+before comparing them.
+
+- **Already in a worktree** (the user invoked the skill from one, or a
+  previous phase created it) → **work in it. Do not create another.**
+  Nested worktrees are always wrong here: the inner tree is orphaned when
+  the outer one is removed, and it splits the work across two branches so
+  the PR gets half of it. Note the branch you are on; that is the branch
+  this run ships.
+- **In the main checkout** → create the worktree now (`references/worktree.md`).
+
+The full discipline is in `references/worktree.md`. Two exceptions:
+
+- A **non-git project**, or a repo where the user declined `git init` —
+  work in place; wrap-up degrades to "ask whether to commit."
+- The **Discussion workflow**, which writes no code and needs no branch
+  (`references/discussion.md`).
+
+Either way `$RUN_DIR` resolves to the main checkout (above), which is why
+that resolution must not depend on where you are standing.
+
+Remember: the worktree holds code, `$RUN_DIR` stays in the main checkout
+(above).
+
+## Decide your role
+
+Before working out the phase, work out whether this run has parallel
+lanes. Read it off disk — do not guess:
+
+1. `$RUN_DIR/progress.md` exists and names lanes → this is a multi-lane
+   run. If the prompt that started this session names a lane you own
+   (e.g. "you own lane B"), you are a **worker**; otherwise you are the
+   **coordinator**.
+2. No `progress.md` → you are **solo**. This is the default and the common
+   case; nothing about single-session behaviour changes.
+
+Roles differ in what they may write, and the rule is absolute: **one
+artifact, one writer.** A worker never writes the plan or the dashboard; a
+coordinator never writes a lane's status file. Load
+`references/multi-session.md` before acting as either.
+
+**The role is not fixed for the session.** A **solo** session becomes the
+**coordinator** the moment Phase 2 writes `progress.md` — that file is what
+makes the run multi-lane, so writing it is the promotion. From that point
+the single-writer rule binds you: you own the plan, the dashboard, and
+memory, and you do not write any lane's status file. Re-read your role
+after Phase 2; the one you were assigned at activation is stale.
+
+**If the user asks for parallel work up front** ("split this across
+sessions", "run this in parallel"), that is a **preference, not a role** —
+record it and raise it at the Phase 2 gate. You cannot coordinate a plan
+that doesn't exist yet, so a fresh session that was asked for lanes is
+still solo through Phases 1–2. Do not create a dashboard early to honour
+the request; derive the lanes first and let the footprints decide whether
+the split is real (`phases/phase-2-planning.md`, Step 3.5). If the plan
+turns out not to qualify, say so and recommend solo — the user asked for
+parallelism to go faster, not for ceremony.
 
 ## Decide which phase to load
 
-When this skill activates, your first action is to determine the current
-phase and load the matching `phases/phase-N-<name>.md`. Infer the phase
-from the user's request and on-disk state:
+Once you know your role, determine the current phase and load the matching
+`phases/phase-N-<name>.md`. Infer the phase from the user's request and
+on-disk state:
 
 1. If `$RUN_DIR/evaluation-report.md` does not exist → load `phases/phase-1-evaluation.md`.
 2. Else if `$RUN_DIR/improvement-plan.md` does not exist → load `phases/phase-2-planning.md`.
@@ -90,32 +220,41 @@ There is no machine-readable marker contract in this variant. Instead:
 
 Whenever this skill produces or updates any documentation — evaluation reports,
 improvement plans, discussion reports, journal entries, runbooks, project docs in
-`/docs/`, anything markdown — **number every heading and subheading
-hierarchically using decimal notation**. The number is part of the heading text,
-inside the `#` line.
+`/docs/`, anything markdown — **number every heading hierarchically using decimal
+notation, except the H1.** The number is part of the heading text, inside the `#`
+line.
 
 Example:
 
 ```markdown
-# 1. Evaluation report
+# Evaluation report
 
-## 1.1 Scope and context
+> Purpose
+>
+> One short paragraph: what this document is for.
 
-## 1.2 Findings
-### 1.2.1 Security
-### 1.2.2 Code quality
+## 1. Scope and context
 
-# 2. Recommendations
-## 2.1 Critical
-## 2.2 Important
+## 2. Findings
+### 2.1 Security
+### 2.2 Code quality
+
+## 3. Recommendations
+### 3.1 Critical
+### 3.2 Important
 ```
 
 Rules:
 
-- Apply to every level (H1 through H6).
-- Restart numbering only at the top of a brand new document, not across sections.
+- **One H1 per document, and it is not numbered.** It is the title — there is
+  only ever one, so a number adds nothing. Never open a second H1 to mean
+  "part 2"; that's an H2.
+- **H2 and below are numbered, starting at `## 1.`**, nesting decimally
+  (`### 1.1`, `### 1.2`). The first section of a document is `## 1.`, not `## 2.`.
+- The lead paragraph under the title is an unnumbered `> Purpose` blockquote.
 - When you add, remove, or reorder sections during an edit, renumber the affected
-  sibling and descendant headings so the sequence stays contiguous.
+  sibling and descendant headings so the sequence stays contiguous, and update any
+  in-doc cross-references (`§2.1`, "see 2.3") in the same edit.
 - This applies to docs you write directly AND to docs subagents return — if a
   subagent's report comes back without numbered headings, add the numbering
   before persisting it to disk.
@@ -124,8 +263,15 @@ Rules:
 
 Why: these documents are read and re-read in long form (run dirs, archived
 plans, journal history). Hierarchical numbers make it trivial to reference a
-specific section in conversation ("see 1.2.1") and make structural drift obvious
+specific section in conversation ("see 2.1") and make structural drift obvious
 when sections are added or removed.
+
+**Numbering things that outlive their position.** Section numbers move when a
+document is restructured, so anything referenced from outside the document —
+decisions, work units, findings — gets a **stable ID of its own** (`D1`, `W3`,
+`F7`) that never changes and is never reused, rather than being cited by
+section number. A decision recorded as "see 7.2" becomes a lie the moment a
+section is inserted above it.
 
 ## Living-document status stamp
 
@@ -148,11 +294,31 @@ persistent plans) — carries a status stamp as the first line under its title:
   still hold (e.g. a runbook executed green, settings match the remote), bump
   **Last verified** with the date and method.
 
+**The method must match the kind of claim it certifies.** This is the rule that
+makes the stamp worth anything, and it is the one most easily filled in honestly
+and still got wrong. A **runtime** claim ("deployed", "live", "the worker calls
+the model") requires a **runtime observation** — a run id, a job name, a log
+line. Reading other documents is a valid method for a doc-derived claim and an
+invalid one for a runtime claim: doc-to-doc consistency proves only that the
+documents agree with each other.
+
+The failure this prevents is real and looks like diligence. A stamp reading
+`Last verified: 2026-07-15 (re-derived from RFC-0001…0006 and the spec)` was
+complete, honest, and per the convention — and it certified a claim about live
+model calls that had never happened. The stamp refuted itself in its own words,
+and nobody noticed, because the convention never required the method to match
+the claim.
+
+When one document mixes claim kinds, **stamp the methods separately** and say
+which claims were *not* re-verified. "Verified" with no scope reads as "all of
+it".
+
 Point-in-time records (ADRs, accepted RFCs, journal entries) are exempt — they
 are historical by design and are allowed to age. ADRs instead carry a
 `Proposed | Accepted | Superseded by <id>` status. This stamp is what lets a
 reader, and the CI doc-freshness gate, tell live docs from stale ones at a
-glance.
+glance. See `references/documentation-model.md` for which documents are living,
+which are point-in-time, and why the split is drawn by path.
 
 ## Cross-cutting references
 
@@ -162,10 +328,14 @@ Load these on demand when their topic becomes relevant:
   engineer), output formatting, and how to ask questions.
 - `references/workflows.md` — Build vs Discussion overview.
 - `references/worktree.md` — working directory invariants, worktree
-  isolation, linter detection.
+  isolation, linter detection, and the CI-gate laws.
+- `references/documentation-model.md` — the six document types, authority
+  precedence, explainers, and the documentation gates.
+- `references/multi-session.md` — parallel lanes across sessions:
+  single-writer, disjoint footprints, coordinator/worker roles.
 - `references/discussion.md` — Discussion workflow details.
-- `references/general-guidelines.md` — cross-cutting rules and the triage
-  entry point for urgent reports.
+- `references/general-guidelines.md` — cross-cutting rules, verification
+  integrity, and the triage entry point for urgent reports.
 
 ## What this router does NOT contain
 

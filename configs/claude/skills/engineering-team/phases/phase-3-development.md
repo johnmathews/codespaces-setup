@@ -15,32 +15,77 @@ The worktree gives the whole cycle a single mergeable unit and protects
 discipline lives in `../references/worktree.md` — **load it before your
 first edit, not when you remember.**
 
-The short version: use the `EnterWorktree` tool with the name
-`eng-<plan-short-name>`, where `<plan-short-name>` is the `plan:` value
-from the improvement-plan.md frontmatter. The tool creates the branch,
-places the worktree under `.claude/worktrees/`, and switches the session
-into it. Only if `EnterWorktree` is unavailable in your environment, fall
-back to the manual equivalent:
+The short version: use the `EnterWorktree` tool. The tool creates the
+branch, places the worktree under `.claude/worktrees/`, and switches the
+session into it. **The name depends on whether this run has lanes:**
+
+| Role | Worktree / branch name |
+| --- | --- |
+| **Solo** | `eng-<plan-short-name>` — the `plan:` value from the improvement-plan frontmatter |
+| **Worker** | **the name your hand-off prompt gave you** — conventionally `eng-<plan-short-name>-<lane>` |
+| **Coordinator running a lane** | `eng-<plan-short-name>-<lane>`, same as any worker |
+
+**A worker must never derive its name from the plan alone.** Every lane
+reads the *same* plan, so `eng-<plan-short-name>` is identical for all of
+them — the first session takes the branch and the rest collide on a name
+that already exists. The lane suffix is what makes it unique, and your
+prompt already carries it. If your prompt did not name a branch, that is a
+defect in the hand-off: ask rather than guessing, because two lanes quietly
+sharing a branch is worse than a pause.
+
+Only if `EnterWorktree` is unavailable in your environment, fall back to
+the manual equivalent (substituting the name from the table):
 
 ```bash
-git worktree add .claude/worktrees/eng-<plan-short-name> -b eng-<plan-short-name>
-cd .claude/worktrees/eng-<plan-short-name>
+git worktree add .claude/worktrees/<name> -b <name>
+cd .claude/worktrees/<name>
 ```
 
-Then (either way) mirror the project's run pointer into the worktree so
-tooling and future sessions can find the in-flight artifacts (`<run-id>`
-is the basename of `$RUN_DIR`):
+**If the session is already in a worktree, use it — do not create another.**
+Phase 1 creates one, so by Phase 3 there usually is one; and the user may
+have started the session in one. Nesting splits the work across two
+branches, so the PR ships half of it.
+
+**Do not create a `.engineering-team/` inside the worktree.** `$RUN_DIR`
+lives in the main checkout and is referenced by absolute path:
 
 ```bash
-mkdir -p .engineering-team
-printf '%s' "<run-id>" > .engineering-team/current.txt
+MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 ```
+
+Keep `--path-format=absolute` — without it the path is relative to your cwd
+and breaks as soon as you `cd` into the worktree. A run dir inside the
+worktree is deleted by Phase 4's cleanup, taking the evaluation report and
+the plan with it, and no other session can see it. See "The run directory"
+in `../SKILL.md`.
 
 If you find yourself running `pytest` or editing files in the
 project root rather than under `.claude/worktrees/`, you have skipped this
 step — stop, back out, set up the worktree, and start over. Phase 4
 wrap-up assumes a worktree exists; without one, the merge step has
 nothing to merge and the cycle ends in an uncommitted state.
+
+## If this run has lanes
+
+If you are a **worker** (the router worked this out from `$RUN_DIR/progress.md`
+plus the prompt that started you), you own exactly one lane, and the rules are
+narrower than the ones below:
+
+- **One lane, one worktree, one branch, one PR.** Yours.
+- **Work only inside your declared footprint.** Touching a file outside it is a
+  **surprise** — record it in `status-<lane>.md`, flag it on the PR, and say
+  where the fix lands. Don't quietly widen your scope; another lane may own that
+  file.
+- **Never write the plan or the dashboard.** If the plan is wrong, report it —
+  the coordinator owns it. One artifact, one writer.
+- **Never touch another lane's worktree**, even when it looks idle (§9 of
+  `../references/multi-session.md` explains why that judgement is unreliable).
+- Keep `status-<lane>.md` ticking as you go. It is scratch; the PR and the
+  `/done` journal are the durable record.
+
+If you are the **coordinator**, load `../references/multi-session.md` and follow
+it: you own the plan, the dashboard, and memory, and you reconcile — you do not
+reach into lanes.
 
 ## Progress reporting (read first)
 
@@ -174,8 +219,17 @@ Include the final coverage percentage in the report alongside the Phase 1 baseli
 Launch subagents to implement work units (dispatch mechanics:
 `../references/team-structure.md`). Units without dependencies can run in parallel
 using subagents that work on different files. Units with dependencies must run sequentially.
-(Note: since the session is already in a worktree, do NOT create nested worktrees for
-parallel work units — use subagent parallelism within the single worktree instead.)
+
+**Do not create nested worktrees here.** This session is already in one; parallel
+units inside it use subagent parallelism. That is the right rule for a solo run —
+but do not over-read it:
+
+> **Subagent parallelism is for units inside one lane. Session parallelism is for
+> lanes.** A subagent shares your worktree and cannot own a PR. A session owns a
+> worktree, a branch, and a PR, and has its own context. When a plan genuinely
+> splits into lanes with disjoint footprints, the answer is separate *sessions*
+> (Phase 2's Step 3.5 and `../references/multi-session.md`), not nested worktrees
+> and not subagents. Nested worktrees are wrong in both cases.
 
 Each implementing subagent should:
 - Read the specific work unit from the improvement plan

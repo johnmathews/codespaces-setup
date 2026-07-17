@@ -142,6 +142,18 @@ it deliberately excludes as by what it includes.
   estimate confidently," that itself is a finding — say so and propose a spike instead
   of a plan.
 - **Changes:** Specific files and modifications (code, tests, docs).
+- **Files (footprint):** The actual paths this unit touches, as paths —
+  `src/auth/**`, `tests/test_auth.py`, `pyproject.toml`. Not a description: "the auth
+  stuff" is not a footprint. This field does three jobs. It predicts conflicts with
+  other in-flight branches; it scopes review; and it is the input to lane derivation
+  (below) if the plan is ever split across sessions. It also does a fourth quietly:
+  **a unit whose footprint you cannot name has not been planned** — you are guessing
+  at the shape of the change, which is exactly what "read the code before specifying
+  any change" is meant to prevent.
+- **External action:** Anything this unit needs that you cannot do — a credential, an
+  approval, a decision from someone else, a provider registration. Name the blocker,
+  the owner, and what "unblocked" looks like. "None" is the common answer. This field
+  exists so that **blocked never masquerades as not-done**.
 - **Test impact:** Which existing tests will need updates, deletion, or new siblings.
   "None" is a valid answer but must be deliberate — read the test file before claiming it.
   Discovering broken tests in Phase 3 that the plan didn't predict is a planning failure.
@@ -165,6 +177,63 @@ then quick wins. Do not default to "the order subagents wrote them in" — that 
 ordering. State the chosen ordering rationale in one sentence at the top of the
 work-unit list.
 
+### Step 3.5: Derive lanes from the footprints
+
+Once every unit has a footprint, work out which units *could* run in parallel. The
+rule is mechanical, so do it mechanically:
+
+> **Any footprint overlap → same lane.**
+
+Units sharing a file are never parallelised. They are merged into one lane, or
+sequenced so the second rebases onto the first. Two units that both touch
+`pyproject.toml` are one lane, however unrelated their purposes.
+
+Do this **even when the run stays solo** — it takes a minute, it catches units the
+plan thought were independent and aren't, and it tells you the real merge order. If
+two units land in the same lane that you expected to be separate, that is a finding
+about the plan, not a scheduling detail.
+
+**Then decide whether to actually split.** Suggest parallel sessions only when all
+of these hold:
+
+1. Three or more units, **and**
+2. at least two lanes with genuinely disjoint footprints, **and**
+3. units sized M or larger.
+
+Otherwise stay solo and use subagents within one worktree. Splitting a two-unit plan
+across sessions costs more in coordination than it saves in wall-clock.
+
+**Do not confuse the two kinds of parallelism:** subagents parallelise units *inside*
+one lane and share your worktree; sessions parallelise *lanes* and each own a
+worktree, a branch, and a PR. If you're proposing a split, load
+`../references/multi-session.md` before writing the dashboard or any hand-off
+prompts.
+
+### Step 3.6: If the user agrees to split — you are now the coordinator
+
+Only after the user confirms the split at the gate below. Writing `progress.md` is
+what makes the run multi-lane, so writing it **promotes this session from solo to
+coordinator** — the role you were assigned at activation is now stale, and the
+single-writer rule binds you from here (`../SKILL.md`, "Decide your role").
+
+1. **Write `$RUN_DIR/progress.md`** — the board *and* the tracking contract restated
+   in full, so a fresh session needs no other document. Shape in
+   `../references/multi-session.md` §6.1. The `Owns` column holds each lane's file
+   footprint, verbatim from the units — it is the disjointness contract made visible.
+2. **Name each lane's branch and worktree** and record them on the board:
+   `eng-<plan-short-name>-<lane>` (e.g. `eng-auth-refactor-a`). **Every lane must get
+   a distinct name** — they all read the same plan, so a name derived from the plan
+   alone collides across every lane, and the second session to start would fail on the
+   branch that already exists.
+3. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
+   the lane, its footprint, its branch and worktree, and absolute paths to the plan,
+   the dashboard, and its own `status-<lane>.md`.
+4. **Hand them to the user.** They open the sessions and paste. Do not start a lane's
+   work yourself unless you are also running that lane.
+
+From here you own the plan, the dashboard, and memory. You do **not** write any
+lane's `status-<lane>.md`, and you do not reach into a lane's worktree.
+
 Ensure the plan is complete — every issue from the evaluation should be addressed or
 explicitly marked as out-of-scope with a reason. (Non-goals capture *categories* of
 out-of-scope work; per-finding notes capture specific exclusions within scope.)
@@ -184,6 +253,19 @@ For example:
 Plan saved at `$RUN_DIR/improvement-plan.md`. Three work units:
 W1 ..., W2 ..., W3 .... Reply "go" to start Phase 3, or paste edits / call
 out units to drop, reshape, or reorder.
+```
+
+**If Step 3.5 found the plan is splittable, ask that here too** — it is a
+decision only the user can make, since they are the one who would open the
+sessions. State the lanes and their footprints, and give an honest
+recommendation either way:
+
+```text
+The six units fall into three lanes with disjoint footprints (A: infra/**,
+B: src/api/**, C: docs/**), so they could run as three parallel sessions —
+you'd open them and paste a prompt into each. Or I run them solo in
+sequence. Solo is simpler; parallel is worth it here because lane A is the
+long pole. Which?
 ```
 
 Do not start Phase 3 work, dispatch subagents, or create a worktree while

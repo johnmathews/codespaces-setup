@@ -9,8 +9,11 @@ The target repo is the current working directory unless the user specifies anoth
 
 **Git repo check:** Before starting any work, check whether the project is a git repo.
 
-- **If it IS a git repo:** Check whether it has a remote on GitHub under the `johnmathews` account. If not,
-  ask the user to confirm before creating one.
+- **If it IS a git repo:** Note its owner (`git remote get-url origin`) — see "Project
+  configuration" in `../SKILL.md`. If there is no remote at all, ask the user to confirm
+  before creating one under the default owner. Do not assume a repo belongs to
+  `johnmathews`; on a work project it does not, and guidance derived from that
+  assumption is wrong.
 - **If it is NOT a git repo:** Ask the user before initializing one. Some projects (notes, config directories,
   documentation collections) may not need git. If they decline, skip worktree isolation and work directly
   in the directory — Phase 4's merge/push steps become simple "ask the user if they want to commit" instead.
@@ -23,12 +26,55 @@ The target repo is the current working directory unless the user specifies anoth
 Worktree isolation enables multiple engineering-team sessions to work on different features simultaneously
 without interfering with each other or with the main branch.
 
-**When to use a worktree:**
-- **Phase 3 (Development) will run** — code changes are being made → worktree is REQUIRED.
-- **Only Phase 1 (Evaluate) or Phase 1-2 (Evaluate + Plan)** — no code is modified, only reports are
-  written to `$RUN_DIR/` → worktree is OPTIONAL. Work directly in the repo unless the user
-  asks for isolation.
-- **Not a git repo** (and user declined `git init`) → worktree is NOT POSSIBLE. Work directly in the directory.
+**Always work in a worktree.** Every phase, every run — including evaluation-only runs that
+change no code. There is one exception: a project that is not a git repo (and where the user
+declined `git init`), where a worktree is not possible and you work in place.
+
+The rule is unconditional on purpose. "Worktree only when Phase 3 runs" sounds like a
+sensible economy, and it isn't:
+
+- **Work grows.** An evaluation that turns up a one-line fix becomes a code change, and the
+  session is now editing the main checkout with no branch to put it on.
+- **Sessions overlap.** Another session may be working while yours runs. The main checkout is
+  shared state; a worktree is not.
+- **Never work on `main`.** The main checkout usually has `main` checked out. Work that lands
+  there directly has skipped review, CI, and the PR entirely.
+
+**Where things live — do not mix these up:**
+
+| | Location | Why |
+| --- | --- | --- |
+| Code | the worktree | isolated per session, merged via a PR |
+| `$RUN_DIR` | the **main checkout** | survives worktree cleanup; shared by parallel sessions |
+
+Resolve the main checkout with:
+
+```bash
+MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+```
+
+**Keep `--path-format=absolute`.** Without it the path comes back *relative to the current
+directory* — correct where you computed it, silently wrong after any `cd`, and unusable by
+another session. A `$RUN_DIR` placed inside a worktree is **deleted by wrap-up**, taking the
+evaluation report and the plan with it, and it is invisible to every other session. See "The run
+directory" in `../SKILL.md`.
+
+**Are you already in a worktree?** `--git-dir` and `--git-common-dir` point at different places
+when you are. Compare them **with `--path-format=absolute` on both sides**:
+
+```bash
+[ "$(git rev-parse --path-format=absolute --git-dir)" \
+  != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "in a worktree"
+```
+
+Comparing the bare forms is a real bug, not a style nit: from a subdirectory of the main
+checkout, `--git-dir` renders **absolute** and `--git-common-dir` renders **relative**. Same
+location, different strings — so the naive comparison decides you are in a worktree whenever you
+happen to be standing one directory down. Normalise both sides.
+
+If you already are in one: **work in it; never nest a second worktree inside it.** The inner tree
+is orphaned when the outer is removed, and the work splits across two branches so the PR ships
+half of it.
 
 **Setup (when using a worktree):**
 
@@ -42,24 +88,28 @@ without interfering with each other or with the main branch.
    sibling paths). Prefix the name with `eng-` so engineering-team worktrees are identifiable, and choose
    a kebab-case name that describes the work (e.g., `eng-fitness-tier-plan`, not `eng-work-1`). The tool
    creates a new branch and switches the session into the worktree directory.
+
+   **On a multi-lane run, append the lane:** `eng-<plan-short-name>-<lane>`, and use the name your
+   hand-off prompt gave you. Every lane reads the same plan, so a name derived from the plan alone is
+   identical across all of them and every session after the first collides on an existing branch. See the
+   table in `../phases/phase-3-development.md`.
 3. **Note the branch name.** The `EnterWorktree` tool will report the branch name it created. You MUST
    remember this — you will need it later for the merge step.
 
-When in a worktree: all work (evaluation reports, code changes, tests, docs, journal entries) happens
-inside the worktree. The main branch remains untouched until the final merge in Phase 4.
+When in a worktree: all **code, docs, tests, and journal entries** are written inside the
+worktree and merged via a PR. `main` stays untouched until that PR merges.
 
-When NOT in a worktree: work happens directly in the project directory. Phase 4 simplifies to
-committing and optionally pushing (no merge or worktree cleanup needed).
+When NOT in a worktree (non-git project only): work happens directly in the project directory,
+and Phase 4 simplifies to committing and optionally pushing.
 
-**Important:** The `$RUN_DIR/`, `/docs/`, and `/journal/` paths referenced below are
-all relative to the project root (or worktree root if using a worktree). `$RUN_DIR` is the
-per-run subtree under `.engineering-team/runs/` — `mkdir -p .engineering-team/runs/manual-<utc>/`
-on first write and use that path for the rest of the run (see the router's "The run directory"
-section).
+**Important — two different roots.** `/docs/` and `/journal/` are relative to the **worktree**
+(they are committed content, and belong in the branch). `$RUN_DIR` is **not**: it lives under
+`.engineering-team/runs/manual-<utc>/` in the **main checkout**, and is referenced by absolute
+path. Do not create a second `.engineering-team/` inside the worktree.
 
 Write internal working documents (reports, notes, intermediate analysis) under `$RUN_DIR/`.
-The `.engineering-team/` parent directory is for the team's use — it can be gitignored by the user
-if they prefer.
+The `.engineering-team/` parent is working state, not a deliverable — add it to the project's
+`.gitignore` if it isn't there already.
 
 All project-facing documentation goes in `/docs/`. The development journal goes in `/journal/` with filenames
 like `250321-descriptive-name.md` (YYMMDD format). Create these directories if they don't exist.
@@ -82,21 +132,91 @@ user can customize later. Add a lint command to the `Makefile` if one exists (or
 When scaffolding a new project, also set up the machine half of the
 anti-doc-rot strategy — so living docs cannot silently drift:
 
-- **Link check** — a CI job (e.g. `lychee`) that fails on broken internal or
-  external links across `*.md`.
+- **Link check** — a CI job (e.g. `lychee --offline --include-fragments`) that
+  fails on broken internal links **and broken `#anchors`** across `*.md`.
 - **Freshness / status-stamp check** — a CI job that asserts every living doc
-  (README, `/docs/` reference docs, runbooks) carries the status stamp (see the
-  router's "Living-document status stamp" section) with `Last updated` and
-  `Last verified` fields present, and optionally flags ones gone stale past a
-  window. Point-in-time docs (`/docs/adr/`, `/docs/rfc/`, `/journal/`) are
-  excluded.
+  carries the status stamp (see the router's "Living-document status stamp"),
+  **and that parses the `Last verified` date and fails past a staleness window.**
+  Point-in-time docs (`/docs/adr/`, `/docs/rfc/`, `/journal/`) are excluded **by
+  path**, not by judgement.
 - **Runbook-executed-in-CI** — where a local-parity/setup runbook exists, make
   its steps the same steps CI runs, so a stale step turns CI red.
 
-Register each of these as a required status check in branch protection so it
-actually blocks merges. These complement the wrap-up living-docs reconciliation
-step (Phase 4) and the per-unit "docs touched?" check (Phase 3): the gates are
-the machine enforcement, those steps are the human judgement.
+**Parse the date. A presence-only stamp check is decoration.** The obvious
+implementation greps for the three field labels and stops there — at which point
+`Last verified: 2019-01-01` passes forever, and so does `Last verified: banana`.
+A gate against staleness that cannot detect staleness is precisely the "check
+that cannot fail" that `general-guidelines.md` warns about, and it fails in the
+one place it was built for. Parse the date, compare it to a window, and **ship
+the gate with a test proving it goes red on a stale stamp.**
+
+These complement the wrap-up living-docs reconciliation step (Phase 4) and the
+per-unit "docs touched?" check (Phase 3): the gates are the machine enforcement,
+those steps are the human judgement. See `documentation-model.md` for what
+counts as living.
+
+### Making a check required (the laws that stop you wedging the repo)
+
+A gate that isn't a required status check blocks nothing. But **promoting a
+check to required is the step that can deadlock every open PR at once**, so it
+has an order of operations, and it is not optional.
+
+**1. Prove it reports, then require it.** Land the workflow change, watch a real
+PR — specifically one that does **not** touch the paths the job cares about —
+and confirm the check actually appears and reports. Only then add it to the
+ruleset. Requiring first and verifying after risks blocking every PR
+simultaneously, *including the one that would fix it*.
+
+**2. Path-filtered ⇒ un-requirable.** A workflow filtered by
+`on.pull_request.paths` never *starts* on a PR that misses the filter. No check
+by that name is created, so a required context waits at "Expected — Waiting for
+status" **forever**. The trap is asymmetric: everything looks fine on PRs that do
+touch the path, and only unrelated PRs hang.
+
+> The companion rule, which looks identical and behaves oppositely: a **job**
+> skipped by an `if:` still reports (as `skipped`, which counts as success). A
+> **workflow** skipped by a path filter reports nothing and blocks forever.
+> Keep the trigger unfiltered and make the expensive **steps** conditional —
+> never the trigger, never the job.
+
+**3. The check's name is the job's `name:`, or its key when absent — never the
+workflow's name.** Two workflows with a same-named job produce two
+indistinguishable contexts. Keep job keys unique repo-wide for anything running
+on `pull_request`.
+
+**4. Promote an aggregator, not the legs.** Where jobs run in parallel or in a
+matrix, add one aggregator job that passes iff the legs did, and require *that*.
+Its name stays stable across parallelisation and matrix changes; requiring
+`test (3.12)` directly means a ruleset edit every time the matrix moves.
+
+**5. Never require a check that doesn't exist yet** — it deadlocks every merge,
+including the PR that would create it.
+
+**6. Required ≠ enabled. Re-read the ruleset; don't trust the write.** A red
+check looks identical whether or not it is required — the ruleset is the only
+source of truth. This is how a real repo ran lint, types, and tests
+red-but-advisory for six days without noticing: a ruleset edit was reverted, and
+the required check went with it. When reverting a ruleset change, check what else
+was in the same edit. Verify by re-reading the remote (`gh api
+repos/{owner}/{repo}/rulesets`), never by trusting the response to the write.
+
+### Gate the code that no other gate reads
+
+When scaffolding or evaluating CI, inventory the code that **ships but that no
+gate executes**, and gate it. The usual suspects:
+
+- Dockerfiles built only at deploy time (add a build-only CI job).
+- `workflow_dispatch`-only workflows — nothing runs them on the way to `main`.
+- Scripts embedded in workflow YAML (heredocs): no linter reads them, no type
+  checker types them.
+- IaC, cron jobs, migration hooks.
+
+The rule to hold onto: **a green PR is not evidence about the deploy path.**
+Every defect in dispatch-only code is latent until an operator deploys, which is
+a slow and expensive way to find out. Related: name any invariant that **only
+holds in the deployed environment** (a role split that exists only in prod, a
+grant that local tests can't see), so that a green local suite is not mistaken
+for coverage it doesn't have.
 
 **Existing projects:** Check for a linter during Phase 1 (see `../phases/phase-1-evaluation.md`). If none is found, ask the user
 whether they'd like one set up before proceeding with the evaluation.

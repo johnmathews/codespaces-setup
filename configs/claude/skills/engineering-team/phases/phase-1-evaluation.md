@@ -9,6 +9,16 @@
 Before any other action in this phase, tell the user in one plain-prose
 line that you are entering Phase 1 (evaluation).
 
+## Create a worktree first
+
+Evaluation runs in a worktree too, not the main checkout — see "Always work
+in a worktree" in `../SKILL.md` and the full discipline in
+`../references/worktree.md`. An evaluation that turns up a one-line fix
+becomes a code change, and by then it is too late to be on a branch.
+
+`$RUN_DIR` is the exception and stays in the **main checkout** (below): the
+worktree holds code; the run holds artifacts that must outlive it.
+
 ## File persistence mandate
 
 The evaluation report MUST be written to `$RUN_DIR/evaluation-report.md`
@@ -135,11 +145,17 @@ this research.
 - Evaluate whether deployment is reproducible and robust
 - Check for environment-specific assumptions (hardcoded paths, platform assumptions)
 - If there are multiple deployment methods, assess which is primary and whether it's solid
-- **GHCR requirement:** If the repo contains a `Dockerfile` or `docker-compose.yml`/`docker-compose.yaml`,
-  verify that a GitHub Actions workflow exists in `.github/workflows/` that builds the Docker image and
-  pushes it to `ghcr.io/johnmathews/<repo-name>`. If this workflow is missing, flag it as a **High** priority
-  gap in the evaluation. The workflow should trigger on push to `main`, authenticate with `GITHUB_TOKEN`,
-  and push to `ghcr.io`.
+- **Image publishing:** If the repo contains a `Dockerfile` or `docker-compose.yml`/`docker-compose.yaml`
+  **and the project publishes images**, exactly one workflow should own that publish. Read where it
+  actually points rather than asserting a destination — see "Project configuration" in `../SKILL.md`. On a
+  personal repo with no existing publisher, `ghcr.io/<owner>/<repo-name>` on push to `main` authenticating
+  with `GITHUB_TOKEN` is the sensible default, and its absence is a **High** priority gap. On a repo owned
+  by someone else, or one that publishes to its own registry, "it doesn't push to my registry" is not a
+  finding — it is an assumption. Do not raise it as one.
+- **Images built only at deploy time:** if a Dockerfile is built only by a `workflow_dispatch`-only or
+  deploy-time workflow, **nothing exercises it on the way to `main`** and a break stays latent until
+  someone deploys. Flag a build-only CI job as a gap. This is one instance of the un-gated-code
+  inventory in Step 2.5 — check there for the others.
 - **workflow_dispatch trigger:** Every GitHub Actions workflow should include `workflow_dispatch:` in its `on:`
   triggers so it can be manually run from the Actions tab. If any workflow is missing this trigger, add it.
   This is a one-line addition (`workflow_dispatch:` under the `on:` block) that enables manual re-runs when
@@ -173,6 +189,89 @@ library projects.
 - Identify gaps: undocumented features, outdated instructions, missing setup steps
 - Assess the project's stated goals and whether the code achieves them
 - Research the problem space: are there better approaches, libraries, or patterns?
+- **Assess the documentation model** against `../references/documentation-model.md`:
+  is there a greppable record of *why* things are the way they are (an ADR log or
+  equivalent), or does the reasoning live only in commit messages and someone's
+  memory? Is anything load-bearing undiscoverable — a correct doc that nothing links
+  to is still a failure. Do living docs carry a status stamp, and — the question that
+  matters — does any stamp's stated method actually support the kind of claim it
+  certifies? A doc that says "verified against the other docs" has verified nothing
+  about the running system.
+- **Check the docs against reality, not against each other.** Doc-to-doc consistency
+  proves only that the documents agree. Where a doc claims something about runtime
+  behaviour ("deployed", "live", "the worker calls X"), the evidence is a run, a log,
+  or the code — never another document.
+
+### Step 2.5: Non-functional requirements — stated vs enforced
+
+Functional bugs get found because something breaks. Quality requirements don't:
+they get **stated**, and then nothing ever checks them again. So ask the question
+that makes them falsifiable:
+
+> For every quality requirement this project states — which check enforces it?
+
+Produce an **NFR register** for the report: one row per stated requirement,
+three columns — *requirement | where it's stated | how it's enforced*. Where
+nothing enforces it, write **"prose only"**. That is not automatically a defect
+(some NFRs genuinely can't be gated), but it is always a finding: a claim the
+project cannot back.
+
+Use this checklist to prompt the register. It is not a demand that every project
+have all of them — it's a list of the places NFRs usually hide:
+
+| NFR | The enforceable form |
+| --- | --- |
+| Secrets never in VCS, logs, or traces | Push protection + secret scan; a logging wrapper accepting no content field |
+| Test data is synthetic / no real PII | A scanner over fixture paths — described by what it actually checks |
+| Coverage floor | `fail_under` in config, in a required check; reporting-only steps explicitly non-gating |
+| Reproducible dependencies | Lockfile + frozen install + pinned CI action versions |
+| Migrations apply and don't drift | Apply to a fresh DB in CI + a drift check |
+| Docs are accurate | Stamp check **with a parsed date window** + link/anchor check |
+| Everything that ships is exercised before `main` | See the inventory below |
+| Accessibility (any UI) | A lint plugin + assertions in the browser test |
+| Observability | Structured events with an explicit no-content contract |
+| Performance / availability | A load smoke, or an SLO — most projects have neither, and that's often fine |
+
+Two specific sweeps, because they find things nothing else does:
+
+**1. Inventory the code that ships but that no gate reads.** Dispatch-only
+workflows, Dockerfiles built only at deploy, scripts embedded in workflow
+heredocs, IaC, cron jobs, migration hooks. **A green PR is not evidence about the
+deploy path** — every defect in that code is latent until someone deploys. Also
+name any invariant that **only holds in the deployed environment** (a role split
+that exists only in prod, a grant local tests can't see), so a green local suite
+isn't mistaken for coverage it doesn't have.
+
+**2. Note the NFRs that are absent rather than unenforced.** A missing NFR is
+harder to see than a broken one, because nothing points at it. The commonest by
+far: **a browser UI with no accessibility requirement at all** — no lint plugin,
+no assertions, nothing. If the project has a UI and no a11y anywhere, say so.
+
+### Step 2.6: The onboarding bar — you are the measurement
+
+If the project states an onboarding or "understandability" bar — *"a new engineer
+should be productive in a day"*, *"a cold engineer should be able to deploy this
+in two hours"* — it is almost certainly never measured. Such bars are usually
+invoked to justify real tradeoffs (keeping an ADR log, writing explainers,
+structuring the README) while nothing ever tests them.
+
+**You are the test.** This session just read this project cold, from its docs,
+for the first time — which is exactly the experiment the bar describes, and it
+already happened. Report against it from your own experience:
+
+1. What you could **not** determine from the docs alone, and had to read code to
+   learn.
+2. Any documented claim you had to verify against code because you didn't trust
+   it — and whether it held.
+3. Where you got lost, or what you looked for and couldn't find.
+4. Whether the setup/deploy path in the docs would actually work, and how you know
+   (executed it? read it? — say which; see verification integrity in
+   `../references/general-guidelines.md`).
+
+This is a real measurement of the real bar, produced free by a run that was
+happening anyway. Include it even when the project states no bar — a project
+without one still has an onboarding cost, and nobody else is positioned to see it
+this clearly. Once you know the codebase, this evidence is gone.
 
 ### Step 3: Synthesis
 
@@ -220,6 +319,15 @@ sections must have a line here.
 
 **Weaknesses:** Where the project falls short — be specific, cite code, explain impact
 
+**NFR Register:** The table from Step 2.5 — *requirement | where stated | how
+enforced (or "prose only")* — plus the un-gated-code inventory and any NFR that is
+**absent** rather than unenforced. Every "prose only" row is a finding and needs a
+line in the Findings Index.
+
+**Onboarding Assessment:** The report from Step 2.6 — what you couldn't learn from
+the docs, what you had to verify against code, where you got lost. Measured against
+the project's stated bar if it has one.
+
 **Assessment Dimensions** (rate each as "X/5" where 5 is best — always write the score
 as "X/5" so the scale is unambiguous, with a justification for each rating):
 - Simplicity: Is the code as simple as it could be? (5/5 = minimal unnecessary complexity)
@@ -231,6 +339,15 @@ as "X/5" so the scale is unambiguous, with a justification for each rating):
 - Documentation completeness: Is everything important documented?
 - Deployment quality: Is the build/deploy pipeline (Dockerfile, docker-compose, CI/CD,
   Makefile, etc.) correct, tested, and well-documented? Can someone deploy this reliably?
+- Observability: When this breaks in production, can you tell what happened? Are there
+  structured logs/metrics/traces, and is there an explicit rule about what must never be
+  logged (secrets, user content)?
+- Enforcement: Of the quality rules this project states, how many are backed by a check
+  that can actually fail? This is the NFR register expressed as a score. A project with
+  excellent prose and no gates rates low here regardless of how good the prose is.
+- Accessibility (**only when the project serves browser pages** — same trigger as
+  Engineer 5; omit the dimension entirely otherwise): keyboard navigation, semantics,
+  contrast, and whether anything automated checks any of it.
 
 **Dependency Audit:** name the manifest/lockfile inspected (`uv.lock`,
 `package-lock.json`, `go.sum`, ...), and list outdated or known-vulnerable
