@@ -21,11 +21,12 @@ from on-disk artifacts, running these in parallel where possible:
 2. **Git state:** `git branch --show-current`, `git status --short`, and `git log --oneline -10` to
    capture the branch, uncommitted work, and recent commits.
 3. **engineering-team run state:** Check whether this project uses the `engineering-team` skill by
-   looking for `.engineering-team/current.txt` and the run directory it names under
-   `.engineering-team/runs/`. If present, read the run's artifacts (`evaluation-report.md`,
-   `improvement-plan.md`, and anything under `discussions/`) to determine the exact phase, which work
-   units are done, and which remain. **Reference these files by path in the generated prompt rather
-   than pasting their full contents** — the new session can read them.
+   looking for `.engineering-team/current.txt` **in the main checkout** (the run dir lives there, not
+   in a worktree — resolve it with `git rev-parse --git-common-dir`) and the run directory it names
+   under `.engineering-team/runs/`. If present, read the run's artifacts (`evaluation-report.md`,
+   `improvement-plan.md`, and `progress.md` / `status-*.md` if the run has lanes) to determine the
+   exact phase, which work units are done, and which remain. **Reference these files by absolute path
+   in the generated prompt rather than pasting their full contents** — the new session can read them.
 4. **Other plan/docs:** Note any other plan files, design docs, journals, or READMEs the work depends
    on so they can be linked in the prompt.
 
@@ -41,6 +42,8 @@ fabricate context.
   directory exists, or the skill was clearly active), the next phase very likely uses it too.
   **Address the generated prompt to the engineering-team** and instruct the new session to invoke the
   `engineering-team` skill and resume the in-flight run.
+- **If you are writing a lane hand-off** (the run has `progress.md` and you are the coordinator
+  dispatching a parallel lane), see Step 4b — the shape is different.
 - Otherwise, address it as an ordinary continuation prompt with no skill assumption.
 
 ## Step 4 — Emit the prompt
@@ -65,6 +68,32 @@ applicable:
 8. **Concrete next action** — the first thing the new session should do.
 
 Keep it complete but not bloated: prefer pointing to on-disk artifacts over duplicating them.
+
+## Step 4b — Lane hand-off prompts (multi-session runs)
+
+When the coordinator is dispatching parallel lanes, generate **one prompt per lane**, each in its
+own fenced code block, ready to paste into a fresh session. These are not continuation prompts —
+the receiving session has no history to continue. Each must state:
+
+1. **The role and the lane, explicitly.** "You are a **worker** on lane B of run `<run-id>`." The
+   receiving session's router reads its role off this plus `progress.md`, so if the lane isn't
+   named it will assume it is the coordinator and start writing the plan.
+2. **The footprint it owns**, as paths, and that it owns nothing else. Touching a file outside it
+   is a surprise to be reported, not a decision to be made.
+3. **Absolute paths** to the plan, the dashboard, and its own `status-<lane>.md`.
+4. **Its branch and worktree name**, so two lanes never collide on either.
+5. **The contract, in one line:** read the plan, never write it; keep your status file and PR
+   updated; run `/done` when finished; never touch another lane's worktree.
+6. **Any scope fence** — "do NOT execute X", "do NOT touch Y, lane C owns it".
+
+**The same-machine caveat.** `$RUN_DIR` is git-untracked, so this only works when the new session
+shares a filesystem with the coordinator. If it won't (a different host, a cloud session),
+**inline the context** the prompt would otherwise reference by path — that is the one case where
+pasting contents beats pointing at them.
+
+**Read each prompt before handing it over.** The paste step is a human gate, and a prompt you read
+before pasting is a prompt that gets caught when it's wrong — a lane briefed from a stale plan will
+cheerfully implement the stale plan.
 
 ## Step 5 — Confirm
 

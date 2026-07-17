@@ -1,7 +1,28 @@
 # Merge & Push
 
-Merge the current branch into main and push. This command is focused and fast — no tests, no
+Land the current branch on `main`. This command is focused and fast — no tests, no
 linting, no documentation review. Use `/done` for the full wrap-up workflow.
+
+There are two ways to land, and **Step 0 decides which**. Do not skip it: on a repo with a
+remote, merging into local `main` and pushing bypasses review and pre-merge CI, and on a
+protected repo it simply fails.
+
+## Step 0 — Which path?
+
+```bash
+git remote -v                                          # is there a remote at all?
+gh pr view --json number,state,url 2>/dev/null         # does this branch already have a PR?
+```
+
+- **A remote exists → the PR path (Step 2A).** Merge happens on the platform, after CI has
+  passed on the PR. This is the default whenever there is a remote, protections or not: it is
+  how `main` stays green and how the change gets a reviewable record.
+- **No remote → the local path (Step 2B).** A scratch repo with no remote has no PR to open
+  and no CI to wait for; a local merge is the whole ceremony.
+
+Protections (`gh api repos/{owner}/{repo}/rulesets`, `gh api repos/{owner}/{repo}/branches/main/protection`
+— a 404 from either is an answer, not an error) don't change the path; they tell you what the
+PR must satisfy before it can merge, and whether an admin bypass will be needed.
 
 ## Step 1 — Assess
 
@@ -57,78 +78,81 @@ Check whether the merge is likely to have conflicts:
 Present a clear summary to the user:
 
 ```
-Branch:          feature/xyz
+Path:             PR (remote exists) / local (no remote)
+Branch:           feature/xyz
 Commits to merge: 5 (list them)
 Main has diverged: yes/no (N commits)
-Fast-forward:    possible / not possible
-Conflict risk:   none detected / likely in [files]
-Unpushed after merge: N commits to push
+Conflict risk:    none detected / likely in [files]
+PR:               #42 open / none yet / already MERGED (stop — see Step 2A.1)
 ```
 
-## Step 2 — Merge
+## Step 2A — The PR path (a remote exists)
+
+**Never merge into local `main` and push.** That bypasses review and pre-merge CI, and on a
+protected repo the push is rejected anyway. The merge happens on the platform.
+
+1. **Push the branch** if it isn't pushed: `git push -u origin <branch>`.
+   - **First check the PR isn't already merged** (`gh pr view --json state`). Pushing to a
+     **merged** PR's branch **succeeds silently**, is never merged, and runs no CI — the commits
+     are stranded with no error to tell you. If it's `MERGED` or `CLOSED`, stop: the work needs a
+     fresh branch off `main` with the commits cherry-picked. Say so; don't push into the void.
+2. **Open the PR** if there isn't one: `gh pr create --fill` (fill in any template rather than
+   around it). If one is already open, the push updated it.
+3. **Wait for CI on the PR:** `gh pr checks <pr> --watch`.
+   - On failure: `gh run view <id> --log-failed`, diagnose, fix **on the branch**, push,
+     re-watch. Max 3 cycles, then report and stop. Flaky/infra failures can be retried with
+     `gh run rerun <id> --failed`.
+   - A required check stuck at "Expected — Waiting for status" is almost certainly a
+     path-filtered workflow that never started — a repo config bug, not something to wait out.
+     See "Making a check required" in the engineering-team skill's `references/worktree.md`.
+4. **Ask the user for explicit confirmation before merging.** Do not proceed without a clear
+   "yes". Merge is the irreversible step; a green PR is a fact about the PR, not permission.
+5. **Merge:** `gh pr merge <pr> --squash` (match the repo's rules — some require rebase; if the
+   repo forbids squash, use what it allows). Add `--admin` **only** when the user says to: a
+   solo author on a repo requiring last-push-approval cannot satisfy it any other way, and that
+   is their call to make, not yours.
+6. **If the PR is out of date or conflicts:** rebase the branch onto `main`, push, and re-watch
+   CI. Resolve conflicts on the branch and ask the user to review the resolutions.
+
+## Step 2B — The local path (no remote)
 
 **Ask the user for explicit confirmation before merging.** Do not proceed without a clear "yes."
 
-If confirmed:
-
 1. **If in a worktree:** Exit the worktree first using `ExitWorktree` with `action: "keep"`.
    Then continue from the main working directory.
-2. **Pull latest main:** `git pull --ff-only` (fall back to `git pull --rebase` if that fails).
-3. **Merge:**
+2. **Merge:**
    - If fast-forward is possible and the branch is simple, use `git merge --ff-only <branch>`.
    - Otherwise, use `git merge <branch> --no-ff -m "Merge <branch>: <summary>"` where
      `<summary>` is a one-line description based on the branch commits.
-4. **If conflicts occur:** List the conflicting files, resolve them, and ask the user to
+3. **If conflicts occur:** List the conflicting files, resolve them, and ask the user to
    review the resolutions before completing the merge with `git commit`.
-
-## Step 3 — Push
-
-**Ask the user for explicit confirmation before pushing.** Do not proceed without a clear "yes."
-
-If confirmed:
-
-1. Run `git push`.
-2. If the push fails because the remote has new commits, run `git pull --rebase && git push`.
-3. If there is no remote configured, ask the user before creating one.
-
-## Step 3b — Monitor CI
-
-After a successful push, check whether the repo has GitHub Actions workflows that would be triggered
-by this push. Only monitor if workflows exist — do not block on repos without CI.
-
-1. **Detect workflows:** Run `gh run list --branch main --limit 1 --json databaseId,status,conclusion,name,event,createdAt`
-   to see if a run was triggered by this push. If `gh` is not available or the command fails, skip this step.
-
-2. **Wait for completion:** If a run is in progress, poll with `gh run watch <run-id> --exit-status` (this blocks
-   until the run completes and exits non-zero if the run fails). If `gh run watch` is not available, fall back to
-   polling `gh run view <run-id> --json status,conclusion` every 30 seconds, up to a maximum of 10 minutes.
-
-3. **On success:** Report "CI passed" and continue to cleanup.
-
-4. **On failure:**
-   - Run `gh run view <run-id> --log-failed` to fetch the failed step logs.
-   - Analyze the failure. Common categories:
-     - **Test failure:** A test broke — investigate and fix locally, then commit and push the fix. Re-monitor.
-     - **Lint/format failure:** Fix locally, commit, push. Re-monitor.
-     - **Build failure:** Missing dependency, syntax error, Docker build issue — fix locally, commit, push. Re-monitor.
-     - **Flaky/infra failure:** Rate limits, runner issues, transient network errors — retry with
-       `gh run rerun <run-id> --failed`. Re-monitor.
-     - **Unknown/unresolvable:** If the failure cannot be diagnosed or fixed after 2 attempts, report the failure
-       details to the user and ask how to proceed. Do not loop indefinitely.
-   - **Maximum 3 fix-and-push cycles.** If CI still fails after 3 attempts, stop and report the full failure
-     context to the user.
+4. If the user later wants a remote, ask before creating one.
 
 ## Step 4 — Cleanup
 
-If the session started in a worktree:
+Once the work is actually merged (PR shows `MERGED`, or the local merge is done):
 
-1. Remove the worktree: `git worktree remove .claude/worktrees/<name>` (use `--force` if needed).
-2. Delete the feature branch: `git branch -d <branch>`. If it refuses, verify the merge happened
-   with `git log --oneline main | head -5`, then use `git branch -D <branch>`.
-3. Verify: `git worktree list` and `git branch` to confirm cleanup.
+1. **Remove the worktree** at the path it actually occupies — take it from `git worktree list`,
+   don't assume `.claude/worktrees/<name>`. `git worktree remove <path>` (`--force` only if you
+   know why it's refusing).
+2. **Delete the branch:** `git branch -d <branch>`.
+   - **Under squash merges `-d` will refuse**, and it is right to: the squashed commit is a new
+     object, so the branch tip is *not* an ancestor of `main` and git cannot see it as merged.
+     Confirm via the PR (`gh pr view --json state` → `MERGED`) and only then `git branch -D`.
+     Verifying with `git log --oneline main | head` does **not** prove it — the branch's commits
+     are not there under any squash.
+   - Delete the remote branch too if the platform didn't: `git push origin --delete <branch>`.
+3. **Never remove a worktree that is dirty, has unpushed commits, has a rebase in progress
+   (`.git/rebase-merge`, `.git/rebase-apply`, `MERGE_HEAD`), or that another session is using.**
+   Report and skip instead. A clean `git status -sb` can be one instant stale.
+4. **Verify:** `git worktree list`, `git branch`, and `git worktree prune` for directories that
+   are already gone.
 
 If not in a worktree, no cleanup is needed.
 
 ## Step 5 — Summary
 
-Brief one-liner: what was merged, the merge commit hash, and whether it was pushed.
+Brief one-liner: what was merged, via which path (PR #N squash-merged, or local merge), the
+resulting commit hash on `main`, and what was cleaned up. Name the CI checks that were green
+before the merge — "CI passed" is not a result; "`lint-types-test` + `docs-check` green on #42"
+is.

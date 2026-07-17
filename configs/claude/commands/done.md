@@ -31,9 +31,19 @@ This applies throughout every phase below. When in doubt, search first.
 - **Git repo check:**
   - If the project is not a git repo, **ask the user** before initializing one with `git init`. Some projects
     (notes, config directories, documentation collections) may not need git.
-  - Check whether the repo has a remote on GitHub under the `johnmathews` account. If not, ask the user to confirm
-    before creating a new repo on the `johnmathews` GitHub account and pushing the local repo to it.
+  - Read the repo's owner from `git remote get-url origin`. If there is **no remote at all**, ask the user to
+    confirm before creating one (default owner `johnmathews`) and pushing to it. Do **not** assume the repo
+    belongs to `johnmathews` — on a work project it does not, and every downstream rule that assumes it
+    (registry, PR target, review expectations) is then wrong.
+- **Governance check.** Establish early whether `main` is protected, because it decides how Phase 8 ships:
+  `gh api repos/{owner}/{repo}/rulesets` and `gh api repos/{owner}/{repo}/branches/main/protection` (either may
+  404 — that's an answer, not an error). A repo with a remote gets the PR path regardless; protections just tell
+  you what the PR must satisfy.
 - Run `git status` and `git diff` to understand the current state of the working tree.
+- **Worktree check.** `git rev-parse --git-dir` vs `git rev-parse --git-common-dir` — if they differ, you are in
+  a worktree, which is the expected state for engineering-team work. If you are **on `main` in the main
+  checkout** with uncommitted changes, stop and tell the user: work should have started on a branch, and the
+  fix (branch now, or move the changes) is theirs to choose.
 - If the working tree is clean and there are no unpushed commits, use the current conversation context to understand what
   was worked on during this session. This context is sufficient to inform documentation and journal updates in later
   phases.
@@ -51,13 +61,16 @@ This applies throughout every phase below. When in doubt, search first.
 ## Phase 1 — CI/CD for Docker Projects
 
 - Check whether the repo contains a `Dockerfile` or `docker-compose.yml` (or `docker-compose.yaml`).
-- If either exists, the repo **must** have a GitHub Actions workflow that builds the Docker image and pushes it to
-  `ghcr.io`. Check for this using **`git ls-tree -r HEAD --name-only .github/workflows/`** (not filesystem globs or
-  `ls`) to list all tracked workflow files, then **read the contents of each one**. Using `git ls-tree` is critical
-  because filesystem tools (glob, ls, find) can miss tracked files if the working tree is stale, sparse, or if files
-  were checked in by another branch. Do not just check for a specific filename — a workflow named `build-and-push.yml`,
-  `ci.yml`, or anything else could already handle Docker publishing. Look for steps that use
-  `docker/build-push-action` or push to `ghcr.io`.
+- If either exists **and the project publishes images**, exactly one workflow should own that publish. Check using
+  **`git ls-tree -r HEAD --name-only .github/workflows/`** (not filesystem globs or `ls`) to list all tracked
+  workflow files, then **read the contents of each one**. Using `git ls-tree` is critical because filesystem tools
+  (glob, ls, find) can miss tracked files if the working tree is stale, sparse, or if files were checked in by
+  another branch. Do not just check for a specific filename — a workflow named `build-and-push.yml`, `ci.yml`, or
+  anything else could already handle Docker publishing. Look for steps that use `docker/build-push-action` or push
+  to a registry.
+- **Read where it publishes; don't assume where it should.** `ghcr.io/<owner>/<repo-name>` is the sensible default
+  for a personal repo with no existing publisher. A repo owned by someone else, or one already publishing to its own
+  registry, is not misconfigured for failing to match a personal default.
 - **If an existing workflow already builds and pushes to `ghcr.io`:** verify it looks correct (targets the right
   registry and image name). Fix any obvious issues. **Do not create a second workflow.**
 - **If no existing workflow handles Docker publishing:** before creating anything, double-check by running
@@ -65,8 +78,8 @@ This applies throughout every phase below. When in doubt, search first.
   no workflow references Docker publishing. Only after both return empty should you create one in
   `.github/workflows/` (and the `.github/` directory if needed) with a workflow that:
   - Triggers on push to `main` (and optionally on tags)
-  - Logs in to `ghcr.io` using `GITHUB_TOKEN`
-  - Builds the image and pushes it to `ghcr.io/johnmathews/<repo-name>`
+  - Logs in to the registry using `GITHUB_TOKEN`
+  - Builds the image and pushes it to `ghcr.io/<owner>/<repo-name>` (owner read from `git remote`, not assumed)
 - **Duplicate workflow check:** After this phase, there must be exactly **one** workflow that pushes Docker images.
   If you find multiple workflows doing the same thing, consolidate them — keep the better one and delete the other.
 - **Docker healthcheck validation:** If any `docker-compose.yml`/`docker-compose.yaml` contains a `healthcheck` command,
@@ -102,6 +115,21 @@ This applies throughout every phase below. When in doubt, search first.
        failure. If nothing links it, add the link (and note if the project lacks a docs index at all).
   3. **Fix what the audit finds**, then update existing docs to reflect this session's changes and create new docs if a
      new service, feature, or concept warrants its own guide.
+  3b. **The summary may not be stronger than the source.** This is the step where documentation rot is *created*,
+     not merely missed. Compressing a session into a doc update means restating claims more briefly — and brevity is
+     where "the job exited 0" quietly becomes "the job worked", and then "the feature is live", with no new evidence
+     entering anywhere. **The sentence looks like a summary; it is an inference wearing a summary's clothes** — which
+     is why re-reading the finished doc never catches it. Check each claim against the *source* you are compressing,
+     not against how reasonable it sounds. If the source says a job exited zero, the doc may say the job exited zero.
+  3c. **Match each stamp's method to its claim.** When bumping `Last verified` on a living doc, the method you write
+     must support the *kind* of claim the doc makes. A runtime claim ("deployed", "live", "calls X") needs a runtime
+     observation — a run id, a job name, a log line. "Re-derived from the other docs" verifies a doc-derived claim and
+     nothing else. Where a doc mixes claim kinds, stamp the methods separately and name what was *not* re-verified.
+  3d. **Classify what you write.** New or restructured docs follow the six-type documentation model — see
+     `~/.claude/skills/engineering-team/references/documentation-model.md`. The load-bearing calls: a hard-to-reverse
+     decision gets an ADR (a *new* one superseding the old — never edit the original); a **concept** with real
+     onboarding load gets an explainer, not a README section; and anything under `docs/adr/`, `docs/rfc/`, or
+     `journal/` is point-in-time and is **never** retro-edited to match what you learned later.
   4. **Evidence required — no bare `OK`.** You may record this phase as `OK` only after the audit actually ran. The
      Phase 9 summary must state WHAT was audited and WHAT was found/fixed (e.g. "audited 4 changed modules + new env var
      vs docs/README/CLAUDE.md — fixed 1 stale default, added 1 missing README link"), never an unsupported "no changes
@@ -145,6 +173,14 @@ For code and mixed projects:
   proceed past this phase without either writing tests or getting explicit user acknowledgment that tests are being
   skipped. Create a test suite if none exists.
 - If the project has a test suite, run it and fix any failures.
+- **Never pipe a test command.** `pytest -q | tail -25` reports **`tail`'s** exit code, not pytest's: the suite
+  fails, the step passes, and the summary says green. The same applies to any `| head`, `| grep`, or `| tee` after a
+  command whose exit status is the evidence. Either don't pipe, or set `pipefail`
+  (`set -o pipefail` in bash; `PIPESTATUS[0]` to inspect). If output is long, let it be long, or write it to a file
+  and read the file — **do not trade the verdict for tidier output.** This is not hypothetical: a real project
+  reported "exit code 0" with two tests failing this way, in a session whose whole subject was verification rigour.
+- **Read the actual result, not the last line.** A summary line is a claim; the exit code is the check. If they
+  disagree, believe the exit code and find out why.
 - Write tests for new functionality. Tests turn uncertainty into boredom — be aggressive about coverage for new public
   interfaces and complex logic.
 - **Coverage reporting:**
@@ -223,6 +259,23 @@ Add a journal entry for meaningful work — features, fixes, explorations, archi
 discussions. Skip entries for trivial chores or mechanical changes (linting, formatting, dependency bumps). Use freeform
 markdown. Filename format: `yymmdd-descriptive-title.md` (e.g., `260317-fix-slack-unread-notifications.md`).
 
+**The journal is point-in-time and authoritative for nothing.** That is not a demotion — it is the source of its
+value, and it is worth understanding why before writing one:
+
+- **Record what was observed, and no more.** Precisely-scoped weak claims ("the job ran, status=Succeeded") are the
+  point. When a real project's living docs rotted into a false claim about what was deployed, the journal was the
+  only document that stayed true — and the true, weak claim it held is what made the false, strong one *detectable*.
+  Its accuracy came from never being a summary.
+- **Never retro-edit it** to match what you later learned. It is a record of a moment, not of the truth. If you
+  discover an earlier entry was wrong, **append a new entry saying so** — the correction is itself history worth
+  keeping. (Updating *today's* entry with work done later in *this* session is not retro-editing; that's still the
+  same moment.)
+- **Grade your conclusions**: `confirmed` (observed), `strongly supported` (fits the evidence, nothing contradicts),
+  or `suspected` (a hypothesis). Writing a strongly-supported root cause as proven is the same overclaim as any
+  other; it just feels different because it's a conclusion.
+- **Include `## What is deliberately not done`.** Scope you chose not to take, and why. This is the section future
+  readers thank you for, because it distinguishes "not thought of" from "decided against".
+
 **Important:** The journal must cover all meaningful work from this session, including work done by earlier /done phases.
 If any of these were set up or significantly changed during this wrap-up, they belong in the journal:
 - Test suite or test runner setup (e.g., adding vitest, pytest, configuring coverage)
@@ -234,17 +287,70 @@ If any of these were set up or significantly changed during this wrap-up, they b
 If a journal entry already exists for today's session (written earlier in the conversation before /done ran), update it
 to include any additional work done during the wrap-up phases rather than creating a duplicate entry.
 
-## Phase 8 — Commit & Push
+## Phase 8 — Commit & Open a PR
+
+**This phase never pushes to `main`.** It ships the work to a pull request and watches CI *there*, so a red commit
+can't reach `main` in the first place. Fix-forward happens on the branch, where it belongs.
 
 - **Pre-commit check:** Before committing, verify that Phase 7b (Journal) was completed. If the journal entry has not
   been written or updated yet, do it now before proceeding.
 - **Squash into logical groups.** Each commit should be meaningful and self-contained — not one per file, but not one
   monolithic commit either. A commit should make sense on its own when read in `git log`.
 - Write clear commit messages that explain the _why_, not just the _what_.
-- After committing, run `/merge-push` to handle merging into main, pushing, worktree cleanup,
-  and CI monitoring. `/merge-push` will assess the branch state, check for conflicts, ask for
-  explicit confirmation before merging and before pushing, then monitor any triggered GitHub
-  Actions workflows and fix failures automatically (up to 3 attempts).
+
+Then branch on what Phase 0's governance check found:
+
+### 8a — Remote exists (the normal path)
+
+1. **Check you're not on `main`.** If you are, stop and ask the user — the work needs a branch, and which one is
+   their call.
+2. **Check the PR isn't already merged**, if a PR exists for this branch: `gh pr view --json state,number`. A push to
+   a **merged** PR's branch **succeeds silently**, is never merged, and runs no CI — the commits are stranded and
+   nothing tells you. If the PR is `MERGED` or `CLOSED`, stop: the fix is a fresh branch off `main` with the commits
+   cherry-picked, and you should say so rather than pushing into the void.
+3. **Push the branch:** `git push -u origin <branch>`.
+4. **Open the PR:** `gh pr create --fill` (respect any PR template — fill it in rather than around it). If a PR
+   already exists and is open, the push updated it; say so instead of opening a second.
+5. **Watch CI on the PR:** `gh pr checks <pr> --watch`. On failure: read the logs (`gh run view <id> --log-failed`),
+   diagnose, fix **on the branch**, commit, push, re-watch. Up to 3 cycles, then report and stop.
+   - A required check stuck at "Expected — Waiting for status" is almost always a path-filtered workflow that never
+     started. That's a repo config bug, not something to wait out — see "Making a check required" in the
+     engineering-team skill's `references/worktree.md`.
+6. **Do not merge.** Merging is a separate, explicitly-confirmed act (`/merge-push`). A green PR is a fact about the
+   PR, not permission to merge.
+
+**"Don't push" narrows this to step 1 only** — commit, and report that the branch is ready. It does not cancel the
+phase, and it does not license skipping Phase 9.
+
+### 8b — No remote (scratch repo)
+
+Commit, and tell the user the work is committed locally. Offer `/merge-push` if they want it merged. Do not create a
+remote without asking.
+
+## Phase 8c — Housekeeping (worktrees & branches)
+
+Reap what has already landed, so stale worktrees and branches don't accumulate. **Propose, then confirm — never
+reap silently.**
+
+1. **Enumerate:** `git worktree list`, `git branch --merged main`, and `git worktree prune --dry-run`.
+2. **Find what's really merged.** `git branch --merged main` is necessary but **not sufficient**: under
+   **squash merges the branch tip is never an ancestor of `main`**, so a squash-merged branch is *not* listed and the
+   naive check reaps nothing. The authority is the PR: `gh pr list --state merged --json headRefName,number`. Use
+   both — locally-merged *or* PR-merged counts.
+3. **Never reap when any of these hold** — report and skip:
+   - The working tree is dirty (`git status --porcelain` in that worktree is non-empty).
+   - It has unpushed commits.
+   - A rebase or merge is in progress (`.git/rebase-merge`, `.git/rebase-apply`, `MERGE_HEAD`).
+   - It is the worktree this session is running in.
+   - Its PR is still open, or it has no PR and isn't merged.
+4. **List what you propose to remove and ask.** Another session may own that tree, and a clean `git status -sb` can
+   be one instant old — a real coordinator once entered an "idle" worktree and found a rebase in flight. Removing
+   another session's work is not recoverable by apologising.
+5. **On confirmation:** `git worktree remove <path>`, then `git branch -d <branch>` (use `-D` only for a
+   squash-merged branch, after confirming via the PR state — `-d` will refuse it, correctly, because the tip isn't an
+   ancestor). Finish with `git worktree prune` for directories that are already gone.
+
+Record what was reaped for the Phase 9 summary.
 
 ## Phase 9 — Session Summary Report
 
@@ -263,23 +369,38 @@ the session wrap-up. Use the following structure:
 | Code Review         | ...    | ...                                                  |
 | Tests (post-review) | ...    | ...                                                  |
 | Lint                | ...    | ...                                                  |
-| Commit & Push       | ...    | ...                                                  |
-| CI Monitoring       | ...    | ...                                                  |
+| Commit & PR         | ...    | ...                                                  |
+| CI (on the PR)      | ...    | ...                                                  |
+| Housekeeping (8c)   | ...    | ...                                                  |
 +---------------------+--------+------------------------------------------------------+
 ```
 
 **Status** column values:
-- `OK` — phase passed with no changes needed
+- `OK` — phase ran and passed with no changes needed
 - `Fixed` — issues were found and resolved
 - `Warned` — issues flagged but not blocking
 - `N/A` — phase did not apply (e.g., no test suite, no Dockerfile)
+
+**This table is a set of claims, so the claim rules apply to it.** Ten verdicts get written here in one go, which
+makes it the easiest place in the whole workflow to assert more than you checked:
+
+- **`OK` means the phase ran and passed — not that it looked fine.** A phase you skipped is `N/A` with the reason,
+  never `OK`. If you cannot say what the phase actually did, it did not happen.
+- **Name the check.** "CI passed" is not a result; "`lint-types-test`, `docs-check`, `security-scans` green on
+  PR #42" is. If you cannot name the check and say what would have turned it red, do not report it as green.
+- **A claim may not be stronger than its evidence.** "Tests pass" says the suite exited zero. It does not say the
+  change works, and it says nothing at all about code no gate executes (dispatch-only workflows, Dockerfiles built
+  only at deploy, scripts embedded in YAML).
+- **Report failures as failures.** A phase that hit something unresolved is `Warned` with the specifics, even when
+  the rest went well. A tidy table is worth nothing if it's wrong.
 
 **Details** column: one-line summary of what happened. Examples:
 - Documentation: must cite the freshness audit — `"Audited 4 changed modules + new env var vs docs/README/CLAUDE.md; fixed 1 stale default, added 1 README link"` or, when genuinely clean, `"Audited N changed surfaces vs docs — all current"` (never a bare `"No changes needed"`, which signals the audit was skipped)
 - Security & Privacy: `"Added .env to .gitignore, moved API key to vault"` or `"No secrets found"`
 - Code Review: `"Simplified error handling in deploy.yml"` or `"No issues found"`
-- Commit & Push: `"2 commits pushed to main"` or `"PR #42 created on feature/xyz"`
-- CI Monitoring: `"CI passed on first run"` or `"CI failed, fixed lint error, passed on retry"` or `"No workflows"`
+- Commit & PR: `"2 commits, PR #42 opened on feat/xyz"` or `"2 commits, no remote — committed locally"`
+- CI (on the PR): `"lint-types-test + docs-check green on #42"` or `"lint failed on #42, fixed, green on retry"` or `"No workflows configured"` (name the checks — `"CI passed"` alone is not a result)
+- Housekeeping: `"Reaped 2 merged worktrees (feat/a, feat/b); skipped feat/c — uncommitted changes"` or `"No stale worktrees"`
 
 If any phase had `Fixed` or `Warned` status, add a **Notable Changes** section below the table with brief details
 about what was changed and why, grouped by phase.
