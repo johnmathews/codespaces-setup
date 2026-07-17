@@ -40,10 +40,16 @@ This applies throughout every phase below. When in doubt, search first.
   404 — that's an answer, not an error). A repo with a remote gets the PR path regardless; protections just tell
   you what the PR must satisfy.
 - Run `git status` and `git diff` to understand the current state of the working tree.
-- **Worktree check.** `git rev-parse --git-dir` vs `git rev-parse --git-common-dir` — if they differ, you are in
-  a worktree, which is the expected state for engineering-team work. If you are **on `main` in the main
-  checkout** with uncommitted changes, stop and tell the user: work should have started on a branch, and the
-  fix (branch now, or move the changes) is theirs to choose.
+- **Worktree check.** Compare the two git dirs, **normalising both to absolute** — if they differ you are in a
+  worktree, which is the expected state for engineering-team work:
+  ```bash
+  [ "$(git rev-parse --path-format=absolute --git-dir)" \
+    != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "in a worktree"
+  ```
+  Do **not** compare the bare forms: from a subdirectory of the main checkout `--git-dir` renders absolute and
+  `--git-common-dir` renders relative, so the naive comparison reports "worktree" for any main-checkout subdir.
+  If you are **on `main` in the main checkout** with uncommitted changes, stop and tell the user: work should
+  have started on a branch, and the fix (branch now, or move the changes) is theirs to choose.
 - If the working tree is clean and there are no unpushed commits, use the current conversation context to understand what
   was worked on during this session. This context is sufficient to inform documentation and journal updates in later
   phases.

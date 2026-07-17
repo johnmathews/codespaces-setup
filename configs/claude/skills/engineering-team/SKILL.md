@@ -59,9 +59,22 @@ reasons, both of which have bitten real runs:
    cannot read each other's artifacts, which is the entire coordination
    mechanism.
 
-So: resolve the main checkout with `git rev-parse --git-common-dir` (its
-parent is the main working tree, even when you are inside a worktree), and
-put `.engineering-team/` there. Reference it by absolute path.
+So resolve the main checkout like this, and put `.engineering-team/` there:
+
+```bash
+MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+RUN_DIR="$MAIN_CHECKOUT/.engineering-team/runs/<run-id>"
+```
+
+**`--path-format=absolute` is not optional.** Without it,
+`git rev-parse --git-common-dir` returns a path *relative to the current
+directory* (`.git` at the repo root, `../../.git` two levels down). The value
+is correct where it is computed and silently wrong the moment you `cd` — which
+this flow does constantly, since work happens in a worktree. A relative
+`$RUN_DIR` also cannot be handed to another session, which is what
+multi-session needs it for. (Needs git ≥ 2.31; on older git use
+`git worktree list --porcelain | head -1 | sed 's/^worktree //'`, whose first
+entry is always the main worktree.)
 
 - **Resuming:** if `.engineering-team/current.txt` exists and names a
   directory under `.engineering-team/runs/` that still exists, that is
@@ -89,12 +102,38 @@ merge step always has something to merge. An evaluation that turns up a
 one-line fix becomes a code change, and by then it is too late to be on a
 branch.
 
+**First check whether you are already in one** — before creating anything:
+
+```bash
+# --path-format=absolute on BOTH sides, or this is wrong. See below.
+[ "$(git rev-parse --path-format=absolute --git-dir)" \
+  != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "already in a worktree"
+```
+
+The flags are load-bearing. Bare `git rev-parse --git-dir` returns an
+**absolute** path from a subdirectory while `--git-common-dir` returns a
+**relative** one — the same location, rendered differently, so a string
+comparison reports "different" and concludes you are in a worktree when you
+are standing in a subdirectory of the main checkout. Normalise both sides
+before comparing them.
+
+- **Already in a worktree** (the user invoked the skill from one, or a
+  previous phase created it) → **work in it. Do not create another.**
+  Nested worktrees are always wrong here: the inner tree is orphaned when
+  the outer one is removed, and it splits the work across two branches so
+  the PR gets half of it. Note the branch you are on; that is the branch
+  this run ships.
+- **In the main checkout** → create the worktree now (`references/worktree.md`).
+
 The full discipline is in `references/worktree.md`. Two exceptions:
 
 - A **non-git project**, or a repo where the user declined `git init` —
   work in place; wrap-up degrades to "ask whether to commit."
 - The **Discussion workflow**, which writes no code and needs no branch
   (`references/discussion.md`).
+
+Either way `$RUN_DIR` resolves to the main checkout (above), which is why
+that resolution must not depend on where you are standing.
 
 Remember: the worktree holds code, `$RUN_DIR` stays in the main checkout
 (above).

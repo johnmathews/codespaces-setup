@@ -40,6 +40,18 @@ The report's rev 1 asserted "this report follows Horizons' heading rule, as a sa
 
 The housekeeping phase was also exercised for real: `feat/engineering-team-doc-freshness` had been sitting in `/workspaces/dotfiles-wt/` fully merged. All five safety conditions checked, then reaped — `git branch -d` succeeded rather than needing `-D`, which confirmed it was a genuine ancestor merge rather than a squash.
 
+## Two bugs found by review, in the code that fixes the bugs
+
+John asked a plain question — "what happens if I run engineering-team or /done *in* a worktree?" — and it found two real defects in this PR, both in git plumbing I had **written but never executed**. In a change whose headline rule is *a check that cannot fail is not evidence*, I shipped two commands I had not run once.
+
+1. **`git rev-parse --git-common-dir` returns a path relative to the cwd.** `.git` at the repo root, `../../.git` two levels down. The value is right where it is computed and silently wrong after any `cd` — which this flow does constantly, since work happens in a worktree — and a relative path cannot be handed to another session, which is the one thing multi-session needs it for. Fixed with `--path-format=absolute` (git ≥ 2.31). Note the first diagnosis was *also* overstated: I said `dirname` gave the wrong directory, and it doesn't — `../..` from `configs/claude` really is the repo root. The defect is portability, not value. Getting the severity of a bug wrong is the same failure as getting a claim wrong.
+
+2. **Comparing `--git-dir` with `--git-common-dir` to detect a worktree is broken from any subdirectory.** From a subdir of the *main* checkout, `--git-dir` renders **absolute** and `--git-common-dir` renders **relative** — same location, different strings — so the comparison reports "you are in a worktree" whenever you stand one directory below the root. I had written, in `worktree.md`, that this comparison was "safe relative or absolute — they are both rendered the same way." That sentence was pure assertion and it was false. **This one is pre-existing**: `merge-push.md` Step 1b has had it since before this PR, and I propagated it into `/done` Phase 0 by copying the pattern. Fixed in all four sites by normalising both sides.
+
+3. **The nested-worktree gap.** Nothing told the router what to do if the session was *already* in a worktree. It would have created a nested one — which Phase 3 forbids elsewhere, so the skill contradicted itself. The inner tree is orphaned when the outer is removed, and the work splits across two branches so the PR ships half of it. Now checked explicitly before creating anything.
+
+The pattern across both: **I wrote plumbing, reasoned about what it returns, and did not run it.** Reasoning about `git rev-parse` output is exactly as reliable as reasoning about whether a job that exited 0 called the model. Both were fixed only after running the command from all five locations it can be invoked from (main root, main subdir, main deep, worktree root, worktree subdir) and printing the results next to the expected ones — thirty seconds of work that I skipped twice while writing the rule against skipping it.
+
 ## What is deliberately not done
 
 - **No RFC/ADR directories for this repo.** The six-type model is now defined for every project, but directories are created on first use — a repo with no hard-to-reverse decisions has no `docs/adr/`, which is different from not having the concept.

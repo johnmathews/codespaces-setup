@@ -30,8 +30,15 @@ Gather information before doing anything. Run these in parallel:
 
 1. **Current branch:** `git branch --show-current` — if already on `main`, skip to the push
    assessment (Step 1c).
-2. **Worktree check:** Compare `git rev-parse --git-dir` and `git rev-parse --git-common-dir`.
-   If they differ, you are in a worktree. Note this — it affects cleanup later.
+2. **Worktree check:** Compare the two git dirs, **normalising both to absolute**:
+   ```bash
+   [ "$(git rev-parse --path-format=absolute --git-dir)" \
+     != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "in a worktree"
+   ```
+   If they differ, you are in a worktree. Note this — it affects cleanup later. The
+   `--path-format=absolute` on both sides is required: from a subdirectory of the main checkout
+   `--git-dir` renders absolute while `--git-common-dir` renders relative, so comparing the bare
+   forms reports "worktree" for any main-checkout subdir.
 3. **Working tree status:** `git status --short` — if there are uncommitted changes, warn the
    user and ask how to proceed (stash, commit first, or abort). Do not merge with a dirty tree.
 

@@ -47,10 +47,34 @@ sensible economy, and it isn't:
 | Code | the worktree | isolated per session, merged via a PR |
 | `$RUN_DIR` | the **main checkout** | survives worktree cleanup; shared by parallel sessions |
 
-Resolve the main checkout with `git rev-parse --git-common-dir` — its parent is the main
-working tree even when you are inside a worktree. A `$RUN_DIR` placed inside a worktree is
-**deleted by wrap-up**, taking the evaluation report and the plan with it, and it is invisible
-to every other session. See "The run directory" in `../SKILL.md`.
+Resolve the main checkout with:
+
+```bash
+MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+```
+
+**Keep `--path-format=absolute`.** Without it the path comes back *relative to the current
+directory* — correct where you computed it, silently wrong after any `cd`, and unusable by
+another session. A `$RUN_DIR` placed inside a worktree is **deleted by wrap-up**, taking the
+evaluation report and the plan with it, and it is invisible to every other session. See "The run
+directory" in `../SKILL.md`.
+
+**Are you already in a worktree?** `--git-dir` and `--git-common-dir` point at different places
+when you are. Compare them **with `--path-format=absolute` on both sides**:
+
+```bash
+[ "$(git rev-parse --path-format=absolute --git-dir)" \
+  != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "in a worktree"
+```
+
+Comparing the bare forms is a real bug, not a style nit: from a subdirectory of the main
+checkout, `--git-dir` renders **absolute** and `--git-common-dir` renders **relative**. Same
+location, different strings — so the naive comparison decides you are in a worktree whenever you
+happen to be standing one directory down. Normalise both sides.
+
+If you already are in one: **work in it; never nest a second worktree inside it.** The inner tree
+is orphaned when the outer is removed, and the work splits across two branches so the PR ships
+half of it.
 
 **Setup (when using a worktree):**
 

@@ -21,9 +21,11 @@ from on-disk artifacts, running these in parallel where possible:
 2. **Git state:** `git branch --show-current`, `git status --short`, and `git log --oneline -10` to
    capture the branch, uncommitted work, and recent commits.
 3. **engineering-team run state:** Check whether this project uses the `engineering-team` skill by
-   looking for `.engineering-team/current.txt` **in the main checkout** (the run dir lives there, not
-   in a worktree — resolve it with `git rev-parse --git-common-dir`) and the run directory it names
-   under `.engineering-team/runs/`. If present, read the run's artifacts (`evaluation-report.md`,
+   looking for `.engineering-team/current.txt` **in the main checkout** — the run dir lives there,
+   not in a worktree, so resolve it with
+   `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"` (keep
+   `--path-format=absolute`, or you get a path relative to your cwd that the next session cannot
+   use) — and the run directory it names under `.engineering-team/runs/`. If present, read the run's artifacts (`evaluation-report.md`,
    `improvement-plan.md`, and `progress.md` / `status-*.md` if the run has lanes) to determine the
    exact phase, which work units are done, and which remain. **Reference these files by absolute path
    in the generated prompt rather than pasting their full contents** — the new session can read them.

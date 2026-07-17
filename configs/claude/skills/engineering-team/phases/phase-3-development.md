@@ -27,12 +27,23 @@ git worktree add .claude/worktrees/eng-<plan-short-name> -b eng-<plan-short-name
 cd .claude/worktrees/eng-<plan-short-name>
 ```
 
+**If the session is already in a worktree, use it — do not create another.**
+Phase 1 creates one, so by Phase 3 there usually is one; and the user may
+have started the session in one. Nesting splits the work across two
+branches, so the PR ships half of it.
+
 **Do not create a `.engineering-team/` inside the worktree.** `$RUN_DIR`
-lives in the main checkout and is referenced by absolute path — resolve it
-with `git rev-parse --git-common-dir` (its parent is the main working
-tree). A run dir inside the worktree is deleted by Phase 4's cleanup,
-taking the evaluation report and the plan with it, and no other session can
-see it. See "The run directory" in `../SKILL.md`.
+lives in the main checkout and is referenced by absolute path:
+
+```bash
+MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+```
+
+Keep `--path-format=absolute` — without it the path is relative to your cwd
+and breaks as soon as you `cd` into the worktree. A run dir inside the
+worktree is deleted by Phase 4's cleanup, taking the evaluation report and
+the plan with it, and no other session can see it. See "The run directory"
+in `../SKILL.md`.
 
 If you find yourself running `pytest` or editing files in the
 project root rather than under `.claude/worktrees/`, you have skipped this
