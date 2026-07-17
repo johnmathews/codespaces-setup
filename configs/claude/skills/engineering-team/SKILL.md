@@ -155,6 +155,23 @@ artifact, one writer.** A worker never writes the plan or the dashboard; a
 coordinator never writes a lane's status file. Load
 `references/multi-session.md` before acting as either.
 
+**The role is not fixed for the session.** A **solo** session becomes the
+**coordinator** the moment Phase 2 writes `progress.md` — that file is what
+makes the run multi-lane, so writing it is the promotion. From that point
+the single-writer rule binds you: you own the plan, the dashboard, and
+memory, and you do not write any lane's status file. Re-read your role
+after Phase 2; the one you were assigned at activation is stale.
+
+**If the user asks for parallel work up front** ("split this across
+sessions", "run this in parallel"), that is a **preference, not a role** —
+record it and raise it at the Phase 2 gate. You cannot coordinate a plan
+that doesn't exist yet, so a fresh session that was asked for lanes is
+still solo through Phases 1–2. Do not create a dashboard early to honour
+the request; derive the lanes first and let the footprints decide whether
+the split is real (`phases/phase-2-planning.md`, Step 3.5). If the plan
+turns out not to qualify, say so and recommend solo — the user asked for
+parallelism to go faster, not for ceremony.
+
 ## Decide which phase to load
 
 Once you know your role, determine the current phase and load the matching

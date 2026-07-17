@@ -209,6 +209,31 @@ worktree, a branch, and a PR. If you're proposing a split, load
 `../references/multi-session.md` before writing the dashboard or any hand-off
 prompts.
 
+### Step 3.6: If the user agrees to split — you are now the coordinator
+
+Only after the user confirms the split at the gate below. Writing `progress.md` is
+what makes the run multi-lane, so writing it **promotes this session from solo to
+coordinator** — the role you were assigned at activation is now stale, and the
+single-writer rule binds you from here (`../SKILL.md`, "Decide your role").
+
+1. **Write `$RUN_DIR/progress.md`** — the board *and* the tracking contract restated
+   in full, so a fresh session needs no other document. Shape in
+   `../references/multi-session.md` §6.1. The `Owns` column holds each lane's file
+   footprint, verbatim from the units — it is the disjointness contract made visible.
+2. **Name each lane's branch and worktree** and record them on the board:
+   `eng-<plan-short-name>-<lane>` (e.g. `eng-auth-refactor-a`). **Every lane must get
+   a distinct name** — they all read the same plan, so a name derived from the plan
+   alone collides across every lane, and the second session to start would fail on the
+   branch that already exists.
+3. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
+   the lane, its footprint, its branch and worktree, and absolute paths to the plan,
+   the dashboard, and its own `status-<lane>.md`.
+4. **Hand them to the user.** They open the sessions and paste. Do not start a lane's
+   work yourself unless you are also running that lane.
+
+From here you own the plan, the dashboard, and memory. You do **not** write any
+lane's `status-<lane>.md`, and you do not reach into a lane's worktree.
+
 Ensure the plan is complete — every issue from the evaluation should be addressed or
 explicitly marked as out-of-scope with a reason. (Non-goals capture *categories* of
 out-of-scope work; per-finding notes capture specific exclusions within scope.)

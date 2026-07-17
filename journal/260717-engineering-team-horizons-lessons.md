@@ -40,9 +40,15 @@ The report's rev 1 asserted "this report follows Horizons' heading rule, as a sa
 
 The housekeeping phase was also exercised for real: `feat/engineering-team-doc-freshness` had been sitting in `/workspaces/dotfiles-wt/` fully merged. All five safety conditions checked, then reaped — `git branch -d` succeeded rather than needing `-D`, which confirmed it was a genuine ancestor merge rather than a squash.
 
-## Two bugs found by review, in the code that fixes the bugs
+## Six bugs found by review, in the change that fixes the bugs
 
-John asked a plain question — "what happens if I run engineering-team or /done *in* a worktree?" — and it found two real defects in this PR, both in git plumbing I had **written but never executed**. In a change whose headline rule is *a check that cannot fail is not evidence*, I shipped two commands I had not run once.
+Two plain questions from John — "what happens if I run engineering-team or /done *in* a worktree?" and "how do I actually start a multi-session run?" — found six real defects in this PR. Not one was found by me re-reading my own work; every one came from someone asking what happens when you *use* the thing.
+
+(This heading said "Two bugs" through the first round and I kept appending under it without fixing the count. Left as a footnote to itself: a heading is a claim too.)
+
+### Round 1 — git plumbing I wrote but never executed
+
+In a change whose headline rule is *a check that cannot fail is not evidence*, I shipped two commands I had not run once.
 
 1. **`git rev-parse --git-common-dir` returns a path relative to the cwd.** `.git` at the repo root, `../../.git` two levels down. The value is right where it is computed and silently wrong after any `cd` — which this flow does constantly, since work happens in a worktree — and a relative path cannot be handed to another session, which is the one thing multi-session needs it for. Fixed with `--path-format=absolute` (git ≥ 2.31). Note the first diagnosis was *also* overstated: I said `dirname` gave the wrong directory, and it doesn't — `../..` from `configs/claude` really is the repo root. The defect is portability, not value. Getting the severity of a bug wrong is the same failure as getting a claim wrong.
 
@@ -50,7 +56,17 @@ John asked a plain question — "what happens if I run engineering-team or /done
 
 3. **The nested-worktree gap.** Nothing told the router what to do if the session was *already* in a worktree. It would have created a nested one — which Phase 3 forbids elsewhere, so the skill contradicted itself. The inner tree is orphaned when the outer is removed, and the work splits across two branches so the PR ships half of it. Now checked explicitly before creating anything.
 
-The pattern across both: **I wrote plumbing, reasoned about what it returns, and did not run it.** Reasoning about `git rev-parse` output is exactly as reliable as reasoning about whether a job that exited 0 called the model. Both were fixed only after running the command from all five locations it can be invoked from (main root, main subdir, main deep, worktree root, worktree subdir) and printing the results next to the expected ones — thirty seconds of work that I skipped twice while writing the rule against skipping it.
+The pattern across all three: **I wrote plumbing, reasoned about what it returns, and did not run it.** Reasoning about `git rev-parse` output is exactly as reliable as reasoning about whether a job that exited 0 called the model. They were fixed only after running the commands from all five locations they can be invoked from (main root, main subdir, main deep, worktree root, worktree subdir) and printing results next to expectations — thirty seconds of work I skipped twice while writing the rule against skipping it.
+
+### Round 2 — the multi-session feature had no working entrance
+
+"How do I start a multi-session run — can I just ask?" turned out to have an embarrassing answer: sort of, by luck, and the first real run would have collided on branch names.
+
+4. **Every lane would compute the same branch name.** Phase 3 told each session to name its worktree `eng-<plan-short-name>` from the plan frontmatter. Every lane reads the *same* plan, so all of them derive the *same* name: the first session takes the branch, the rest collide. `/prompt`'s hand-off did specify a per-lane branch, but Phase 3 didn't say "use the name your prompt gave you" — so two docs contradicted, and the one being read at the deciding moment was the wrong one. Now `eng-<plan-short-name>-<lane>`, stated in all four places that mention naming.
+5. **Asking for parallelism up front wasn't routed anywhere.** Role detection was purely on-disk (`progress.md` exists → multi-lane, else solo), so "split this across sessions" had no effect on anything. It would probably have worked anyway — the model would carry the request to the Phase 2 gate — which is exactly the kind of *luck* this change exists to replace with mechanism. Now: user intent is a **preference** recorded for the gate, not a role, because you cannot coordinate a plan that does not exist yet.
+6. **The solo → coordinator transition was undefined.** Role was assigned once, at activation, from disk. A fresh run has no `progress.md` → solo. Phase 2 then writes `progress.md` mid-run and nothing anywhere said the session was now the coordinator: it would carry a stale role past the moment the single-writer rule started binding it. Now writing the dashboard **is** the promotion, stated in the router, Phase 2, and `multi-session.md`.
+
+The pattern across round 2: **I specified the steady state and never walked the transition into it.** Every rule about how a multi-lane run *behaves* was right; nothing described how one *starts*. A feature can be entirely correct and still have no working entrance, and re-reading it will not reveal that — only trying to use it will. Which is why the question that found it was not "is this right?" but "how do I do this?"
 
 ## What is deliberately not done
 
@@ -58,4 +74,5 @@ The pattern across both: **I wrote plumbing, reasoned about what it returns, and
 - **No SLOs or performance gates.** Horizons has none either; inventing latency budgets for projects that don't have them is ceremony. The NFR register records absence, which is enough.
 - **The Discussion workflow is untouched** — out of scope for the brief, and unreviewed.
 - **No `check_docs.py` for this repo.** It has two markdown docs. The skill now specifies the gate; this repo doesn't need one yet.
-- **The multi-session model is specified but unexercised.** It is lifted from a real Horizons run (one coordinator, three workers, six units, zero conflicts), but nothing in *this* repo has run it. The skill's own rule applies to the skill: **that is a doc-derived claim, not a runtime one**, and the first real multi-lane run is what would confirm it.
+- **The multi-session model is specified but unexercised.** It is lifted from a real Horizons run (one coordinator, three workers, six units, zero conflicts), but nothing in *this* repo has run it. The skill's own rule applies to the skill: **that is a doc-derived claim, not a runtime one**, and the first real multi-lane run is what would confirm it. Round 2 above is the evidence for taking that caveat seriously rather than as boilerplate — three defects sat in the entrance path, and the only reason they were found before a real run is that someone asked how to start one. **Assume there are more.** The first genuine multi-lane run is a test, and should be treated as one.
+- **No test that the branch-name collision cannot come back.** The fix is prose in four files saying "append the lane". Prose is enforced by memory, which is the exact failure mode `general-guidelines.md` now warns against — the structural fix would be a naming function with one home. Not done: there is nowhere in a markdown skill to put executable code, and inventing a place is a bigger change than this PR should carry. Recording it as a known gap rather than pretending the prose is a control.

@@ -15,16 +15,30 @@ The worktree gives the whole cycle a single mergeable unit and protects
 discipline lives in `../references/worktree.md` — **load it before your
 first edit, not when you remember.**
 
-The short version: use the `EnterWorktree` tool with the name
-`eng-<plan-short-name>`, where `<plan-short-name>` is the `plan:` value
-from the improvement-plan.md frontmatter. The tool creates the branch,
-places the worktree under `.claude/worktrees/`, and switches the session
-into it. Only if `EnterWorktree` is unavailable in your environment, fall
-back to the manual equivalent:
+The short version: use the `EnterWorktree` tool. The tool creates the
+branch, places the worktree under `.claude/worktrees/`, and switches the
+session into it. **The name depends on whether this run has lanes:**
+
+| Role | Worktree / branch name |
+| --- | --- |
+| **Solo** | `eng-<plan-short-name>` — the `plan:` value from the improvement-plan frontmatter |
+| **Worker** | **the name your hand-off prompt gave you** — conventionally `eng-<plan-short-name>-<lane>` |
+| **Coordinator running a lane** | `eng-<plan-short-name>-<lane>`, same as any worker |
+
+**A worker must never derive its name from the plan alone.** Every lane
+reads the *same* plan, so `eng-<plan-short-name>` is identical for all of
+them — the first session takes the branch and the rest collide on a name
+that already exists. The lane suffix is what makes it unique, and your
+prompt already carries it. If your prompt did not name a branch, that is a
+defect in the hand-off: ask rather than guessing, because two lanes quietly
+sharing a branch is worse than a pause.
+
+Only if `EnterWorktree` is unavailable in your environment, fall back to
+the manual equivalent (substituting the name from the table):
 
 ```bash
-git worktree add .claude/worktrees/eng-<plan-short-name> -b eng-<plan-short-name>
-cd .claude/worktrees/eng-<plan-short-name>
+git worktree add .claude/worktrees/<name> -b <name>
+cd .claude/worktrees/<name>
 ```
 
 **If the session is already in a worktree, use it — do not create another.**

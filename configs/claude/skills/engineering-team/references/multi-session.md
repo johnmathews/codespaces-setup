@@ -95,10 +95,19 @@ Detected from on-disk state by the router, never guessed.
 Owns the plan, the dashboard, and memory. Does **not** write any lane's status
 file.
 
+A session **becomes** the coordinator by writing `progress.md` — that file is what
+makes the run multi-lane, so writing it is the promotion. A solo session that splits
+its plan at the Phase 2 gate is the coordinator from that moment, and the
+single-writer rule binds it from there.
+
 1. Derive lanes from footprints (§3) and record them on the dashboard.
 2. Write `progress.md` — the board *and* the contract, restated in full, so a
    fresh session needs no other document.
-3. Emit one hand-off prompt per lane (use `/prompt`). The human opens the
+3. **Give every lane a distinct branch and worktree name** — `eng-<plan-short-name>-<lane>`
+   — and put them on the board. This is not cosmetic: every lane reads the *same*
+   plan, so any name derived from the plan alone is identical across all of them, and
+   every session after the first collides on a branch that already exists.
+4. Emit one hand-off prompt per lane (use `/prompt`). The human opens the
    sessions and pastes them in.
 4. **Reconcile**: poll `gh pr list`, read each `status-<lane>.md`, update the
    board, and fold surprises back into the plan.

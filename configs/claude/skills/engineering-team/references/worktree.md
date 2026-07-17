@@ -88,6 +88,11 @@ half of it.
    sibling paths). Prefix the name with `eng-` so engineering-team worktrees are identifiable, and choose
    a kebab-case name that describes the work (e.g., `eng-fitness-tier-plan`, not `eng-work-1`). The tool
    creates a new branch and switches the session into the worktree directory.
+
+   **On a multi-lane run, append the lane:** `eng-<plan-short-name>-<lane>`, and use the name your
+   hand-off prompt gave you. Every lane reads the same plan, so a name derived from the plan alone is
+   identical across all of them and every session after the first collides on an existing branch. See the
+   table in `../phases/phase-3-development.md`.
 3. **Note the branch name.** The `EnterWorktree` tool will report the branch name it created. You MUST
    remember this — you will need it later for the merge step.
 

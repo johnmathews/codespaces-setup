@@ -83,7 +83,11 @@ the receiving session has no history to continue. Each must state:
 2. **The footprint it owns**, as paths, and that it owns nothing else. Touching a file outside it
    is a surprise to be reported, not a decision to be made.
 3. **Absolute paths** to the plan, the dashboard, and its own `status-<lane>.md`.
-4. **Its branch and worktree name**, so two lanes never collide on either.
+4. **Its branch and worktree name — explicitly, and distinct per lane.** Use
+   `eng-<plan-short-name>-<lane>`. A worker that isn't given a name falls back to deriving one
+   from the plan, and every lane reads the *same* plan — so they all compute the same name and
+   every session after the first collides on an existing branch. This field is the only thing
+   preventing that; do not omit it.
 5. **The contract, in one line:** read the plan, never write it; keep your status file and PR
    updated; run `/done` when finished; never touch another lane's worktree.
 6. **Any scope fence** — "do NOT execute X", "do NOT touch Y, lane C owns it".
