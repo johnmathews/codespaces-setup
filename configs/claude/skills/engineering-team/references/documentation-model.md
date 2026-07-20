@@ -179,9 +179,10 @@ per module.** If you cannot name the conceptual load it carries, don't write it.
 
 ## 6. Where the machine half lives
 
-The gates that enforce this model — link/anchor checking, the status-stamp check
-**with a parsed date window**, the stamp **size budget**, and the rule that each
-must ship with a test proving it goes red — are specified in `worktree.md` under
+The gates that enforce this model — link/anchor checking, the staleness check
+(**driven by change to what a doc covers**, with a long clock only for runtime
+claims), the stamp **size budget**, and the rule that each must ship with a test
+proving it goes red — are specified in `worktree.md` under
 "Documentation gates". The
 human half is Phase 3's "docs touched?" check, Phase 4's living-docs
 reconciliation, and `/done`'s documentation audit.

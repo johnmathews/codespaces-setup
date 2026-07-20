@@ -262,8 +262,10 @@ For every gate the project claims to have, establish its real capability by
 it**. That a workflow invokes it proves only that it runs
 (`../references/general-guidelines.md` rule 2). The gap is invisible from the
 caller and routine in practice: a docs-freshness gate that only greps for field
-labels and does no date arithmetic; a scanner whose pattern matches nothing; a
-step piped into `tail`, so the suite's exit code is discarded. Report each as
+labels and does no date arithmetic; one that measures staleness in calendar days
+and so cannot tell an accurate doc in a dormant repo from a rotten one in a busy
+repo; a scanner whose pattern matches nothing; a step piped into `tail`, so the
+suite's exit code is discarded. Report each as
 *claimed capability | actual capability | what would have to break for it to go
 red* — and where a doc asserts a capability the gate doesn't have, that is a
 false claim in a living doc, not merely a weak gate.
