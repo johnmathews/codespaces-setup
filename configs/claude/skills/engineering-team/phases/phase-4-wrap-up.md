@@ -63,7 +63,12 @@ stale: the README, the spec, runbooks, and any controls/security registers
    doc was updated in this branch. List them explicitly, e.g.
    "changed deploy step → `docs/runbooks/deploy.md` updated ✓".
 3. If a living doc was affected but **not** updated, update it now (in this
-   branch, before merge) and bump its `Last verified` / `Last updated` stamp.
+   branch, before merge) and **re-stamp** it — replace the `Last updated` /
+   `Last verified` dates and the evidence link rather than appending to what is
+   there. The test: *if you are adding a clause rather than replacing one, the
+   content belongs elsewhere* (routing table in `../SKILL.md`, "Living-document
+   status stamp"). A session that appends one clause per pass is how a stamp
+   becomes a wall of text nobody reads — including its warnings.
 4. If nothing living was affected, say so explicitly — do not let it pass
    silently. "No living docs affected by this change" is a required statement,
    not an omission.

@@ -291,11 +291,12 @@ buried under execution sequencing).
 
 1. **Status header at the top.** Every persistent plan begins with:
    ```
-   **Status:** active. **Last updated:** YYYY-MM-DD. **Supersedes:** <doc-or-none>. **Path:** <repo-relative-path>.
+   **Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD ([evidence](link)). **Supersedes:** <doc-or-none>.
    ```
    This lets a future reader tell at a glance whether the doc is live, stale, or superseded —
-   without cross-referencing a roadmap. The `Path` field records the plan's own repo-relative
-   location so a printed or copied-out copy still shows where it came from.
+   without cross-referencing a roadmap. Same form and same character budget as every other
+   living doc (`../SKILL.md`, "Living-document status stamp"): state only, evidence linked
+   rather than inlined, and re-stamped rather than appended to on each pass.
 
 2. **Index it from the canonical roadmap immediately.** If the project has a `docs/roadmap.md`
    (or equivalent — check during Phase 1), add a link to the new plan from the roadmap in the

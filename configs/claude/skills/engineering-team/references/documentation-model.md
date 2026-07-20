@@ -125,7 +125,7 @@ and skip the edge cases, because it is not the contract.
 ```markdown
 # Explainer: how <the concept works, in plain language>
 
-**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD (against `file.py` and [ADR-00NN](...)). **Supersedes:** none. **Path:** docs/explainers/<name>.md.
+**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD ([`file.py`](...), [ADR-00NN](...)). **Supersedes:** none.
 
 > This is an **explainer** — its job is to build your mental model, not to be
 > authoritative. The binding decisions live in [ADR-00NN](...); current behaviour
@@ -157,7 +157,10 @@ per module.** If you cannot name the conceptual load it carries, don't write it.
 - **Headings:** one unnumbered H1 (the title); H2+ numbered decimally from `## 1.`;
   an unnumbered `> Purpose` blockquote as the lead. Full rule in `../SKILL.md`.
 - **Status stamp** on every living doc, with a **method that matches the kind of
-  claim** it certifies (`../SKILL.md`). Point-in-time docs are exempt.
+  claim** it certifies, within the stamp's character budget (`../SKILL.md`).
+  Point-in-time docs are exempt. A stamp records state and does not narrate: the
+  evidence is linked, never inlined, and narrative goes to the document type that
+  owns it — which is what the six types above are for.
 - **The README is the front door.** It links to the ADR index, the spec, and the
   current plan. A document nothing links to is shadow inventory — discoverable
   only by someone who already knows it exists, which is nobody.
@@ -177,8 +180,9 @@ per module.** If you cannot name the conceptual load it carries, don't write it.
 ## 6. Where the machine half lives
 
 The gates that enforce this model — link/anchor checking, the status-stamp check
-**with a parsed date window**, and the rule that a stale-stamp test must prove the
-gate goes red — are specified in `worktree.md` under "Documentation gates". The
+**with a parsed date window**, the stamp **size budget**, and the rule that each
+must ship with a test proving it goes red — are specified in `worktree.md` under
+"Documentation gates". The
 human half is Phase 3's "docs touched?" check, Phase 4's living-docs
 reconciliation, and `/done`'s documentation audit.
 
