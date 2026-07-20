@@ -136,9 +136,10 @@ anti-doc-rot strategy — so living docs cannot silently drift:
   fails on broken internal links **and broken `#anchors`** across `*.md`.
 - **Freshness / status-stamp check** — a CI job that asserts every living doc
   carries the status stamp (see the router's "Living-document status stamp"),
-  **and that parses the `Last verified` date and fails past a staleness window**
-  (~90 days to start; rules below). Point-in-time docs (`/docs/adr/`, `/docs/rfc/`,
-  `/journal/`) are excluded **by path**, not by judgement.
+  **parses the `Last verified` date, and fails when the doc is due.** Due is
+  driven by **change, not by the calendar** (rules below). Point-in-time docs
+  (`/docs/adr/`, `/docs/rfc/`, `/journal/`) are excluded **by path**, not by
+  judgement.
 - **Stamp size check** — a CI job that fails when a status stamp exceeds a
   character budget (~600 to start; see the router's "Living-document status
   stamp"). Measure the stamp **paragraph** — the contiguous non-blank lines
@@ -169,12 +170,36 @@ did **no date arithmetic at all**, while the project's own testing doc claimed i
 workflow that calls the gate*, which establishes that CI invokes it and never
 what it detects (`general-guidelines.md` rule 2).
 
-Build it to these four rules:
+Build it to these rules:
 
-- **A concrete window, ratcheted.** ~90 days is a sane starting target. Land it
-  wide enough that one honest re-verification pass can get the repo green, then
-  tighten. Same law as the size budget: **never widen the window to turn a red
-  doc green** — that red is the gate reporting that nobody has checked the doc.
+- **Stale means changed, not old.** Elapsed time is a proxy for drift and a poor
+  one. A fixed window reds accurate docs in a dormant repo and passes rotten ones
+  in a busy one — and worse, it teaches re-stamping on a schedule, where the
+  cheapest way to clear a due list is to bump the date without re-checking
+  anything. That is the false-verification failure this whole convention exists
+  to prevent, manufactured by the gate meant to stop it. Drive it off the repo:
+
+  ```bash
+  git log --since="<Last verified>" -- <paths the doc covers>
+  ```
+
+  Empty means the doc cannot have drifted from code change, at any age.
+  Non-empty means it is due however recent the stamp. It self-scales: no commits,
+  nothing due; forty commits a week and the runbooks come due in days.
+- **A doc declares what it covers.** Add an optional
+  `**Covers:** <paths-or-globs>` field to the stamp so the gate knows what to
+  diff against. It has to be declared because it is not derivable — unlike
+  `Path`, which was, and which is why that field was removed. Omitting it is
+  allowed and costs the precise signal: an undeclared doc falls back to the
+  backstop below.
+- **Keep a long clock only for what git cannot see.** Runtime claims rot with no
+  commit at all — a SKU retired, an API version sunset, a model deprecated,
+  a service decommissioned. So a doc making runtime claims is *also* due after a
+  long fixed period: **6–12 months, not 90 days.** That is the only legitimate
+  use of wall-clock here. Note that the two signals land exactly on the two claim
+  kinds this skill already separates: **doc- and code-derived claims go stale on
+  change; runtime claims go stale on a clock**, because only one of them has a
+  commit to hang off.
 - **Unparseable is red, never skipped.** The hole is a regex that doesn't match
   and a gate that shrugs. A malformed date, a missing field, and `banana` must
   all fail: absence of a parse is not a pass.
@@ -182,9 +207,11 @@ Build it to these four rules:
   first verification, so the gate must accept it — but bounded against `Last
   updated`, or it becomes a permanent parking space that is a legal value
   forever. An exemption must expire by itself (`general-guidelines.md` rule 4).
-- **Ship a test per hole, not one happy path**: stale date red, unparseable red,
-  aged-out `not yet` red. A scanner that matches nothing passes loudest when it
-  is blind.
+- **Ship a test per hole, not one happy path**: a doc whose covered paths changed
+  since `Last verified` goes red, an unparseable date goes red, an aged-out
+  `not yet` goes red, and a doc in an untouched repo stays **green** however old
+  it is — that last one is what pins the design, and a calendar-based gate fails
+  it. A scanner that matches nothing passes loudest when it is blind.
 
 These complement the wrap-up living-docs reconciliation step (Phase 4) and the
 per-unit "docs touched?" check (Phase 3): the gates are the machine enforcement,

@@ -293,6 +293,11 @@ the stamp by link, never copied into it.
   code, a real run, the live config). **It cites evidence; it never contains
   it** — one link out to the run, the command, or the section that holds the
   detail. Use "not yet — <reason>" until first verified; never leave it blank.
+- **Covers** *(optional)* — the paths this doc describes (`infra/`,
+  `src/api/**`). It lets the freshness gate ask the only question that means
+  anything — *has the thing this doc describes changed since it was last
+  verified?* — instead of counting calendar days. Omit it for a doc that
+  describes no particular code.
 - When you edit a living doc, bump **Last updated**; when you confirm its claims
   still hold, **re-stamp** — replace the date and the evidence link rather than
   appending a second one.
