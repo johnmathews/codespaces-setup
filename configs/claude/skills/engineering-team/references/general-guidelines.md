@@ -164,6 +164,12 @@ changed flows, check `browser_console_messages` and `browser_network_requests` f
 errors. Don't mark a UI work unit complete until you've visually confirmed it
 behaves correctly. Skip for pure backend, CLI, or library projects.
 
+**If the Playwright MCP tools are not connected, the verification did not happen.**
+Say so, and treat any UI work unit as unverified rather than done. There is no
+fallback that produces the same evidence — `curl` tells you the server responded,
+not that the page renders, and a work unit closed on that basis is closed on a
+claim stronger than its check (rule 2).
+
 **Stable element ids:** When building or modifying browser UI, give meaningful
 DOM elements a stable, descriptive `id` (cards, panels, key containers,
 interactive controls) — kebab-case and area-prefixed, e.g. `document-actions-card`,

@@ -7,6 +7,29 @@
 
 The target repo is the current working directory unless the user specifies another path.
 
+### The project's own conventions outrank this skill's defaults
+
+This skill carries defaults for things every repo does differently: where
+worktrees live (`<repo>/.claude/worktrees/`), how branches are named
+(`eng-<plan-short-name>`), where the journal goes (`/journal/`), where docs go
+(`/docs/`). They are **defaults, not law.**
+
+**If the project states its own convention — in `CLAUDE.md`, `CONTRIBUTING.md`,
+or a visibly established pattern in the repo — follow the project and say that
+you are.** Check before creating the first worktree, not after.
+
+This is not hypothetical. One repo this skill is used on daily mandates
+worktrees at `/workspaces/<repo>-wt/<short-desc>` in its own `CLAUDE.md`, while
+this file said "never use ad-hoc sibling paths" — so following the skill meant
+breaking the project, and following the project meant breaking the skill. There
+was no rule saying which wins. There is now: **the project wins**, because the
+convention is shared with humans and other agents who never read this skill,
+and a repo with worktrees in two places is worse off than one with them in the
+"wrong" place consistently.
+
+The same applies to the owner default (`johnmathews`) — see "Project
+configuration" in `../SKILL.md`. A work repo is not a personal repo.
+
 **Git repo check:** Before starting any work, check whether the project is a git repo.
 
 - **If it IS a git repo:** Note its owner (`git remote get-url origin`) — see "Project
