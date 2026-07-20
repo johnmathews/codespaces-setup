@@ -65,6 +65,24 @@ Review the evaluation report and categorize findings by:
 refactor can both be "High" priority but carry very different risk if the change goes
 wrong. Risk is a separate axis on each work unit (see Step 3) — don't conflate the two.
 
+**Grade is a third axis, and it decides what kind of unit the finding becomes.** Each
+finding in the evaluation report carries **[VERIFIED]** / **[SUPPORTED]** / **[SUSPECTED]**
+(`../references/general-guidelines.md`). Read it — it is the difference between a defect
+and a hypothesis, and it changes the work:
+
+- **[VERIFIED]** — plan the fix.
+- **[SUPPORTED]** — plan the fix, and make reproducing the problem the unit's first
+  step, so the fix has something to prove it worked against.
+- **[SUSPECTED]** — **do not plan a fix.** Plan the check that would settle it. A unit
+  that changes code to correct a problem nobody has observed is a unit that cannot be
+  verified: with no failing behaviour to reproduce, "done" means "the code now looks
+  right to me", and if the hypothesis was wrong the change is unmotivated churn in code
+  that worked. If the check is cheap, do it now, while planning, and regrade the
+  finding rather than carrying a spike into Phase 3.
+
+A high-priority [SUSPECTED] finding is not a reason to skip this. Urgency is a reason to
+settle the question *first*, not a licence to act on an unconfirmed one.
+
 ### Step 2: Plan Development
 
 Do not assume what changes are needed — base every recommendation on specific findings from

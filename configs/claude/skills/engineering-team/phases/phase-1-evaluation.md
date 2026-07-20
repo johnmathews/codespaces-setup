@@ -329,6 +329,38 @@ phases and future sessions read from disk, not from chat content.
 disagree about the same code, investigate and resolve. Verify any URL / GitHub
 issue / CVE a subagent cited — `WebFetch` it before including it.
 
+**Agreement between subagents is not a finding's evidence, and it never
+promotes a grade.** Disagreement is the easy case — it announces itself and you
+go and look. The failure mode that actually ships is the opposite one: several
+sub-instances of the same model, with the same training data, reaching the same
+wrong conclusion and sounding certain about it
+(`../references/general-guidelines.md`, "Subagent coordination"). Nothing about
+that is visible in the output. So the synthesis step cannot wait to be
+triggered by a contradiction — it has to run on findings that look settled.
+
+Three things to do here, and none of them is "ask another agent":
+
+1. **Regrade every finding yourself, from what the subagent named.** A
+   subagent's grade is a claim like any other. If its brief said [VERIFIED] and
+   the report quotes no command and no output, it is [SUSPECTED] until you
+   establish otherwise — regrade it down and say so. Grading down is the normal
+   outcome and is not a criticism of the subagent.
+2. **Pick the load-bearing, non-obvious findings and try to disconfirm each
+   one.** These are the ones a recommendation rests on and that would surprise
+   someone who knows the code. Apply "Name what would refute it, then go and
+   look". Do this yourself: the check has to differ from the one that produced
+   the finding, and re-running a subagent's command in your own session
+   reproduces its environment mistakes along with its result.
+3. **Ask what no engineer was tasked to look at.** Unanimity is sometimes just
+   a gap in the briefs. If every subagent was pointed at the same subsystem,
+   their agreement about it says nothing about the parts nobody read — say so
+   in the report as a limitation rather than letting silence read as coverage.
+
+If a load-bearing finding survives all of this without a disconfirming
+observation being possible, it ships as **[SUSPECTED]** with what would settle
+it. That is a good outcome. Reporting it as verified because four agents and
+you all believed it is the outcome this step exists to prevent.
+
 **Two audiences, one file.** The report is read by a human deciding what
 to do next AND by agents (Phase 2, future runs) that need full detail.
 Serve the human first: everything decision-relevant must be on the first
@@ -344,9 +376,18 @@ The report should cover:
 well, and what needs attention first. This should be scannable in 10 seconds.
 
 **Findings Index:** immediately after the summary, one line per finding:
-`severity · short title · file:line (or doc section)`. Order by severity.
-This is the layer a human actually reads — every finding in the detail
-sections must have a line here.
+`severity · grade · short title · file:line (or doc section)`. Order by
+severity. This is the layer a human actually reads — every finding in the
+detail sections must have a line here.
+
+The grade is **[VERIFIED]** / **[SUPPORTED]** / **[SUSPECTED]**, defined in
+`../references/general-guidelines.md` ("Grade every finding, and name what
+earned the grade"). It belongs on the index line because this is the layer
+that gets acted on: severity says how much it matters, grade says whether
+it is known to be true. A Critical [SUSPECTED] and a Critical [VERIFIED]
+call for different next actions, and a reader who only sees the index
+cannot tell them apart otherwise. The evidence that earned the grade is
+named in the detail section, not here.
 
 **Test Suite Results:** Output from Step 1 — what passed, what failed, any errors.
 
@@ -395,9 +436,18 @@ general evaluations. A security review without a dependency audit is
 incomplete — this is the section evaluations most often silently drop.
 
 **Bug Candidates:** Specific code locations that look like they might be bugs, with reasoning.
-Label each as **[VERIFIED]** (you ran the code and confirmed the bug) or **[SUSPECTED]**
-(you inferred it from reading the code but did not reproduce it). This distinction matters —
-a verified bug is a fact, a suspected bug is a hypothesis that needs confirmation.
+Grade each one and name what earned the grade (`../references/general-guidelines.md`):
+**[VERIFIED]** — you reproduced it, and you quote the command and its output;
+**[SUPPORTED]** — you read the code path and cite `file:line`, but did not run it;
+**[SUSPECTED]** — you inferred it, and you say what would settle it. This distinction
+matters: a verified bug is a fact, the other two are hypotheses of differing strength.
+
+**A bug candidate is exactly the case the disconfirming-check rule is for.** Before
+promoting one above [SUSPECTED], say what you would see if the bug did *not* exist, and
+go look — most often by running the layer beneath the code you read. Be most suspicious
+of the finding you like best: a specific, mechanistic story about code that has been in
+production and working is more likely to be a misreading than a live defect, because if
+it were really broken that way something would probably have shown by now.
 
 **Gap Analysis:** What's missing — tests, docs, error handling, features
 
