@@ -228,6 +228,11 @@ Launch subagents to implement work units (dispatch mechanics:
 `../references/team-structure.md`). Units without dependencies can run in parallel
 using subagents that work on different files. Units with dependencies must run sequentially.
 
+**This is the one phase where the agent type matters.** An implementing subagent
+must have `Edit`/`Write` — the default type does, but a read-only type will
+investigate the unit competently and then be unable to change a single file. See
+"Choosing an agent type" in `../references/team-structure.md`.
+
 **Do not create nested worktrees here.** This session is already in one; parallel
 units inside it use subagent parallelism. That is the right rule for a solo run —
 but do not over-read it:

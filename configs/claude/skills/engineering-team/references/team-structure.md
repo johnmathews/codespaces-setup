@@ -24,6 +24,57 @@ what it did. Subagents do not write to `$RUN_DIR` and do not address the
 user; persisting artifacts and user communication are the lead engineer's
 job.
 
+### Choosing an agent type
+
+The Agent tool takes a `subagent_type`. **Omitting it has been safe** — the
+tool's own description states which type it falls back to, and at the time
+of writing that fallback is the general-purpose agent with full tool
+access. Confirm it there rather than trusting this sentence; a default is
+the kind of fact that changes without anyone editing this file. Assuming
+it holds, most dispatches need no thought here, and what follows is for
+when you want to choose deliberately.
+
+**Read the roster the session gives you; never name a type from memory.**
+The available types differ between machines and repos: there are built-in
+ones, plus any the project or the user defines, plus any a plugin brings.
+A type that exists here may not exist on the next machine this skill runs
+on, and a `subagent_type` that doesn't resolve is a dispatch that fails for
+a reason unrelated to the work. The session lists the available types along
+with the tools each one has — that list is the authority, not this file,
+which is why no type names are written down here.
+
+**What actually varies is tool access, and one difference is load-bearing:**
+
+- **An agent without `Edit`/`Write` cannot implement a work unit.** It can
+  read, search, run commands, and report — so it will do the investigation
+  and then be unable to make the change. This is the one mistake worth
+  guarding against, because it doesn't look like a capability problem: the
+  agent comes back having analysed the unit thoroughly and changed nothing,
+  which reads as an unhelpful subagent rather than an impossible brief.
+- **An agent without `Agent` cannot dispatch subagents of its own.** Rarely
+  matters — briefs here are leaf work — but it rules out a brief that says
+  "fan out across these ten files".
+
+Note which way this cuts across the phases. Phase 1 and Phase 2 subagents
+**never write anything** — persisting artifacts is the lead engineer's job,
+per the rule above — so a read-only type is a perfectly good fit for
+evaluation and planning briefs, and often the more appropriate choice.
+Only Phase 3 implementation needs write access. A read-only agent is not a
+weaker agent; it is one whose capabilities happen to match what most of
+this skill asks for.
+
+**The team roles are not agent types.** "Engineer 1", "Engineer 3", "Product
+Owner" are prompt-shaping devices — they give a brief a point of view and
+keep the briefs from collapsing into each other. Do not look for agent types
+matching those names, and do not invent a mapping between them. The role
+shapes what you write in the brief; the type decides what the agent can do.
+They are independent choices.
+
+Model and reasoning-effort overrides exist on the same tool, if a brief
+genuinely warrants a more capable agent than the default. The same rule
+applies: take the available values from the tool's own description at the
+time you dispatch, not from this file or from memory.
+
 ## Output Formatting Rule
 
 When presenting recommendations, questions, conclusions, or advice to the user, always use **numbered lists**
