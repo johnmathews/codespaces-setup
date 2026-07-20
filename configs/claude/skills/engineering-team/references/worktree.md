@@ -158,14 +158,13 @@ anti-doc-rot strategy — so living docs cannot silently drift:
 - **Link check** — a CI job (e.g. `lychee --offline --include-fragments`) that
   fails on broken internal links **and broken `#anchors`** across `*.md`.
 - **Freshness / status-stamp check** — a CI job that asserts every living doc
-  carries the status stamp (see the router's "Living-document status stamp"),
+  carries the status stamp (see `documentation-model.md` §8),
   **parses the `Last verified` date, and fails when the doc is due.** Due is
   driven by **change, not by the calendar** (rules below). Point-in-time docs
   (`/docs/adr/`, `/docs/rfc/`, `/journal/`) are excluded **by path**, not by
   judgement.
 - **Stamp size check** — a CI job that fails when a status stamp exceeds a
-  character budget (~600 to start; see the router's "Living-document status
-  stamp"). Measure the stamp **paragraph** — the contiguous non-blank lines
+  character budget (~600 to start; see `documentation-model.md` §8). Measure the stamp **paragraph** — the contiguous non-blank lines
   beginning at the `**Status:**` line — not the single line, or soft-wrapping
   dodges the budget. A genuine blank line ends it, so body prose under a heading
   stays uncharged; that is correct. The goal is not shorter documents, it is that

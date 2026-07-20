@@ -302,7 +302,7 @@ buried under execution sequencing).
    ```
    This lets a future reader tell at a glance whether the doc is live, stale, or superseded —
    without cross-referencing a roadmap. Same form and same character budget as every other
-   living doc (`../SKILL.md`, "Living-document status stamp"): state only, evidence linked
+   living doc (`../references/documentation-model.md` §8): state only, evidence linked
    rather than inlined, and re-stamped rather than appended to on each pass.
 
 2. **Index it from the canonical roadmap immediately.** If the project has a `docs/roadmap.md`
