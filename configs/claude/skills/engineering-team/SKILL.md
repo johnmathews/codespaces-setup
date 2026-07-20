@@ -298,157 +298,26 @@ There is no machine-readable marker contract. Instead:
 - **Completion:** when the cycle is complete, say so plainly in the final
   summary; when stopping early, say what remains.
 
-## Documentation formatting
+## Writing documentation
 
-Whenever this skill produces or updates any documentation — evaluation reports,
-improvement plans, discussion reports, journal entries, runbooks, project docs in
-`/docs/`, anything markdown — **number every heading hierarchically using decimal
-notation, except the H1.** The number is part of the heading text, inside the `#`
-line.
+This skill has strong conventions for any documentation it produces or touches —
+evaluation reports, plans, journal entries, project docs in `/docs/`, anything
+markdown. They are **not** in this file, because they are only needed when you
+are actually writing a document, and this file is loaded on every invocation:
 
-Example:
+- **Heading numbering** — one unnumbered H1; H2 and below numbered decimally
+  from `## 1.`; a `> Purpose` blockquote as the lead. Applies to docs you write
+  *and* to docs subagents hand back.
+- **The living-document status stamp** — what it records, the ~600-character
+  budget, where displaced prose goes, and the rule that carries it: **the
+  verification method must match the kind of claim it certifies.** A runtime
+  claim needs a runtime observation; reading other documents proves only that
+  the documents agree.
+- **Stable IDs** (`D1`, `W3`, `F7`) for anything referenced from outside a
+  document, since section numbers move.
 
-```markdown
-# Evaluation report
-
-> Purpose
->
-> One short paragraph: what this document is for.
-
-## 1. Scope and context
-
-## 2. Findings
-### 2.1 Security
-### 2.2 Code quality
-
-## 3. Recommendations
-### 3.1 Critical
-### 3.2 Important
-```
-
-Rules:
-
-- **One H1 per document, and it is not numbered.** It is the title — there is
-  only ever one, so a number adds nothing. Never open a second H1 to mean
-  "part 2"; that's an H2.
-- **H2 and below are numbered, starting at `## 1.`**, nesting decimally
-  (`### 1.1`, `### 1.2`). The first section of a document is `## 1.`, not `## 2.`.
-- The lead paragraph under the title is an unnumbered `> Purpose` blockquote.
-- When you add, remove, or reorder sections during an edit, renumber the affected
-  sibling and descendant headings so the sequence stays contiguous, and update any
-  in-doc cross-references (`§2.1`, "see 2.3") in the same edit.
-- This applies to docs you write directly AND to docs subagents return — if a
-  subagent's report comes back without numbered headings, add the numbering
-  before persisting it to disk.
-- Code blocks and inline markdown inside body text are not headings and are
-  not numbered.
-
-Why: these documents are read and re-read in long form (run dirs, archived
-plans, journal history). Hierarchical numbers make it trivial to reference a
-specific section in conversation ("see 2.1") and make structural drift obvious
-when sections are added or removed.
-
-**Numbering things that outlive their position.** Section numbers move when a
-document is restructured, so anything referenced from outside the document —
-decisions, work units, findings — gets a **stable ID of its own** (`D1`, `W3`,
-`F7`) that never changes and is never reused, rather than being cited by
-section number. A decision recorded as "see 7.2" becomes a lie the moment a
-section is inserted above it.
-
-## Living-document status stamp
-
-Any **living** document — one that describes current truth and misleads when
-stale (README, spec, runbooks, architecture docs, security/controls registers,
-persistent plans) — carries a status stamp as the first line under its title.
-
-**A stamp records state; it does not narrate.** It is a fixed-size header taken
-in at a glance: status, dates, one link to evidence, and the scope of what was
-*not* verified. Everything else belongs in a document that owns it — cited from
-the stamp by link, never copied into it.
-
-```
-**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD ([evidence](link)). **Supersedes:** <doc-or-none>.
-```
-
-- **Last updated** — when the prose last changed.
-- **Last verified** — when its claims were last checked against reality (the
-  code, a real run, the live config). **It cites evidence; it never contains
-  it** — one link out to the run, the command, or the section that holds the
-  detail. Use "not yet — <reason>" until first verified; never leave it blank.
-- **Covers** *(optional)* — the paths this doc describes (`infra/`,
-  `src/api/**`). It lets the freshness gate ask the only question that means
-  anything — *has the thing this doc describes changed since it was last
-  verified?* — instead of counting calendar days. Omit it for a doc that
-  describes no particular code.
-- When you edit a living doc, bump **Last updated**; when you confirm its claims
-  still hold, **re-stamp** — replace the date and the evidence link rather than
-  appending a second one.
-
-**Budget the stamp: ~600 characters, and gate it** beside the link and freshness
-checks (`references/worktree.md`, "Documentation gates"). Land the threshold where
-it **reds real documents on arrival**, so the migration lands in the same change
-and the gate is real from its first run; ratchet down from there. **Never raise
-the budget to turn a red doc green** — the red is the gate working, and the
-overflow is content that belongs elsewhere. 600 is a starting point, not a law.
-
-**Where the displaced prose goes:**
-
-| Content | Destination |
-| --- | --- |
-| narrative, "what changed", what bit us | the journal |
-| why a decision was made | an ADR |
-| what the system does now | the spec body, under a heading |
-| what is deployed right now | a dedicated live-state doc |
-| verification state, evidence, per-pass method records | the verification doc |
-
-Then link the destination from the stamp. Without a named destination "keep it
-short" loses to the deadline, because there is nowhere obvious to put things.
-
-**Corrections replace; they never accumulate.** A retraction is not retired by
-appending it to the stamp. Fix the claim where it lives, and date the correction
-in the journal. A stamp carrying its own errata grows with every fix — so the
-document gets harder to read each time it gets more accurate.
-
-**The method must match the kind of claim it certifies.** This is the rule that
-makes the stamp worth anything, and it is the one most easily filled in honestly
-and still got wrong. A **runtime** claim ("deployed", "live", "the worker calls
-the model") requires a **runtime observation** — a run id, a job name, a log
-line. Reading other documents is a valid method for a doc-derived claim and an
-invalid one for a runtime claim: doc-to-doc consistency proves only that the
-documents agree with each other.
-
-The failure this prevents is real and looks like diligence. A stamp reading
-`Last verified: 2026-07-15 (re-derived from RFC-0001…0006 and the spec)` was
-complete, honest, and per the convention — and it certified a claim about live
-model calls that had never happened. The stamp refuted itself in its own words,
-and nobody noticed, because the convention never required the method to match
-the claim.
-
-So when one document mixes claim kinds, say **which claims were not
-re-verified** — "verified" with no scope reads as "all of it", and a reader
-without that clause is misled. **Split what that produces.** The scope is state:
-one short clause in the stamp naming what is not covered. The **per-pass method
-record** — which pass ran, when, how, against what evidence — is history: it goes
-to a change-history section in the document body or to the journal, linked from
-the stamp. That split is what stops this rule ratcheting: the protection is
-per-document and bounded, the log it generates is per-pass and unbounded.
-
-The mirror failure, and why the budget exists: across 34 living docs in one repo,
-stamps had grown to **112,790 characters** — median 1,495, worst 21,096 on a
-single line, the agent-facing `CLAUDE.md` at 14,826 (a six-layer dated changelog,
-an evidence ledger, post-mortems about the file's own past errors, corrections to
-its own prose). ~90% restated documents that already owned those facts, so the
-copies drifted from their sources — one still asserted an inference its owner had
-retracted. All of it passed a green doc gate that only checked the field *names*
-were present. Same idiom as the failure above, opposite direction: a check that
-could not fail on the defect actually present.
-
-Point-in-time records (ADRs, accepted RFCs, journal entries) are exempt — they
-are historical by design and are allowed to age. ADRs instead carry a
-`Proposed | Accepted | Superseded by <id>` status. This stamp is what lets a
-reader, and the CI doc-freshness gate, tell live docs from stale ones at a
-glance. See `references/documentation-model.md` for which documents are living,
-which are point-in-time, and why the split is drawn by path.
+All of it lives in `references/documentation-model.md` — load that before
+writing or auditing docs.
 
 ## Cross-cutting references
 
@@ -460,7 +329,8 @@ Load these on demand when their topic becomes relevant:
 - `references/worktree.md` — working directory invariants, worktree
   isolation, linter detection, and the CI-gate laws.
 - `references/documentation-model.md` — the six document types, authority
-  precedence, explainers, and the documentation gates.
+  precedence, explainers, the documentation gates, **and how to write a doc**:
+  heading numbering, stable IDs, and the living-document status stamp.
 - `references/multi-session.md` — parallel lanes across sessions:
   single-writer, disjoint footprints, coordinator/worker roles.
 - `references/discussion.md` — Discussion workflow details.

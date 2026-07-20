@@ -264,7 +264,7 @@ As Lead Engineer, review each completed unit before marking it done. Check:
   `Last verified` dates and the evidence link — the stamp is a fixed-size state
   record, not a log. The test: *if you are adding a clause rather than replacing
   one, the content belongs elsewhere* — the journal, an ADR, the spec body, or the
-  verification doc (routing table in `../SKILL.md`, "Living-document status stamp").
+  verification doc (routing table in `../references/documentation-model.md` §8).
 
 **Progress cadence (recap).** For every work unit you touch in this phase:
 announce "Starting W<n>: <title>" before dispatching the first subagent (or first
