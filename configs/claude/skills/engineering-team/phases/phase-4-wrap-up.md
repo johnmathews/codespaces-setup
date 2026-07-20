@@ -17,9 +17,15 @@ copy-paste next-session prompt from Step 5b below.
 
 ---
 
-After all engineering team phases are complete, this phase handles committing, merging, pushing,
-and CI verification. Do not ask the user whether to run this phase — it runs automatically as
-the final step of every engineering team invocation.
+This phase handles committing, merging, pushing, and CI verification.
+
+**It runs automatically whenever Phase 3 ran — and only then.** Do not ask the
+user whether to run it after development; it is the final step of the Build
+cycle, not a separate request. But a partial cycle does **not** reach here: if
+the user asked only to "evaluate" or to "plan", the artifact is the deliverable
+and there is nothing to merge (`../SKILL.md`, "Decide which phase to load").
+Running `/done` and merging at the end of an evaluation-only run is a scope
+violation, not thoroughness.
 
 ### Step 1: Run `/done` (mandatory)
 
@@ -77,23 +83,15 @@ This is the human-side complement to the CI doc-freshness gate: the gate catches
 broken links and missing stamps; this step catches a doc that is still
 well-formed but no longer *true*.
 
-### Step 2: Merge & Cleanup
+### Step 2: Confirm CI is green on the PR — before you merge
 
 `/done` has already pushed the branch, opened the PR, and watched CI on it (its
-Phase 8). So by the time you get here the work is on a green PR, not on `main`.
+Phase 8). So by the time you get here the work is on a PR, not on `main`.
 
-Run `/merge-push` to merge that PR and clean up. It detects whether the repo is
-governed (a remote with branch protections → squash-merge the PR once green; no
-remote → a local merge), checks for conflicts, and asks for explicit confirmation
-before merging.
-
-**Merge is the irreversible step, so it is always confirmed.** Never merge
-because the PR looks ready — a green PR is a fact about the PR, not permission.
-
-### Step 3: Confirm CI was green *before* the merge
-
-CI ran on the PR, which is the point: `main` never sees a red commit. Confirm it
-actually passed rather than assuming:
+**Confirm the PR is actually green before merging it, not after.** The
+remediation for a red check is "fix it on the branch and push" — which is only
+available while the branch is still unmerged. Verifying after the merge finds
+problems at the one moment you can no longer act on them.
 
 1. `gh pr checks <pr>` — every required check green, and **named**.
 2. If any check failed, fix it **on the branch** and push; CI re-runs on the PR.
@@ -104,10 +102,22 @@ actually passed rather than assuming:
    required" in `../references/worktree.md` — that is a repo config bug, not
    something to wait out.
 
-Do not consider the work complete until CI is green on the PR and the PR is
-merged. And apply the vocabulary rule: **"green" means an executed check that
-passed, and you can name it.** A check that was skipped, or that cannot fail, is
-not evidence (`../references/general-guidelines.md`).
+Apply the vocabulary rule: **"green" means an executed check that passed, and you
+can name it.** A check that was skipped, or that cannot fail, is not evidence
+(`../references/general-guidelines.md`).
+
+### Step 3: Merge & Cleanup
+
+Only once Step 2 is satisfied. Run `/merge-push` to merge the PR and clean up. It
+detects whether the repo is governed (a remote with branch protections →
+squash-merge the PR once green; no remote → a local merge), checks for conflicts,
+and asks for explicit confirmation before merging.
+
+**Merge is the irreversible step, so it is always confirmed.** Never merge
+because the PR looks ready — a green PR is a fact about the PR, not permission.
+
+Do not consider the work complete until CI was green on the PR *and* the PR is
+merged.
 
 ### Step 3.5: Reconcile the lanes (multi-lane runs only)
 

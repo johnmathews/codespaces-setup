@@ -13,6 +13,12 @@ clarity — for the user and for future work.
 
 ### When to Use
 
+Reachable both ways: as the entry point for a session that opens with a design
+question, and as a pause inside a Build run that wants to explore before
+committing. **What it needs is a codebase to be grounded in** — if the question
+doesn't involve this project, `deep-research` is the better skill
+(`workflows.md`).
+
 Use this workflow when the user wants to:
 - Brainstorm approaches to a problem before committing to one
 - Understand tradeoffs between architectures, libraries, patterns, or designs

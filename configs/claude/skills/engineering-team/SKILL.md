@@ -6,9 +6,12 @@ description: >
   review, technical debt analysis, architecture review, systematic bug-finding, a security review
   of a project, checking documentation accuracy against the code, or a full evaluate-plan-implement
   cycle ("improve this codebase" end to end). Also use whenever the user explicitly asks for the
-  engineering team. Do NOT use for brainstorming, tradeoff discussions, or "should I use X or Y"
-  questions — those belong to the brainstorming and research skills — nor for reviewing a single
-  diff/PR or making a quick targeted fix.
+  engineering team. Also covers architecture and tradeoff discussion grounded in a specific
+  codebase — "should we use X or Y here", "walk me through the options", "what would change if
+  we moved to Z" — via its Discussion workflow, which explores without touching code. Do NOT use
+  for a standalone research question with no codebase in play ("what is the state of the art in
+  X") — that is the deep-research skill — nor for reviewing a single diff/PR or making a quick
+  targeted fix.
 ---
 
 # Engineering team — router
@@ -94,11 +97,18 @@ working state, not deliverables.
 
 Every phase of every Build run happens inside a git worktree on a feature
 branch — not in the project's main checkout, and never on `main`. This
-holds for evaluation-only runs too, not just when code changes: it is what
-lets several sessions work at once without colliding, and it means the
-merge step always has something to merge. An evaluation that turns up a
+holds for evaluation-only runs too, not just when code changes, for two
+reasons: it lets several sessions work at once without colliding on the
+shared main checkout, and work grows. An evaluation that turns up a
 one-line fix becomes a code change, and by then it is too late to be on a
 branch.
+
+Note what the rule is *not* justified by: an evaluation-only run leaves the
+worktree with **zero commits**, because its only output is the report and
+that lives in `$RUN_DIR` in the main checkout, gitignored. So "the merge
+step always has something to merge" is false here — and a rationale an
+agent can disprove is one it will discount when the rule is inconvenient.
+The two reasons above are the real ones and they are sufficient.
 
 **First check whether you are already in one** — before creating anything:
 

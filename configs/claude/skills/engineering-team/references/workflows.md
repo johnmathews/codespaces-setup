@@ -15,13 +15,22 @@ The engineering team supports two distinct workflows:
    understanding. No code changes, no worktrees, no commits. See `discussion.md`.
 
 **Which workflow to use:**
+- If the user says "evaluate", "plan", "develop", "improve", "fix", "assess", "review", or is
+  clearly seeking work done on the codebase → **Build workflow**. This is the default and the
+  common case.
 - If the user says "discuss", "brainstorm", "help me think about", "what are the tradeoffs",
   "should I use X or Y", "teach me about", "walk me through", "what are my options", "explore
-  approaches", "pros and cons", or is clearly seeking understanding rather than action → **Discussion workflow**
-- If the user says "evaluate", "plan", "develop", "improve", "fix", "assess", "review", or is
-  clearly seeking work done on the codebase → **Build workflow**
+  approaches", "pros and cons", or is clearly seeking understanding rather than action →
+  **Discussion workflow**. This holds whether the question opens the session or comes up
+  mid-run: a Build run can pause into Discussion and resume.
 - If ambiguous, ask the user: "Do you want to discuss and explore options, or do you want me
   to evaluate/plan/implement changes?"
+
+**The boundary that matters is the codebase, not the verb.** Discussion earns its place when
+the question is grounded in *this* project — what exists today, what would have to change, what
+it would cost here. A question with no codebase in play ("what is the state of the art in X",
+"compare these three vendors") wants the **deep-research** skill instead: it needs sources and
+fan-out, not an engineering team reading code that isn't relevant to the answer.
 
 ### Build Workflow Phases
 
