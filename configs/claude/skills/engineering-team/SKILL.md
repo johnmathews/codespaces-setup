@@ -76,16 +76,59 @@ multi-session needs it for. (Needs git ≥ 2.31; on older git use
 `git worktree list --porcelain | head -1 | sed 's/^worktree //'`, whose first
 entry is always the main worktree.)
 
-- **Resuming:** if `.engineering-team/current.txt` exists and names a
-  directory under `.engineering-team/runs/` that still exists, that is
-  `$RUN_DIR` — you are resuming an in-flight run (unless the user asks
-  for a fresh one).
+- **Resuming:** if `.engineering-team/current.txt` names a directory that
+  still exists **and whose `run.yaml` has `phase:` other than `complete`**,
+  that is `$RUN_DIR` — you are resuming an in-flight run (unless the user
+  asks for a fresh one). Both halves are required: a finished run's
+  directory also still exists, so existence alone cannot tell "in flight"
+  from "done", and a pointer left behind by a run that ended without
+  clearing it will otherwise hijack the next invocation.
 - **Starting fresh:** on first write, create
   `.engineering-team/runs/manual-<utc-timestamp>/` (e.g.
   `.engineering-team/runs/manual-20260610T142500Z/`) in the **main
-  checkout**, use it as `$RUN_DIR` for the rest of the run, and write its
-  basename to `.engineering-team/current.txt` so later sessions can find
-  it.
+  checkout**, use it as `$RUN_DIR` for the rest of the run, write
+  `run.yaml` (below), and write the directory's basename to
+  `.engineering-team/current.txt` so later sessions can find it.
+- **Housekeeping:** run directories accumulate — one repo reached 21 with
+  no owner. When starting fresh, if there are more than ~10 completed runs
+  under `.engineering-team/runs/`, say so and offer to delete the oldest.
+  Never delete one without asking: a run dir holds the only copy of its
+  evaluation report.
+
+### `run.yaml` — the run's state, on disk
+
+`$RUN_DIR/run.yaml` records what phase the run is in and what each work unit
+has actually done. It exists because **everything else about run state was an
+inference.** Phase was deduced from which files happened to exist; unit
+completion was "reported" in chat prose, which does not survive the session
+that said it. Both of those are the failure this skill warns about elsewhere —
+a claim with no check behind it — applied to the skill's own bookkeeping.
+
+```yaml
+run: manual-20260610T142500Z
+phase: 3                  # 1 | 2 | 3 | 4 | complete
+scope: full               # evaluate | plan | full  (from the user's verb; set once, in Phase 1)
+units:                    # mirrors the improvement plan's frontmatter; absent until Phase 2
+  - { id: W1, status: done }
+  - { id: W2, status: in-progress }
+  - { id: W3, status: pending }        # pending | in-progress | done | abandoned
+```
+
+Three rules, and they are what make it worth having:
+
+1. **Write it at the same moment you announce.** The prose announcement and
+   the status change are one action, not two — "W2 done" in chat and
+   `status: done` in `run.yaml` are written together, or the file is
+   decoration. Same for entering a phase.
+2. **`abandoned` needs a reason** — `{ id: W3, status: abandoned, why: <one line> }`.
+   This is what stops "blocked" masquerading as "not done" across a session
+   boundary, and it is the durable half of the rule that no started unit may
+   be left unaccounted for.
+3. **A missing `run.yaml` is not an error.** Runs created before this file
+   existed don't have one, and a run dir written by hand won't either. Fall
+   back to inferring from which artifacts exist (below), and write a
+   `run.yaml` reflecting what you inferred, so the next session doesn't have
+   to infer it again.
 
 Always write to `$RUN_DIR/<artifact>` — never to
 `.engineering-team/<artifact>` directly. Add `.engineering-team/` to the
@@ -175,18 +218,33 @@ parallelism to go faster, not for ceremony.
 ## Decide which phase to load
 
 Once you know your role, determine the current phase and load the matching
-`phases/phase-N-<name>.md`. Infer the phase from the user's request and
-on-disk state:
+`phases/phase-N-<name>.md`.
 
-1. If `$RUN_DIR/evaluation-report.md` does not exist → load `phases/phase-1-evaluation.md`.
-2. Else if `$RUN_DIR/improvement-plan.md` does not exist → load `phases/phase-2-planning.md`.
-3. Else if the plan has at least one work unit not yet reported complete → load `phases/phase-3-development.md`.
-4. Else → load `phases/phase-4-wrap-up.md`.
+**If `$RUN_DIR/run.yaml` exists, its `phase:` is the answer.** Read it; do
+not re-derive it. That is the whole point of the file.
 
-Scope the cycle by the user's verb: "evaluate" / "assess" / "review" →
-run only Phase 1; "plan" → Phases 1-2; "develop" / "improve" / "fix" or
-a general instruction → the full cycle (Phases 1-4; Phase 4 runs
-automatically after Phase 3). After a partial cycle, the artifact is the
+**Only if it does not**, infer from which artifacts exist — then write a
+`run.yaml` recording what you concluded:
+
+1. If `$RUN_DIR/improvement-plan.md` exists → you are at least in Phase 3;
+   read the plan's frontmatter for the unit list and ask the user which
+   units are done, because nothing on disk records it. Do not assume none
+   are.
+2. Else if `$RUN_DIR/evaluation-report.md` exists → load `phases/phase-2-planning.md`.
+3. Else → load `phases/phase-1-evaluation.md`.
+
+Check the plan **before** the report, not after. A run directory can hold a
+plan and no evaluation report — the user asked for a plan directly, or the
+report was written elsewhere — and the old order sent those runs back to
+Phase 1 to redo an evaluation whose output already existed. Five of one
+repo's 21 run directories are in exactly that shape.
+
+Scope the cycle by the user's verb, and record it as `scope:` in `run.yaml`
+so a later session does not have to re-guess it from a request it cannot
+see: "evaluate" / "assess" / "review" → `evaluate`, run only Phase 1;
+"plan" → `plan`, Phases 1-2; "develop" / "improve" / "fix" or a general
+instruction → `full`, Phases 1-4 (Phase 4 runs automatically after Phase 3,
+and **only** when Phase 3 ran). After a partial cycle, the artifact is the
 deliverable — offer the next phase, but do not start it unbidden.
 
 If the user has explicitly asked for the Discussion workflow instead of

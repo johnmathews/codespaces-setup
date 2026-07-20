@@ -89,17 +89,25 @@ reach into lanes.
 
 ## Progress reporting (read first)
 
-Phase 3 reports every work-unit transition to the user in plain prose:
+Phase 3 reports every work-unit transition to the user in plain prose **and
+records it in `$RUN_DIR/run.yaml` in the same action.** The announcement is for
+the human in the room; the file is for the next session, which cannot read this
+conversation. Doing one without the other is the bug this pairing exists to
+prevent — a unit "reported complete" in chat is invisible to every later run.
 
 - Announce "Starting W<n>: <title>" immediately BEFORE dispatching the
   first subagent for that unit (or, if you handle it yourself,
-  immediately before the first edit).
+  immediately before the first edit) → `status: in-progress`.
 - Announce "W<n> done: <title>" AFTER your lead-engineer review step
-  passes and the full test suite is green.
+  passes and the full test suite is green → `status: done`.
 - Announce "W<n> abandoned: <reason>" instead of "done" if the unit
-  cannot complete in this session.
+  cannot complete in this session → `status: abandoned` with `why:`.
 - Every started unit must be reported as either done or abandoned before
-  the session ends — never leave a unit's status unaccounted for.
+  the session ends — never leave a unit's status unaccounted for. With
+  `run.yaml` this is now checkable rather than remembered: before ending,
+  read it back and confirm no unit is still `in-progress`.
+
+Set `phase: 3` in `run.yaml` when you enter this phase.
 
 ## Pausing for user input
 

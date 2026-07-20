@@ -33,6 +33,13 @@ free `W<n>`.
 Also add an **ID:** line to each per-work-unit field list so each unit
 references its frontmatter ID explicitly.
 
+**Mirror the unit list into `$RUN_DIR/run.yaml`** in the same write, each with
+`status: pending`, and set `phase: 2`. The plan's frontmatter is the *index* —
+which units exist; `run.yaml` is the *state* — what each one has done. Keeping
+them in one file would mean editing the approved plan to record progress, which
+the multi-lane rules forbid (the plan is coordinator-owned and read-only to
+workers). Two files, two owners, one write.
+
 ## File persistence mandate
 
 The improvement plan MUST be written to `$RUN_DIR/improvement-plan.md`
