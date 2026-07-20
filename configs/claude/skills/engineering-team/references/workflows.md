@@ -17,19 +17,20 @@ The engineering team supports two distinct workflows:
 **Which workflow to use:**
 - If the user says "evaluate", "plan", "develop", "improve", "fix", "assess", "review", or is
   clearly seeking work done on the codebase → **Build workflow**. This is the default and the
-  overwhelmingly common case.
-- **Discussion workflow** only when the user has *already engaged this skill* and wants to
-  explore before committing — "let's discuss the architecture before I commit to a plan", a
-  tradeoff question raised mid-run, or an explicit ask for the engineering team to weigh
-  options. It exists so a Build run can pause into exploration without losing the team framing.
+  common case.
+- If the user says "discuss", "brainstorm", "help me think about", "what are the tradeoffs",
+  "should I use X or Y", "teach me about", "walk me through", "what are my options", "explore
+  approaches", "pros and cons", or is clearly seeking understanding rather than action →
+  **Discussion workflow**. This holds whether the question opens the session or comes up
+  mid-run: a Build run can pause into Discussion and resume.
 - If ambiguous, ask the user: "Do you want to discuss and explore options, or do you want me
   to evaluate/plan/implement changes?"
 
-**Do not enter this skill for a standalone brainstorming or "should I use X or Y" question.**
-The skill's own trigger description excludes those, and it is right to: a cold tradeoff question
-needs research, not an evaluate-plan-develop cycle. Those belong to the brainstorming and
-research skills. Discussion is an *in-run* mode, not a front door — routing a cold question here
-loads four phases of build machinery to answer something that needed none of it.
+**The boundary that matters is the codebase, not the verb.** Discussion earns its place when
+the question is grounded in *this* project — what exists today, what would have to change, what
+it would cost here. A question with no codebase in play ("what is the state of the art in X",
+"compare these three vendors") wants the **deep-research** skill instead: it needs sources and
+fan-out, not an engineering team reading code that isn't relevant to the answer.
 
 ### Build Workflow Phases
 
