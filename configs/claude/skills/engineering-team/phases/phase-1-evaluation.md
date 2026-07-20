@@ -172,6 +172,14 @@ Include for frontend frameworks (React, Next.js, Svelte, Vue, Astro, etc.) or
 server-rendered HTML (Jinja, Django, EJS, etc.). Skip for pure backend, CLI, or
 library projects.
 
+- **First, check the Playwright MCP tools are actually available** (`browser_navigate`
+  and friends). This brief depends on them and they are not always connected. If they
+  are missing, say so in the report as a **limitation of this evaluation** — "no visual
+  verification was performed, Playwright MCP unavailable" — and skip the rest of this
+  brief. Do not substitute `curl` or a fetched HTML body and describe the result as
+  visual verification: that answers "did the server respond", not "does the page work",
+  and reporting one as the other is exactly the overclaim
+  `../references/general-guidelines.md` rule 2 forbids.
 - Start the app locally — and the backend too if the frontend fetches from one
   (check `.env`, vite/svelte proxy config, `/api/*` calls, docker-compose).
   Empty states / 401s / blank pages are usually a missing backend, not a UI bug.
