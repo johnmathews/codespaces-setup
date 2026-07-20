@@ -277,22 +277,50 @@ section is inserted above it.
 
 Any **living** document — one that describes current truth and misleads when
 stale (README, spec, runbooks, architecture docs, security/controls registers,
-persistent plans) — carries a status stamp as the first line under its title:
+persistent plans) — carries a status stamp as the first line under its title.
+
+**A stamp records state; it does not narrate.** It is a fixed-size header taken
+in at a glance: status, dates, one link to evidence, and the scope of what was
+*not* verified. Everything else belongs in a document that owns it — cited from
+the stamp by link, never copied into it.
 
 ```
-**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD (how). **Supersedes:** <doc-or-none>. **Path:** <repo-relative-path>.
+**Status:** active. **Last updated:** YYYY-MM-DD. **Last verified:** YYYY-MM-DD ([evidence](link)). **Supersedes:** <doc-or-none>.
 ```
 
-- **Path** — the document's own repo-relative path (e.g. `docs/runbooks/deploy.md`),
-  so a printed or copied-out copy still shows where in the repo it came from. Keep
-  it in sync if the file is moved or renamed.
 - **Last updated** — when the prose last changed.
 - **Last verified** — when its claims were last checked against reality (the
-  code, a real run, the live config), and briefly how. Use "not yet — <reason>"
-  until first verified; never leave it blank.
+  code, a real run, the live config). **It cites evidence; it never contains
+  it** — one link out to the run, the command, or the section that holds the
+  detail. Use "not yet — <reason>" until first verified; never leave it blank.
 - When you edit a living doc, bump **Last updated**; when you confirm its claims
-  still hold (e.g. a runbook executed green, settings match the remote), bump
-  **Last verified** with the date and method.
+  still hold, **re-stamp** — replace the date and the evidence link rather than
+  appending a second one.
+
+**Budget the stamp: ~600 characters, and gate it** beside the link and freshness
+checks (`references/worktree.md`, "Documentation gates"). Land the threshold where
+it **reds real documents on arrival**, so the migration lands in the same change
+and the gate is real from its first run; ratchet down from there. **Never raise
+the budget to turn a red doc green** — the red is the gate working, and the
+overflow is content that belongs elsewhere. 600 is a starting point, not a law.
+
+**Where the displaced prose goes:**
+
+| Content | Destination |
+| --- | --- |
+| narrative, "what changed", what bit us | the journal |
+| why a decision was made | an ADR |
+| what the system does now | the spec body, under a heading |
+| what is deployed right now | a dedicated live-state doc |
+| verification state, evidence, per-pass method records | the verification doc |
+
+Then link the destination from the stamp. Without a named destination "keep it
+short" loses to the deadline, because there is nowhere obvious to put things.
+
+**Corrections replace; they never accumulate.** A retraction is not retired by
+appending it to the stamp. Fix the claim where it lives, and date the correction
+in the journal. A stamp carrying its own errata grows with every fix — so the
+document gets harder to read each time it gets more accurate.
 
 **The method must match the kind of claim it certifies.** This is the rule that
 makes the stamp worth anything, and it is the one most easily filled in honestly
@@ -309,9 +337,24 @@ model calls that had never happened. The stamp refuted itself in its own words,
 and nobody noticed, because the convention never required the method to match
 the claim.
 
-When one document mixes claim kinds, **stamp the methods separately** and say
-which claims were *not* re-verified. "Verified" with no scope reads as "all of
-it".
+So when one document mixes claim kinds, say **which claims were not
+re-verified** — "verified" with no scope reads as "all of it", and a reader
+without that clause is misled. **Split what that produces.** The scope is state:
+one short clause in the stamp naming what is not covered. The **per-pass method
+record** — which pass ran, when, how, against what evidence — is history: it goes
+to a change-history section in the document body or to the journal, linked from
+the stamp. That split is what stops this rule ratcheting: the protection is
+per-document and bounded, the log it generates is per-pass and unbounded.
+
+The mirror failure, and why the budget exists: across 34 living docs in one repo,
+stamps had grown to **112,790 characters** — median 1,495, worst 21,096 on a
+single line, the agent-facing `CLAUDE.md` at 14,826 (a six-layer dated changelog,
+an evidence ledger, post-mortems about the file's own past errors, corrections to
+its own prose). ~90% restated documents that already owned those facts, so the
+copies drifted from their sources — one still asserted an inference its owner had
+retracted. All of it passed a green doc gate that only checked the field *names*
+were present. Same idiom as the failure above, opposite direction: a check that
+could not fail on the defect actually present.
 
 Point-in-time records (ADRs, accepted RFCs, journal entries) are exempt — they
 are historical by design and are allowed to age. ADRs instead carry a

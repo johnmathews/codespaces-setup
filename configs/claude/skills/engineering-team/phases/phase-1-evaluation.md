@@ -197,6 +197,15 @@ library projects.
   matters — does any stamp's stated method actually support the kind of claim it
   certifies? A doc that says "verified against the other docs" has verified nothing
   about the running system.
+- **Measure the stamps, don't only judge them.** Print every living doc's stamp
+  length and sort descending — the stamp paragraph, i.e. the contiguous non-blank
+  lines from the `**Status:**` line. It takes a minute and the distribution is the
+  whole tell: a handful of multi-thousand-character stamps means narrative has been
+  accumulating in a field meant to hold state, and that content is almost always
+  restatement of documents that already own it — copies with no gate keeping them
+  honest, so they drift and then contradict their sources. Report the total, the
+  median, and the worst offender. Judging honesty catches a bad stamp; measuring
+  catches the pattern, and much earlier.
 - **Check the docs against reality, not against each other.** Doc-to-doc consistency
   proves only that the documents agree. Where a doc claims something about runtime
   behaviour ("deployed", "live", "the worker calls X"), the evidence is a run, a log,
@@ -246,6 +255,18 @@ isn't mistaken for coverage it doesn't have.
 harder to see than a broken one, because nothing points at it. The commonest by
 far: **a browser UI with no accessibility requirement at all** — no lint plugin,
 no assertions, nothing. If the project has a UI and no a11y anywhere, say so.
+
+**3. Probe what each gate actually detects — don't read it off the workflow.**
+For every gate the project claims to have, establish its real capability by
+**reading the gate's own source, or feeding it a known-bad input and watching
+it**. That a workflow invokes it proves only that it runs
+(`../references/general-guidelines.md` rule 2). The gap is invisible from the
+caller and routine in practice: a docs-freshness gate that only greps for field
+labels and does no date arithmetic; a scanner whose pattern matches nothing; a
+step piped into `tail`, so the suite's exit code is discarded. Report each as
+*claimed capability | actual capability | what would have to break for it to go
+red* — and where a doc asserts a capability the gate doesn't have, that is a
+false claim in a living doc, not merely a weak gate.
 
 ### Step 2.6: The onboarding bar — you are the measurement
 

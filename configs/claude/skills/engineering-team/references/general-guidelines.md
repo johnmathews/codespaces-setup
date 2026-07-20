@@ -47,6 +47,16 @@ be stronger than the source.** A sentence that looks like a summary and is
 actually an inference is the hardest kind to catch, because it reads as
 though someone checked.
 
+**Reading the caller cannot verify a claim about the callee's behaviour.**
+A claim about what a gate, scanner, or check *detects* is verified by
+reading the gate's own source, or by feeding it a known-bad input and
+watching it go red — never by reading the workflow that invokes it. The
+caller establishes that the thing runs; only the callee establishes what it
+would catch. This is how a real project's doc claimed its freshness gate
+"flags docs gone stale past a window" while the gate did no date arithmetic
+at all: the claim carried a "verified against `.github/workflows/`" stamp,
+which was true, and proved the wrong proposition.
+
 **3. "Green" means an executed check that passed, and the check is named.**
 Nothing else. The word drifts: it comes to mean a suite passed, a workflow
 succeeded, a job exited zero, a file compiled, or — in one real README — a

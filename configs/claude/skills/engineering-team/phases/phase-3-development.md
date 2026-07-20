@@ -252,7 +252,11 @@ As Lead Engineer, review each completed unit before marking it done. Check:
   runbooks, security/controls registers), the matching doc MUST be updated in
   **this same unit** — or you must state explicitly why no doc change is needed.
   A unit that alters behaviour but leaves the living docs stale is not done.
-  Update the affected doc's `Last verified` / `Last updated` stamp when you touch it.
+  **Re-stamp the affected doc; don't append to it.** Replace the `Last updated` /
+  `Last verified` dates and the evidence link — the stamp is a fixed-size state
+  record, not a log. The test: *if you are adding a clause rather than replacing
+  one, the content belongs elsewhere* — the journal, an ADR, the spec body, or the
+  verification doc (routing table in `../SKILL.md`, "Living-document status stamp").
 
 **Progress cadence (recap).** For every work unit you touch in this phase:
 announce "Starting W<n>: <title>" before dispatching the first subagent (or first

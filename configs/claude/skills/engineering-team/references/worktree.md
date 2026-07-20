@@ -136,9 +136,22 @@ anti-doc-rot strategy — so living docs cannot silently drift:
   fails on broken internal links **and broken `#anchors`** across `*.md`.
 - **Freshness / status-stamp check** — a CI job that asserts every living doc
   carries the status stamp (see the router's "Living-document status stamp"),
-  **and that parses the `Last verified` date and fails past a staleness window.**
-  Point-in-time docs (`/docs/adr/`, `/docs/rfc/`, `/journal/`) are excluded **by
-  path**, not by judgement.
+  **and that parses the `Last verified` date and fails past a staleness window**
+  (~90 days to start; rules below). Point-in-time docs (`/docs/adr/`, `/docs/rfc/`,
+  `/journal/`) are excluded **by path**, not by judgement.
+- **Stamp size check** — a CI job that fails when a status stamp exceeds a
+  character budget (~600 to start; see the router's "Living-document status
+  stamp"). Measure the stamp **paragraph** — the contiguous non-blank lines
+  beginning at the `**Status:**` line — not the single line, or soft-wrapping
+  dodges the budget. A genuine blank line ends it, so body prose under a heading
+  stays uncharged; that is correct. The goal is not shorter documents, it is that
+  narrative stops masquerading as verified current state.
+
+  **Ratchet, never raise.** Land the threshold where it reds documents that
+  already exist, so the migration lands in the same change and the gate is real
+  from its first run; tighten it later. Raising the budget to turn a red doc
+  green converts the gate back into decoration — the overflow is content that
+  belongs in another document, and moving it is the fix.
 - **Runbook-executed-in-CI** — where a local-parity/setup runbook exists, make
   its steps the same steps CI runs, so a stale step turns CI red.
 
@@ -147,8 +160,31 @@ implementation greps for the three field labels and stops there — at which poi
 `Last verified: 2019-01-01` passes forever, and so does `Last verified: banana`.
 A gate against staleness that cannot detect staleness is precisely the "check
 that cannot fail" that `general-guidelines.md` warns about, and it fails in the
-one place it was built for. Parse the date, compare it to a window, and **ship
-the gate with a test proving it goes red on a stale stamp.**
+one place it was built for.
+
+That is not hypothetical, and it survived months in a repo this skill drove: the
+gate asserted three literal field labels appeared in a doc's first 15 lines and
+did **no date arithmetic at all**, while the project's own testing doc claimed it
+"flags ones gone stale past a window" — a claim stamped as verified *against the
+workflow that calls the gate*, which establishes that CI invokes it and never
+what it detects (`general-guidelines.md` rule 2).
+
+Build it to these four rules:
+
+- **A concrete window, ratcheted.** ~90 days is a sane starting target. Land it
+  wide enough that one honest re-verification pass can get the repo green, then
+  tighten. Same law as the size budget: **never widen the window to turn a red
+  doc green** — that red is the gate reporting that nobody has checked the doc.
+- **Unparseable is red, never skipped.** The hole is a regex that doesn't match
+  and a gate that shrugs. A malformed date, a missing field, and `banana` must
+  all fail: absence of a parse is not a pass.
+- **`not yet — <reason>` has to expire.** The stamp convention permits it before
+  first verification, so the gate must accept it — but bounded against `Last
+  updated`, or it becomes a permanent parking space that is a legal value
+  forever. An exemption must expire by itself (`general-guidelines.md` rule 4).
+- **Ship a test per hole, not one happy path**: stale date red, unparseable red,
+  aged-out `not yet` red. A scanner that matches nothing passes loudest when it
+  is blind.
 
 These complement the wrap-up living-docs reconciliation step (Phase 4) and the
 per-unit "docs touched?" check (Phase 3): the gates are the machine enforcement,
