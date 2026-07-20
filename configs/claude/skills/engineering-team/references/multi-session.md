@@ -109,9 +109,9 @@ single-writer rule binds it from there.
    every session after the first collides on a branch that already exists.
 4. Emit one hand-off prompt per lane (use `/prompt`). The human opens the
    sessions and pastes them in.
-4. **Reconcile**: poll `gh pr list`, read each `status-<lane>.md`, update the
+5. **Reconcile**: poll `gh pr list`, read each `status-<lane>.md`, update the
    board, and fold surprises back into the plan.
-5. May run a lane itself — but then it wears both hats and must respect the
+6. May run a lane itself — but then it wears both hats and must respect the
    single-writer rule on both.
 
 The coordinator is a **role, not a required living process.** If its session

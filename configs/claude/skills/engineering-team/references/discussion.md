@@ -13,7 +13,13 @@ clarity — for the user and for future work.
 
 ### When to Use
 
-Use this workflow when the user wants to:
+**This is an in-run mode, not a front door.** Reach it when the user has already
+engaged the engineering team and wants to explore before committing — not as the
+entry point for a cold "should I use X or Y" question, which the skill's trigger
+description explicitly excludes and which belongs to the brainstorming and
+research skills (`workflows.md`).
+
+Within that constraint, use this workflow when the user wants to:
 - Brainstorm approaches to a problem before committing to one
 - Understand tradeoffs between architectures, libraries, patterns, or designs
 - Learn how something works (a concept, a part of the codebase, a technology)
