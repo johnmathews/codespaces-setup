@@ -107,11 +107,56 @@ evaluation scope, browser UI to verify.
   (security + deployment). Keep the Product Owner if docs exist. Engineer 5
   only if there's a UI.
 - **Standard (4-6 subagents)** for most projects: use the full team below.
+- **Wide (a Workflow fan-out over lenses × areas)** for projects too large
+  for one agent per lens to cover — see below. **Never chosen without
+  asking.**
 
 When in doubt, go standard — over-investigating is cheaper than missing
 something important. Launch subagents in parallel (dispatch mechanics:
 "Dispatch mechanics" in `../references/team-structure.md`, loaded in
 Step 0):
+
+#### When to offer a wide survey
+
+A standard run gives each lens the whole codebase. On a large project that
+agent samples — it reads what looks promising and reports on that, and the
+report reads the same either way. **The problem is not depth, it is that
+coverage is invisible.** A wide survey gives each agent one lens and one
+bounded area, so what was covered becomes something the report can state.
+
+Offer it only when all three hold:
+
+1. **`Workflow` is available.** If not, run standard. That is the normal
+   method and needs no apology — just don't describe a standard run as if
+   it had the coverage of a wide one.
+2. **The project actually has areas** — your recon in this step found
+   roughly six or more distinct packages, services, apps, or subsystems. If
+   the repo is one coherent thing, splitting it invents boundaries and buys
+   nothing.
+3. **The machine can run it.** Concurrency is `min(16, cores - 2)`. Check
+   `nproc`: on a 4-core box that is 2 at a time, so 80 agents is 40
+   sequential rounds. Often a reason to decline, and to say so.
+
+**Do not ask on a small or simple project.** The question itself has a
+cost, and the answer is obviously no.
+
+When all three hold, put the shape and the number in front of the user and
+wait. Something like: *"This has 12 distinct areas. I can run a wide survey
+— 6 lenses × 12 areas, about 84 agents, versus 6 on the standard path. It
+covers far more and costs proportionally more. Standard, or wide?"*
+
+Name the agent count. "A more thorough evaluation" is not informed consent
+about someone else's tokens.
+
+On a yes, load `../references/wide-survey.md` — it has the script, the
+sizing table, and what stays with you rather than going into the fan-out
+(Steps 0, 1, 2.5, 2.6, the UI walk, and all of Step 3). On a no, or on any
+of the three conditions failing, run the standard team below.
+
+**A wide survey buys coverage, not independence.** Its agents are
+sub-instances of the same model, so a hundred agreeing is worth no more
+than four agreeing. Findings still come back graded, you still regrade
+them, and you still disconfirm the load-bearing ones in Step 3.
 
 **Engineer 1 — Codebase structure, quality, and problem space research:**
 
