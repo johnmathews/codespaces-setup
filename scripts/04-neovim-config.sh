@@ -43,3 +43,17 @@ else
 fi
 
 log "Neovim config ready at ${NVIM_CONFIG_DIR}"
+
+# Ensure the sqlite-backed Telescope history directory exists.
+#
+# The neovim config points telescope-smart-history at
+# ~/.local/share/nvim/databases/telescope_history.sqlite3. sqlite.lua opens that
+# DB with sqlite3_open_v2 in "rwc" mode, which creates the *file* but not its
+# parent directory, so a missing directory surfaces as
+# "sqlite.lua: couldn't connect to sql database, ERR: unable to open database"
+# the first time a picker cycles its history. Create it here (a synchronous
+# foreground step) so it always exists before nvim is opened, rather than
+# relying on the background 13-nvim-plugins.sh preload having run first.
+NVIM_DB_DIR="${HOME}/.local/share/nvim/databases"
+mkdir -p "${NVIM_DB_DIR}"
+log "Ensured Neovim sqlite database directory exists: ${NVIM_DB_DIR}"
