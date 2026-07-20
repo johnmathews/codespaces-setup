@@ -220,8 +220,24 @@ parallelism to go faster, not for ceremony.
 Once you know your role, determine the current phase and load the matching
 `phases/phase-N-<name>.md`.
 
-**If `$RUN_DIR/run.yaml` exists, its `phase:` is the answer.** Read it; do
-not re-derive it. That is the whole point of the file.
+**If `$RUN_DIR/run.yaml` exists, read it — then reconcile it against the
+artifacts before acting on it.** `phase:` is a record, and a record can be
+stale: a session that ended abruptly may have skipped its last write. Check
+the cheap invariants — `phase:` of 2 or later implies `evaluation-report.md`
+exists; 3 or later implies `improvement-plan.md` exists — and where the file
+and the directory disagree, **the artifacts win and you correct the file.**
+
+Trust `run.yaml` outright for what the artifacts *cannot* tell you: `scope:`,
+and each unit's `status:`. Nothing on disk records those, which is the reason
+the file exists at all.
+
+That split is not fussiness. Making `run.yaml` authoritative for everything
+would reintroduce, one level up, the failure it was added to fix: an absent
+file triggers inference and self-corrects, whereas a **stale file lies with
+authority.** A claim may not be stronger than the check behind it
+(`references/general-guidelines.md` rule 2) — and that applies to the claims
+this skill makes about its own state, not only to the ones it makes about
+the project.
 
 **Only if it does not**, infer from which artifacts exist — then write a
 `run.yaml` recording what you concluded:
