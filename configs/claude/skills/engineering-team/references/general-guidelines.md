@@ -57,6 +57,18 @@ would catch. This is how a real project's doc claimed its freshness gate
 at all: the claim carried a "verified against `.github/workflows/`" stamp,
 which was true, and proved the wrong proposition.
 
+**A check run in the wrong environment is not the check.** Name the
+invocation, not just the command — the interpreter, the lockfile, the
+working directory, the environment it resolved. A real evaluation reported
+`uv run pip-audit` exiting 1 with "12 known vulnerabilities in 2 packages",
+labelled it verified, and built a work unit on it. Neither package had ever
+been in the lockfile: a stale local virtualenv was on `$VIRTUAL_ENV`, and
+CI printed `No known vulnerabilities found` on the same commit. The command
+really was executed and the output really was its output. **Re-running it
+reproduces the falsehood faithfully** — this is the specific reason a
+second agent asked to "verify this finding" does not catch it, and the
+reason the disconfirming observation has to differ from the original.
+
 **3. "Green" means an executed check that passed, and the check is named.**
 Nothing else. The word drifts: it comes to mean a suite passed, a workflow
 succeeded, a job exited zero, a file compiled, or — in one real README — a
@@ -69,15 +81,88 @@ the step, so the exemption lifts the moment its justification does. An
 exemption whose expiry depends on someone remembering will outlive its
 reason.
 
-### Grade your own conclusions
+### Grade every finding, and name what earned the grade
 
-Say which of these a claim is, especially when it's yours: **confirmed**
-(observed), **strongly supported** (the evidence fits and nothing
-contradicts it), or **suspected** (it's a hypothesis). Writing up a
-strongly-supported root cause as proven is the same error as any other
-overclaim — it just feels different because it's a conclusion rather than
-a fact. Apply this to a diagnosis of a verification failure too, or you
-reproduce the failure inside its own post-mortem.
+Every finding carries one of three grades. The grade is not a confidence
+score — it is a statement about **how the finding was established**, and
+it must name that thing, so a reader can go and repeat it:
+
+| Grade | Means | Must name |
+| --- | --- | --- |
+| **[VERIFIED]** | You executed something and it showed this | The command **and its actual output** |
+| **[SUPPORTED]** | You read a primary source — code, a log, a config, a run | `file:line`, or a run id and the log line |
+| **[SUSPECTED]** | Inference. It fits, and nothing contradicts it | What would settle it |
+
+**[SUSPECTED] is the default.** A finding is only promoted by naming the
+thing that promoted it. "I am confident" is not a grade, and neither is
+the length of the reasoning behind it.
+
+A grade with nothing named is worth less than no grade at all, because it
+reads as though someone checked. This is rule 3 turned on your own output:
+*if you cannot name the check and say what would have turned it red, do
+not call it green.* The same standard the skill applies to a project's CI
+applies to the skill's own findings.
+
+Two failure modes this exists to catch, both observed in real runs of this
+skill:
+
+1. **[VERIFIED] applied to something unrunnable.** A table mapping
+   requirements to owners, or an argument that a definition-of-done is
+   unfalsifiable, are conclusions from *reading* — [SUPPORTED] at best.
+   Marking them [VERIFIED] is not a stricter claim, it is a false one.
+2. **The grades going unused entirely.** Across 20 run directories in one
+   project, `[VERIFIED]` appeared 16 times in a single report and
+   `[SUSPECTED]` appeared **zero times anywhere**. A vocabulary that is
+   only ever used to promote is doing no work. If nothing in your report
+   is [SUSPECTED], that is a signal to re-read it, not a sign it went well.
+
+Writing up a [SUPPORTED] root cause as [VERIFIED] is the same error as any
+other overclaim — it just feels different because it's a conclusion rather
+than a fact. Apply this to a diagnosis of a verification failure too, or
+you reproduce the failure inside its own post-mortem.
+
+### Name what would refute it, then go and look
+
+For any finding that is **load-bearing** (a recommendation depends on it)
+**and non-obvious** (it would surprise someone who knows the code), write
+down what you would expect to observe if it were **false** — then make
+that observation.
+
+This is not a review step and it is not a second opinion. It is one
+executed check chosen specifically to disconfirm, and it exists because of
+what wrong findings actually look like:
+
+> A detailed causal story is exactly what a wrong claim looks like when you
+> are being thorough. Diligence *produces* the claim; only a mechanical
+> check refutes it.
+
+That is from a real post-mortem in a project this skill was run on. The
+finding in question was specific, mechanistic, and read as the session's
+highest-value result: that a spreadsheet ingest took row 0 as the header
+and so silently broke on real input. It was false — the parser one layer
+down already trimmed leading blank rows. What caught it was a
+pre-committed rule that **every behavioural test must be confirmed to fail
+with its fix reverted**. The author reverted the fix expecting red, got
+green, and chased it. Nothing else in that project's record has ever
+caught a confident false finding *before* it shipped.
+
+So, concretely:
+
+- **Before claiming a module misbehaves, run the layer beneath it.**
+  Reading a call site is not evidence about what its dependency returns.
+- **Revert the fix and watch the test fail.** A test that passes either way
+  proves nothing — and *why* it passes either way is often the real finding.
+- **A defect in code that has been in production and working deserves more
+  suspicion, not less.** If it were really broken that way, something
+  would likely have shown by now.
+- **Re-running the same check is not disconfirmation.** It reproduces the
+  original observation, including its mistakes — see the environment trap
+  in rule 2 above.
+
+When you genuinely cannot make the disconfirming observation, the finding
+stays **[SUSPECTED]** and you say what would settle it. That is an honest
+result and a useful one. Promoting it because the reasoning felt airtight
+is the exact move this rule exists to block.
 
 ### Describe a gate by what it checks, not what it's for
 
@@ -140,6 +225,29 @@ that the bypass doesn't exist.
   code or external sources, not against agreement. If you find yourself relying on
   subagent consensus to justify a finding, that is a signal to do the verification
   yourself before passing it on.
+- **More subagents is not more independence.** The obvious fix for the point above is
+  to spawn N skeptics per finding and count how many refute it. It does not work, and
+  it is worse than doing nothing, because it converts a shared blind spot into a
+  *number* — "3 of 3 verifiers confirmed" reads as far stronger evidence than the four
+  agreeing agents it replaced, while resting on the same priors. Rule 1 applies: if the
+  refuters would ratify a wrong finding just as readily as a right one, the verification
+  pass is a check that cannot fail.
+
+  This is why the answer here is **not** to hand the problem to a fan-out/verify
+  orchestrator — Claude Code exposes one as the `Workflow` tool, and its adversarial
+  pattern is exactly "spawn N independent skeptics per finding". Those skeptics are
+  sub-instances of the same model. Such a tool is the right instrument for *coverage* —
+  sweeping more files, more angles, more search modalities than one context can hold —
+  and the wrong one for **independence**, which it cannot manufacture. Where it is
+  unavailable, nothing here changes; the reason it is not the answer is the shared
+  priors, not the tooling.
+
+  What does work is narrower and cheaper: a subagent with a **restricted scope and a
+  mandate to re-run the check itself** rather than accept a fact handed down in its
+  brief. In one audited session, four of the lead's six false claims were caught by
+  agents it had personally misinformed — every one of them refused the handed-down fact
+  and went to the log. So when a brief passes a finding downstream, pass the evidence
+  with it and say the agent may reject it, rather than stating it as settled.
 - Verify any URL, GitHub issue, or CVE a subagent cites. Don't fabricate citations
   yourself — if a fact came from training data rather than a fetched page, say so.
 - If a subagent's output is insufficient, give specific feedback and redo it.
@@ -150,8 +258,10 @@ that the bypass doesn't exist.
 - Be specific. "The `parse_config()` function on `config.py:23` doesn't handle
   malformed YAML — it throws an unhandled exception" beats "the code could be more
   robust."
-- Label findings **[VERIFIED]** (you ran the code) or **[SUSPECTED]** (inferred from
-  reading) — the distinction tells the user what to act on now vs. investigate.
+- Grade every finding **[VERIFIED]** / **[SUPPORTED]** / **[SUSPECTED]** and name what
+  earned the grade — see "Grade every finding, and name what earned the grade" above.
+  The distinction tells the user what to act on now vs. investigate, and the named
+  evidence is what lets them check it without asking you.
 - Describe what tests **cover**, not just that they pass. For changes touching
   persistent data, IO, or unexercised code paths, name what's covered AND what isn't.
   "All tests pass" is verification of the destination, not the journey.

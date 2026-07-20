@@ -335,7 +335,8 @@ Load these on demand when their topic becomes relevant:
   single-writer, disjoint footprints, coordinator/worker roles.
 - `references/discussion.md` — Discussion workflow details.
 - `references/general-guidelines.md` — cross-cutting rules, verification
-  integrity, and the triage entry point for urgent reports.
+  integrity, how findings are graded, and the triage entry point for
+  urgent reports.
 
 ## What this router does NOT contain
 
