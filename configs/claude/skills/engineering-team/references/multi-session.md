@@ -29,6 +29,7 @@ concurrent write to reconcile, so there is never a conflict to resolve.
 | Artifact | Sole writer | Purpose |
 | --- | --- | --- |
 | `improvement-plan.md` | coordinator | the **what** — units, specs, acceptance criteria. Source of truth |
+| `run.yaml` | coordinator | the **state** — phase, scope, per-unit status (`../SKILL.md`) |
 | `progress.md` | coordinator | the **where** — live status board + the contract |
 | `status-<lane>.md` | that one lane | its ticks, **surprises**, blockers |
 | `journal/YYMMDD-*.md` | that one lane (via `/done`) | the durable, committed record |
@@ -36,6 +37,13 @@ concurrent write to reconcile, so there is never a conflict to resolve.
 | Memory (auto-memory) | coordinator | cross-session recall; the hook a fresh session loads |
 
 No file is written by two sessions. That single fact is the whole trick.
+
+**`run.yaml` follows the plan, not the lane.** A worker does not edit it, even
+to mark its own unit done — it records ticks in `status-<lane>.md` and on its
+PR, and the coordinator folds them in during reconciliation (§5.1). On a solo
+run there is one session and no ambiguity: it writes `run.yaml` directly, which
+is the ordinary case. The exception exists only so that the promotion from solo
+to coordinator does not change who owns the file.
 
 All of these except the journal and the PR live in `$RUN_DIR`, which is in the
 **main checkout** — never inside a worktree, or the other sessions cannot read it

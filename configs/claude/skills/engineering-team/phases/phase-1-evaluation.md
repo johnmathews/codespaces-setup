@@ -30,6 +30,12 @@ user's default viewer if a GUI opener exists (`open` on macOS,
 `xdg-open` on Linux) — skip this on headless hosts. Do not proceed past Phase 1 to Phase 2 until the file
 exists on disk.
 
+When you create `$RUN_DIR`, also write `$RUN_DIR/run.yaml` with `phase: 1` and
+the `scope:` implied by the user's verb (`evaluate` / `plan` / `full` — see "The
+run directory" in `../SKILL.md`). Set `scope` now, while the user's request is
+in front of you: it is the only record of what they actually asked for, and
+Phase 4 reads it to decide whether it may merge anything.
+
 ---
 
 The goal is to produce a thorough, honest assessment of the project. This is not a rubber stamp — the team

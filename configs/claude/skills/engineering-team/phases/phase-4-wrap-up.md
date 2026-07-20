@@ -144,12 +144,23 @@ Present a brief summary to the user:
 - Any issues encountered during wrap-up
 - What was reaped by `/done`'s housekeeping (stale worktrees/branches), if anything
 
-Then clear the run pointer: `rm -f .engineering-team/current.txt` in the **main
-checkout** (which is where `$RUN_DIR` lives — never the worktree). The cycle is
-complete; leaving the pointer would make the next invocation "resume" this
-finished run instead of starting fresh. Do NOT clear it when the run ends early
-(partial cycle, a pause still outstanding, or any lane unmerged) — the pointer is
-what lets a later session resume.
+Then close the run out, in the **main checkout** (which is where `$RUN_DIR`
+lives — never the worktree):
+
+1. Set `phase: complete` in `$RUN_DIR/run.yaml`.
+2. `rm -f .engineering-team/current.txt`.
+
+Do both. They are belt and braces on purpose: clearing the pointer is the step
+most likely to be skipped, because by now the interesting work is done and the
+summary is written. `phase: complete` is what makes a skipped step harmless —
+the next invocation reads it, sees the run is finished, and starts fresh instead
+of resuming a closed run. That failure is not hypothetical: a repo audited while
+writing this had `current.txt` still naming a run that had finished, so the next
+session would have "resumed" it.
+
+Do NOT mark the run complete when it ends early (partial cycle, a pause still
+outstanding, or any lane unmerged) — leave `phase:` where it is and leave the
+pointer in place. That is what lets a later session resume.
 
 ### Step 5: Next-unit handoff (when iterating through a plan)
 
