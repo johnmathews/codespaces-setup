@@ -18,11 +18,9 @@ a lead engineer who dispatches subagents. The skill is split into a thin
 router (this file) plus per-phase docs in `phases/` and cross-cutting
 reference docs in `references/`.
 
-This is the **interactive variant**: it reports progress in plain prose and
-asks the user directly when input is needed. It emits no `[[engteam:...]]`
-sentinels and assumes no external loop driver. If the preamble contains a
-`RELAY_PHASE:` or `RELAY_RUN_DIR` line, you are in a relay-driven run —
-stop and use the `engineering-team-sentinels` skill instead.
+It reports progress in plain prose and asks the user directly when input is
+needed. There is no machine-readable marker contract and no external loop
+driver: a human is in the loop at every gate.
 
 ## Project configuration
 
@@ -202,7 +200,7 @@ Phase 1 → Phase 2 after synthesis), announce each phase as you enter it.
 
 ## Progress, pausing, and completion
 
-There is no machine-readable marker contract in this variant. Instead:
+There is no machine-readable marker contract. Instead:
 
 - **Progress:** announce work-unit starts and completions in plain prose
   ("Starting W1: <title>", "W1 done — full suite green"). Never leave a
