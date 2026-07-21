@@ -168,12 +168,12 @@ removes it.
   != "$(git rev-parse --path-format=absolute --git-common-dir)" ] && echo "already in a worktree"
 ```
 
-The flags are load-bearing. Bare `git rev-parse --git-dir` returns an
-**absolute** path from a subdirectory while `--git-common-dir` returns a
-**relative** one — the same location, rendered differently, so a string
-comparison reports "different" and concludes you are in a worktree when you
-are standing in a subdirectory of the main checkout. Normalise both sides
-before comparing them.
+The flags are load-bearing, for the same reason spelled out under "The run
+directory" above: bare `git rev-parse` renders these paths absolute from a
+subdirectory but relative from the root, so a string comparison of the
+un-normalised forms reports a false difference and concludes you are in a
+worktree when you are in a subdirectory of the main checkout. Normalise both
+sides before comparing.
 
 - **Already in a worktree** (the user invoked the skill from one, or a
   previous phase created it) → **work in it. Do not create another.**
@@ -190,11 +190,8 @@ The full discipline is in `references/worktree.md`. Two exceptions:
 - The **Discussion workflow**, which writes no code and needs no branch
   (`references/discussion.md`).
 
-Either way `$RUN_DIR` resolves to the main checkout (above), which is why
-that resolution must not depend on where you are standing.
-
-Remember: the worktree holds code, `$RUN_DIR` stays in the main checkout
-(above).
+Either way `$RUN_DIR` resolves to the main checkout, which is why that
+resolution must not depend on where you are standing.
 
 ## Decide your role
 
@@ -386,9 +383,6 @@ Load these on demand when their topic becomes relevant:
 
 ## What this router does NOT contain
 
-This file is intentionally short. It does NOT contain:
-
-- Per-phase steps — those are in `phases/`.
-- Team / workflow / worktree details — those are in `references/*.md`.
-
-When in doubt, the per-phase doc is authoritative for that phase's behavior.
+This file is intentionally short: per-phase steps live in `phases/` and
+team / workflow / worktree details in `references/*.md` (listed above). When
+in doubt, the per-phase doc is authoritative for that phase's behavior.
