@@ -121,6 +121,35 @@ other overclaim — it just feels different because it's a conclusion rather
 than a fact. Apply this to a diagnosis of a verification failure too, or
 you reproduce the failure inside its own post-mortem.
 
+### Severity: what it would cost if it is true
+
+Grade says whether a finding is known to be true. **Severity says what it
+would cost if it were** — and the two are independent, which is why both
+sit on the same index line. Assign severity from consequence, not from how
+much work the fix is and not from how annoying the code looks:
+
+| Severity | The consequence that earns it |
+| --- | --- |
+| **Critical** | Data loss or corruption, a security hole, secret exposure, or a break in a path users depend on right now. Also: silent wrongness — output that looks right and is not. Act before shipping anything else |
+| **High** | A real defect or a live risk of one, but bounded — it degrades a path rather than breaking it, or the failure is loud. Also a quality requirement the project states and nothing enforces, where the requirement is load-bearing |
+| **Medium** | Correct today, fragile tomorrow: missing tests on a path that changes, a doc that is wrong in a way that costs a reader time, duplication that will drift |
+| **Low** | Cosmetic, stylistic, or a genuine nice-to-have. Nothing breaks and nobody is misled |
+
+Two rules that stop the scale drifting:
+
+1. **Severity is about the consequence, not the confidence.** A Critical
+   [SUSPECTED] is a normal and useful finding — "if this is true it is very
+   bad, and here is what would settle it". Downgrading it to Medium because
+   you are unsure is grading twice on the same axis and hides the thing most
+   worth checking.
+2. **Name the consequence in the detail section.** "High" with no stated
+   cost is the severity equivalent of a grade with nothing named — it reads
+   as though someone weighed it. If you cannot say what it would cost, it is
+   Low or it is not a finding.
+
+Phase 2 orders the fixes by these same four words
+(`../phases/phase-2-planning.md`, Step 1) — it does not redefine them.
+
 ### Name what would refute it, then go and look
 
 For any finding that is **load-bearing** (a recommendation depends on it)

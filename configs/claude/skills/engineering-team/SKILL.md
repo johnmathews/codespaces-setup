@@ -30,17 +30,20 @@ driver: a human is in the loop at every gate.
 Some rules below reference a repo owner and a container registry. Detect
 them; do not hardcode them.
 
-- **Owner:** `git remote get-url origin`. If there is no remote, the
-  default owner is `johnmathews`.
+- **Owner:** `git remote get-url origin`. **If there is no remote, ask —
+  there is no default owner.** There used to be one, and it needed three
+  separate warnings elsewhere in the skill to stop it doing damage. A
+  default that has to be argued down at every use site is not a default;
+  it is a wrong answer with a disclaimer attached.
 - **Registry:** default `ghcr.io/<owner>/<repo-name>`. If the project
   already publishes images somewhere else, that is the registry — read it
   out of the existing workflow rather than asserting a different one.
 - **Journal:** `/journal/` at the repo root unless the project already
   keeps one elsewhere.
 
-A work repo is not a personal repo. Guidance that assumes `johnmathews`
-is wrong on a project owned by someone else, and a finding derived from
-that assumption is a false finding.
+A work repo is not a personal repo. Guidance that assumes an owner is
+wrong on a project owned by someone else, and a finding derived from that
+assumption is a false finding.
 
 ## The run directory
 
@@ -152,6 +155,10 @@ that lives in `$RUN_DIR` in the main checkout, gitignored. So "the merge
 step always has something to merge" is false here — and a rationale an
 agent can disprove is one it will discount when the rule is inconvenient.
 The two reasons above are the real ones and they are sufficient.
+
+An empty worktree still has to be cleaned up, and no phase doc does it for
+a run that stops at Phase 1 or Phase 2. "Closing a run" below is what
+removes it.
 
 **First check whether you are already in one** — before creating anything:
 
@@ -281,6 +288,35 @@ Once you've loaded the matching phase doc, tell the user which phase you
 are entering in one plain-prose line (e.g. "Entering Phase 2: planning").
 If a single session completes one phase and naturally begins another (e.g.
 Phase 1 → Phase 2 after synthesis), announce each phase as you enter it.
+
+## Closing a run
+
+**Every run closes itself, whatever its `scope:`.** Once the last phase
+that scope calls for has produced its artifact, do these three things — in
+the **main checkout**, where `$RUN_DIR` lives, never in the worktree:
+
+1. **Remove the worktree this run created, if it holds zero commits**
+   (`git worktree remove <path>`, then delete the branch). If it holds
+   commits, do not remove it: say what is on it and ask what to do with it.
+   An evaluation-only run normally leaves it empty.
+2. **Set `phase: complete`** in `$RUN_DIR/run.yaml`.
+3. **`rm -f .engineering-team/current.txt`.**
+
+Then state in one line what the scope was and what the next phase would
+be, so the artifact reads as a finished deliverable rather than an
+interrupted run. Offer the next phase; do not start it unbidden.
+
+`full` reaches this through Phase 4's Step 4, which does the same three
+things after the merge. `evaluate` and `plan` reach it at the end of Phase
+1 and Phase 2 respectively — they have no Phase 4, which is exactly why the
+step has to live here rather than only there. A scope that never closes
+leaves `current.txt` naming a finished run, and the next invocation resumes
+it: the hijack the resume rule above exists to prevent, manufactured by the
+skill itself.
+
+**Do not close a run that ended early** — a question still outstanding, a
+unit abandoned mid-flight, a lane unmerged. Leave `phase:` where it is and
+leave the pointer in place; that is what lets a later session resume.
 
 ## Progress, pausing, and completion
 

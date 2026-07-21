@@ -23,12 +23,13 @@ worktree holds code; the run holds artifacts that must outlive it.
 
 The evaluation report MUST be written to `$RUN_DIR/evaluation-report.md`
 on disk using the Write tool — not produced inline in the chat, not embedded
-in a commit message, not described in prose. The file on disk is the
-contract — the chat message is only an announcement that the file exists. If
-`$RUN_DIR` does not exist, `mkdir -p` it first. After writing, open it in the
-user's default viewer if a GUI opener exists (`open` on macOS,
-`xdg-open` on Linux) — skip this on headless hosts. Do not proceed past Phase 1 to Phase 2 until the file
-exists on disk.
+in a commit message, not included in a tool output, not summarised in your
+reply. The file on disk is the deliverable — the chat message is only an
+announcement that the file exists, and later phases and future sessions read
+the file, not this conversation. If `$RUN_DIR` does not exist, `mkdir -p` it
+first. After writing, open it in the user's default viewer if a GUI opener
+exists (`open` on macOS, `xdg-open` on Linux) — skip this on headless hosts.
+Do not proceed past Phase 1 to Phase 2 until the file exists on disk.
 
 When you create `$RUN_DIR`, also write `$RUN_DIR/run.yaml` with `phase: 1` and
 the `scope:` implied by the user's verb (`evaluate` / `plan` / `full` — see "The
@@ -158,6 +159,29 @@ sub-instances of the same model, so a hundred agreeing is worth no more
 than four agreeing. Findings still come back graded, you still regrade
 them, and you still disconfirm the load-bearing ones in Step 3.
 
+#### Before you dispatch the standard team
+
+Two things, both one line of work.
+
+**1. Say what it will cost.** Name the shape and the agent count before
+dispatching — *"Standard evaluation: 5 subagents (structure, tests,
+security, deployment, docs), each doing web research on the dependencies
+recon turned up."* This is the same discipline the wide-survey question
+applies, and it belongs on this path too: the wide survey asks permission
+for ~84 agents while the standard path quietly spends a comparable amount
+on 4–6 agents each briefed to research every dependency. Asking on the
+expensive path and not on the ordinary one is the governance inverted. You
+are not asking permission here — a standard run is the normal method — but
+the user should be able to see the bill coming and say "keep it small".
+
+**2. Put the findings contract in every brief.** Load
+`../references/team-structure.md` ("The findings contract") and give each
+brief the field list and the grading paragraph **verbatim**. A brief that
+does not demand a grade gets ungraded findings back, and the lead cannot
+grade them afterwards — grading is a statement about how the observation
+was made, and the lead did not make it. A report that comes back ungraded
+goes back to the agent.
+
 **Engineer 1 — Codebase structure, quality, and problem space research:**
 
 The team's primary web researcher — findings on dependencies, APIs, and best
@@ -165,13 +189,21 @@ practices are shared with all other engineers via synthesis, so they don't dupli
 this research.
 
 - Map the project structure, languages, frameworks, dependencies.
-- **Web research is essential, not optional.** For every major dependency, SDK, and
-  API the project uses, fetch current official docs (`WebSearch` / `WebFetch`):
-  latest stable versions, migration guides, deprecation notices, breaking changes,
-  documented anti-patterns. Also research the problem space — established approaches,
-  well-known libraries that handle parts of this, common pitfalls. Training data
-  goes stale; don't rely on it. Err on the side of over-researching — discovering
-  the project is already doing it right is cheaper than missing a deprecated API.
+- **Web research is essential, not optional — and it is scoped.** Research the
+  dependencies, SDKs, and APIs that **your recon actually implicated**: the ones
+  the project's own code calls, the ones pinned to something old, and the ones
+  behind a finding you are forming. For each, fetch current official docs
+  (`WebSearch` / `WebFetch`): latest stable version, migration guide, deprecation
+  notices, breaking changes, documented anti-patterns. Also research the problem
+  space — established approaches, well-known libraries that handle parts of this,
+  common pitfalls. Training data goes stale; don't rely on it.
+
+  Name the list in your report so the lead can see what was and was not looked
+  at. "Every dependency in the lockfile" is not the list — it is an unbounded
+  brief, and on a project with 400 transitive packages it is the single largest
+  uncapped cost in this phase. Within the list, err on the side of
+  over-researching: discovering the project is already doing it right is cheaper
+  than missing a deprecated API.
 - Assess code complexity, duplication, naming, anti-patterns, dead code, overly
   clever abstractions, error-handling patterns, hardcoded values, config drift.
 
@@ -197,25 +229,47 @@ this research.
 - Check for environment-specific assumptions (hardcoded paths, platform assumptions)
 - If there are multiple deployment methods, assess which is primary and whether it's solid
 - **Image publishing:** If the repo contains a `Dockerfile` or `docker-compose.yml`/`docker-compose.yaml`
-  **and the project publishes images**, exactly one workflow should own that publish. Read where it
-  actually points rather than asserting a destination — see "Project configuration" in `../SKILL.md`. On a
-  personal repo with no existing publisher, `ghcr.io/<owner>/<repo-name>` on push to `main` authenticating
-  with `GITHUB_TOKEN` is the sensible default, and its absence is a **High** priority gap. On a repo owned
-  by someone else, or one that publishes to its own registry, "it doesn't push to my registry" is not a
-  finding — it is an assumption. Do not raise it as one.
+  **and the project publishes images**, exactly one workflow should own that publish, and it should be
+  reachable from `main` rather than only by hand. Read where it actually points rather than asserting a
+  destination — see "Project configuration" in `../SKILL.md`. "It doesn't publish where I would have
+  published it" is an assumption, not a finding.
 - **Images built only at deploy time:** if a Dockerfile is built only by a `workflow_dispatch`-only or
   deploy-time workflow, **nothing exercises it on the way to `main`** and a break stays latent until
   someone deploys. Flag a build-only CI job as a gap. This is one instance of the un-gated-code
   inventory in Step 2.5 — check there for the others.
-- **workflow_dispatch trigger:** Every GitHub Actions workflow should include `workflow_dispatch:` in its `on:`
-  triggers so it can be manually run from the Actions tab. If any workflow is missing this trigger, add it.
-  This is a one-line addition (`workflow_dispatch:` under the `on:` block) that enables manual re-runs when
-  webhook delivery fails or when debugging CI without pushing a new commit.
-- **Docker healthcheck validation:** If any `docker-compose.yml`/`docker-compose.yaml` contains a `healthcheck`
-  command, verify that the command is actually available inside the container image. For example, `curl` is often
-  missing from slim images. Check by running `docker exec <container> <command> --version` or inspecting the base
-  image. If the command is not available, flag it as a bug and replace it with an alternative that is (e.g., use
-  `python -c "import urllib.request; ..."` instead of `curl`).
+
+#### Known gotchas — an opt-in sweep, not part of the brief
+
+These are specific checks that came out of specific incidents on specific
+projects. Each is cheap and each has genuinely caught something. Each also
+**mints a predictable low-value finding on any project it does not fit**,
+which is the failure mode of a checklist that grows by accretion: the report
+fills with items nobody asked about and the real findings lose the top of the
+page.
+
+So run them when the project's shape fits, deliberately, and say you did. Do
+not paste them into Engineer 4's brief as standing requirements.
+
+1. **`workflow_dispatch:` on every GitHub Actions workflow.** A one-line
+   addition under `on:` that enables manual re-runs when webhook delivery
+   fails or when debugging CI without pushing a commit. *Fits* a repo whose
+   CI is actively debugged. *Does not fit* a repo with two stable workflows
+   and no history of manual re-runs — there, its absence is not a defect.
+2. **Docker healthcheck commands that aren't in the image.** If a compose
+   file has a `healthcheck`, confirm the command exists inside the container
+   — `curl` is routinely missing from slim images. Check with
+   `docker exec <container> <command> --version` or by reading the base
+   image. A healthcheck that can never succeed is a check that cannot pass,
+   the mirror of the "check that cannot fail" in
+   `../references/general-guidelines.md`. *Fits* any project with compose
+   healthchecks; skip otherwise.
+3. **`ghcr.io/<owner>/<repo-name>` as the publish target.** On a **personal**
+   repo that builds an image and publishes nowhere, publishing to GHCR on
+   push to `main` authenticating with `GITHUB_TOKEN` is a sensible default,
+   and its absence is a **High** gap worth raising. *Does not fit* a repo
+   owned by someone else or one that already publishes to its own registry —
+   there it is an assumption wearing a finding's clothes. Confirm the owner
+   (`../SKILL.md`, "Project configuration") before this one is even eligible.
 
 **Engineer 5 — Visual / UI verification** (only when the project serves browser pages):
 
@@ -359,16 +413,9 @@ this clearly. Once you know the codebase, this evidence is gone.
 
 As Lead Engineer, you now synthesize all subagent findings into a structured evaluation report.
 
-**File persistence is mandatory, not optional.** You MUST write the report to
-`$RUN_DIR/evaluation-report.md` on disk using the Write tool — not
-produce it inline in the chat, not include it in a tool output, not summarise
-it in your reply. The file on disk is the deliverable; the chat message is only
-an announcement that the file now exists. If `$RUN_DIR` does not
-exist, `mkdir -p` it first. After writing, open it in the user's default
-viewer if a GUI opener exists (`open` on macOS, `xdg-open` on Linux) —
-skip this on headless hosts. Do not proceed past
-Phase 1 until the file exists on disk — the file is the deliverable that later
-phases and future sessions read from disk, not from chat content.
+The report goes to `$RUN_DIR/evaluation-report.md` on disk — see "File
+persistence mandate" at the top of this file, which is the one statement of
+that rule.
 
 **Before writing the report:** cross-check findings between subagents. If two
 disagree about the same code, investigate and resolve. Verify any URL / GitHub
@@ -425,14 +472,23 @@ well, and what needs attention first. This should be scannable in 10 seconds.
 severity. This is the layer a human actually reads — every finding in the
 detail sections must have a line here.
 
-The grade is **[VERIFIED]** / **[SUPPORTED]** / **[SUSPECTED]**, defined in
-`../references/general-guidelines.md` ("Grade every finding, and name what
-earned the grade"). It belongs on the index line because this is the layer
-that gets acted on: severity says how much it matters, grade says whether
-it is known to be true. A Critical [SUSPECTED] and a Critical [VERIFIED]
-call for different next actions, and a reader who only sees the index
-cannot tell them apart otherwise. The evidence that earned the grade is
-named in the detail section, not here.
+**Both words on that line are defined in
+`../references/general-guidelines.md`, and neither is a judgement call you
+make fresh each time:** severity is **Critical** / **High** / **Medium** /
+**Low** per "Severity: what it would cost if it is true"; the grade is
+**[VERIFIED]** / **[SUPPORTED]** / **[SUSPECTED]** per "Grade every finding,
+and name what earned the grade". Read both rubrics before you write the
+index — a scale applied from memory drifts between runs, and two runs of
+this skill on the same repo disagreeing about what "High" means is a defect
+in the skill, not a difference of opinion.
+
+They belong together on the index line because this is the layer that gets
+acted on: severity says how much it would cost, grade says whether it is
+known to be true, and they are independent. A Critical [SUSPECTED] and a
+Critical [VERIFIED] call for different next actions, and a reader who only
+sees the index cannot tell them apart otherwise. The evidence that earned
+the grade, and the consequence that earned the severity, are named in the
+detail section — not here.
 
 **Test Suite Results:** Output from Step 1 — what passed, what failed, any errors.
 
@@ -452,7 +508,24 @@ the docs, what you had to verify against code, where you got lost. Measured agai
 the project's stated bar if it has one.
 
 **Assessment Dimensions** (rate each as "X/5" where 5 is best — always write the score
-as "X/5" so the scale is unambiguous, with a justification for each rating):
+as "X/5" so the scale is unambiguous, with a justification for each rating).
+
+**Anchor the number or it is a mood.** Use one scale across every dimension:
+
+| Score | What it means, on any dimension below |
+| --- | --- |
+| **1** | Absent, or present and actively misleading |
+| **2** | Attempted and unreliable — there where it was easy, missing where it matters |
+| **3** | Adequate for the project as it is today, with a **named** weakness you would fix before it grows |
+| **4** | Good. The weaknesses you can name are ones a reasonable engineer would accept |
+| **5** | You went looking for a problem on this axis and could not construct one. Rare, and it needs the same kind of evidence a [VERIFIED] finding does |
+
+Each justification names the observation behind the score — a file, a
+measurement, a gate that does or doesn't exist. "3/5, could be better" is not
+a rating; it is the absence of one. If every dimension lands on 3 or 4, you
+have described a mood rather than measured anything — go back and find the
+observation that would move one of them.
+
 - Simplicity: Is the code as simple as it could be? (5/5 = minimal unnecessary complexity)
 - Robustness: How well does it handle edge cases, errors, unexpected input?
 - Security: How well does it protect against common attack vectors?
@@ -507,3 +580,24 @@ the right way to solve this problem?"
 Be honest and direct. "This works but could be better" is less useful than "This error handler on
 line 45 of auth.py silently swallows database connection failures, which means users will see
 a generic 500 error instead of a retry prompt."
+
+### Step 4: Close the run, or hand off to Phase 2
+
+Read `scope:` from `$RUN_DIR/run.yaml` — the value you set when you created
+the run dir, not what the conversation now feels like it is about.
+
+- **`scope: evaluate`** — the report is the deliverable and this run is
+  finished. **Close it now: follow "Closing a run" in `../SKILL.md`** —
+  remove the (empty) worktree, set `phase: complete`, clear
+  `current.txt` — then say in one line that the scope was evaluation, where
+  the report is, and that Phase 2 (planning) is the next phase if they want
+  it. Offer; do not start.
+
+  This is the step that used to not exist. Phase 4 is the only other place
+  that closes a run and it runs **only after Phase 3**, so an
+  evaluation-only run left an empty worktree behind, left `phase: 1` in
+  `run.yaml`, and left `current.txt` naming a run that was over — and the
+  next invocation resumed it.
+
+- **`scope: plan` or `scope: full`** — do not close anything. Announce
+  Phase 2 and continue.

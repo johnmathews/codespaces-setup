@@ -55,11 +55,18 @@ The goal is to produce a concrete, actionable improvement plan based on the eval
 
 ### Step 1: Prioritize
 
-Review the evaluation report and categorize findings by:
-- **Critical:** Bugs, security issues, data loss risks — fix first
-- **High:** Significant quality issues, missing tests for core paths
-- **Medium:** Code quality improvements, documentation gaps
-- **Low:** Nice-to-haves, minor style issues
+Every finding in the evaluation report already carries a severity —
+**Critical / High / Medium / Low** — assigned against the rubric in
+`../references/general-guidelines.md` ("Severity: what it would cost if it is
+true"). **Read the rubric; do not re-derive the words here.** They were
+defined once, at the point of first assignment, precisely so a finding does
+not get re-weighed by a phase that never saw the code.
+
+Order the fixes by that severity: Critical first, then High, then Medium,
+then Low. A unit's **Priority** field inherits the severity of the finding
+that motivated it, and if you change it, say why in the unit — a plan that
+silently demotes a Critical is a plan that overrode the evaluation without
+saying so.
 
 **Priority captures urgency, not blast radius.** A trivial typo fix and a multi-day auth
 refactor can both be "High" priority but carry very different risk if the change goes
@@ -195,6 +202,47 @@ it deliberately excludes as by what it includes.
   For doc changes, name the section that exists and is correct. The criterion should let
   someone other than the implementer judge whether the unit is done.
 
+**Verification units** — Not every unit's deliverable is a diff. Some units
+exist to produce an **observation**, and the field list above cannot carry
+one: its "Changes" would be empty, its "Test impact" meaningless, and its
+"Reversibility" nothing at all. Written as a build unit, such work either
+gets distorted into a code change nobody needed or does not get written down.
+
+The skill already generates this kind of work in three places and has never
+named it as one thing:
+
+1. Step 1 above: a **[SUSPECTED]** finding gets *the check that would settle
+   it*, not a fix.
+2. `../references/general-guidelines.md`: **a new gate ships with a test
+   proving it goes red.**
+3. The same file: **revert the fix and watch the test fail** — the one
+   control in this skill with a recorded catch of a confident false finding.
+
+All three are the same shape. Give it fields, so it can be planned:
+
+| Field | What it must contain |
+| --- | --- |
+| **ID / Title / Priority / Dependencies** | As any other unit |
+| **Claim under test** | The proposition, quoted from the finding, the spec, the plan, or a doc. Not "check auth works" — a verification unit tests **a sentence someone wrote** |
+| **Why it needs proving** | What would be believed-but-false if nobody looked. This is what separates a necessary check from ceremony |
+| **Method, and why it can answer** | The observation you will make, **and the argument that it bears on the claim**. A runtime claim needs a runtime observation; a claim about what a gate detects needs the gate's own source or a known-bad input, never the workflow that calls it. **The method must differ from whatever produced the belief** — re-running the original check reproduces its mistakes faithfully |
+| **How it goes red** | What failure looks like concretely. **If you cannot say, the unit does not ship** — that is rule 1 turned on the skill's own work |
+| **Result** | *(filled in Phase 3)* The observation itself: the command and its output, or the run id and the log line. This is the deliverable, the way a diff is a build unit's deliverable |
+| **Grade earned** | *(filled in Phase 3)* [VERIFIED] / [SUPPORTED] / [SUSPECTED] — fed back into the evaluation report, so settling the check regrades the finding that motivated it |
+
+**Emit one verification unit per [SUSPECTED] finding you are carrying into
+Phase 3.** If the check is cheap, do it now while planning and regrade the
+finding instead — that is better than either a unit or a guess. What is not
+acceptable is a [SUSPECTED] finding that reaches Phase 4 with neither a
+result nor an explicit statement that it remains unsettled.
+
+**These are ordinary units in an ordinary plan** — same frontmatter, same
+`run.yaml` status, executed by Phase 3 in dependency order like anything
+else. There is no separate verification phase, and adding one would buy a
+router change and a new `phase:` value for something the existing sequencing
+already handles. Where a verification unit pairs with a build unit, make it
+depend on that unit so it runs on completion.
+
 **Ordering** — When multiple units have no hard dependency between them, default to:
 foundation-first (units that other units build on), then risk-first (high-risk units go
 early so problems surface while context is fresh and the plan can still be revised),
@@ -252,7 +300,10 @@ single-writer rule binds you from here (`../SKILL.md`, "Decide your role").
    branch that already exists.
 3. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
    the lane, its footprint, its branch and worktree, and absolute paths to the plan,
-   the dashboard, and its own `status-<lane>.md`.
+   the dashboard, and its own `status-<lane>.md`. **If `/prompt` is not installed on
+   this machine**, write the prompts inline to that same shape and say which skill
+   was missing — a sibling skill's absence changes who writes the prompt, not
+   whether one is written.
 4. **Hand them to the user.** They open the sessions and paste. Do not start a lane's
    work yourself unless you are also running that lane.
 
@@ -303,6 +354,18 @@ implementation plan changes accordingly.
 This gate applies whenever Phase 3 is going to run. If the user invoked only "evaluate"
 or "plan" (Phase 1 or Phases 1-2), there is no gate to enforce — the plan is itself the
 deliverable.
+
+### Step 5: Close the run, or hand off to Phase 3
+
+Read `scope:` from `$RUN_DIR/run.yaml`, not the mood of the conversation.
+
+- **`scope: plan`** — the plan is the deliverable and this run is finished.
+  **Close it: follow "Closing a run" in `../SKILL.md`** — remove the (empty)
+  worktree, set `phase: complete`, clear `current.txt` — then say in one line
+  that the scope was planning, where the plan is, and that Phase 3
+  (development) is the next phase if they want it. Offer; do not start.
+- **`scope: full`** — do not close anything. Take the Step 4 gate, then
+  announce Phase 3.
 
 ### Plan hygiene and persistence
 

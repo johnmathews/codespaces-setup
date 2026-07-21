@@ -27,6 +27,12 @@ and there is nothing to merge (`../SKILL.md`, "Decide which phase to load").
 Running `/done` and merging at the end of an evaluation-only run is a scope
 violation, not thoroughness.
 
+**Those runs still have to be closed, and they close themselves** — at the end
+of Phase 1 or Phase 2, via "Closing a run" in `../SKILL.md`. Do not read "Phase
+4 is the only place that closes a run" out of this section; that reading is
+what left empty worktrees and live `current.txt` pointers behind every
+evaluation-only run.
+
 ### Step 1: Run `/done` (mandatory)
 
 Run the `/done` skill to get all quality checks: CI/CD verification, documentation updates, tests,
@@ -50,7 +56,27 @@ Adapt `/done` to the project type:
 - **Mixed projects** (e.g., some code + mostly config/docs):
   apply test/lint only to executable code portions.
 
-After `/done` completes, verify:
+**If `/done` is not installed on this machine, run its steps inline.** The
+skills in this family (`/done`, `/merge-push`, `/prompt`) are personal
+assets, deployed together — but this skill can be invoked on a machine that
+has only some of them, and "mandatory and cannot be skipped" then reads as a
+contract violation with no defined behaviour, which is worse than a
+degraded path. So:
+
+1. Check whether the skill is available before asserting it is mandatory.
+2. If it is missing, **say which one**, then do its work in order: full test
+   suite, lint, security scan, self-review of the diff, docs check, journal
+   entry, commit, push, open the PR, watch CI.
+3. Note the substitution in the summary. An inline equivalent is not the
+   same thing — `/done` carries checks this list names but does not specify
+   — and the user should know which they got.
+
+What is **not** acceptable is skipping the security scan, the code review,
+and the lint because the skill that usually runs them is absent. Those are
+the steps the unit-by-unit dev loop does not cover, which is the entire
+reason Step 1 exists.
+
+After `/done` (or its inline equivalent) completes, verify:
 1. `git status` shows a clean working tree (zero uncommitted changes).
 2. `git log --oneline main..HEAD` shows clean, well-described commits.
 3. The journal entry was written by `/done` (not by you manually before invoking it).
@@ -113,6 +139,11 @@ detects whether the repo is governed (a remote with branch protections →
 squash-merge the PR once green; no remote → a local merge), checks for conflicts,
 and asks for explicit confirmation before merging.
 
+**If `/merge-push` is absent**, do the same thing by hand and say you did:
+confirm no conflicts with `main`, ask the user explicitly, squash-merge the
+green PR (`gh pr merge --squash`) or merge locally where there is no remote,
+then remove the worktree and delete the branch.
+
 **Merge is the irreversible step, so it is always confirmed.** Never merge
 because the PR looks ready — a green PR is a fact about the PR, not permission.
 
@@ -143,14 +174,26 @@ Present a brief summary to the user:
 - CI status — **named checks**, green before the merge
 - Any issues encountered during wrap-up
 - What was reaped by `/done`'s housekeeping (stale worktrees/branches), if anything
+- Any sibling skill that was missing and run inline instead (Steps 1 and 3)
+- **Every [SUSPECTED] finding that is still [SUSPECTED].** A verification unit
+  either produced a result or it did not, and if it did not, the finding leaves
+  this cycle unsettled and must be named as such — with what would settle it.
+  Silence here reads as "resolved", and the finding then disappears: it is not
+  in the diff, and nobody re-reads a closed run's report. Naming it costs a
+  line and is the only thing keeping an unproven claim from ageing into an
+  assumed one.
 
-Then close the run out, in the **main checkout** (which is where `$RUN_DIR`
-lives — never the worktree):
+Then close the run out — the three steps in "Closing a run" in `../SKILL.md`,
+performed in the **main checkout** (which is where `$RUN_DIR` lives — never
+the worktree):
 
-1. Set `phase: complete` in `$RUN_DIR/run.yaml`.
-2. `rm -f .engineering-team/current.txt`.
+1. Remove the worktree and its branch (usually already done by `/merge-push`
+   in Step 3 — confirm rather than assume, and never remove one holding
+   unmerged commits).
+2. Set `phase: complete` in `$RUN_DIR/run.yaml`.
+3. `rm -f .engineering-team/current.txt`.
 
-Do both. They are belt and braces on purpose: clearing the pointer is the step
+Do all three. They are belt and braces on purpose: clearing the pointer is the step
 most likely to be skipped, because by now the interesting work is done and the
 summary is written. `phase: complete` is what makes a skipped step harmless —
 the next invocation reads it, sees the run is finished, and starts fresh instead
@@ -290,9 +333,9 @@ where it left off.
 ### Simple Wrap-Up (no worktree, no merge needed)
 
 Use this path **only when a worktree was impossible**: a non-git project, or a repo where the
-user declined `git init`. Evaluation-only runs are *not* on this path any more — they work in a
-worktree like everything else (see "Always work in a worktree" in `../SKILL.md`), so they wrap up
-normally.
+user declined `git init`. Evaluation-only runs are *not* on this path — they work in a worktree
+like everything else (see "Always work in a worktree" in `../SKILL.md`) and they never reach
+Phase 4 at all; they close themselves at the end of Phase 1 via "Closing a run" in `../SKILL.md`.
 
 1. **If this is a git repo:** Run the `/done` skill normally (it handles tests, lint, security scan,
    code review, docs, journal, commit, and the PR). Adapt it to the project type as described above.
@@ -300,4 +343,6 @@ normally.
    - Tell the user where the output files are (evaluation report, plan, etc.).
    - Ask if they'd like to initialize git and commit the results.
 3. **Summary:** Present what was done and where the output files are. If the
-   cycle is complete, clear the run pointer (`rm -f .engineering-team/current.txt`).
+   cycle is complete, close the run — "Closing a run" in `../SKILL.md`. There is
+   no worktree to remove on this path, so that is `phase: complete` in
+   `run.yaml` and `rm -f .engineering-team/current.txt`.

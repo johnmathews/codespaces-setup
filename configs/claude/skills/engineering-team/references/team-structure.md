@@ -24,6 +24,45 @@ what it did. Subagents do not write to `$RUN_DIR` and do not address the
 user; persisting artifacts and user communication are the lead engineer's
 job.
 
+### The findings contract — every brief carries it
+
+**This is the canonical shape of a finding. Every brief that can return
+findings demands these fields, and the lead rejects a report that omits
+them.** It is one definition, referenced from both Phase 1 paths, so the
+two cannot drift:
+
+| Field | Must contain |
+| --- | --- |
+| `severity` | `Critical` / `High` / `Medium` / `Low` — see "Severity: what it would cost if it is true" in `general-guidelines.md` |
+| `grade` | `VERIFIED` / `SUPPORTED` / `SUSPECTED` |
+| `title` | One line, the claim itself |
+| `location` | `file:line`, or a doc section. **A finding whose location cannot be cited is not reported** |
+| `evidence` | VERIFIED: the command **and its actual output**. SUPPORTED: the `file:line` you read. SUSPECTED: what would settle it |
+| `detail` | The reasoning, and the consequence that earns the severity |
+
+Plus one field about the agent rather than the finding: **`covered`** — what
+it actually read, as files or globs, and what it ran out of room for. An
+honest partial answer is useful; a silent one is not.
+
+**Say this in the brief verbatim, in every dispatch:**
+
+> Grade every finding VERIFIED (you ran something — quote the command and
+> its output), SUPPORTED (you read the code — cite `file:line`), or
+> SUSPECTED (you inferred it — say what would settle it). **SUSPECTED is
+> the default**; promote only by naming the evidence that promoted it. Do
+> not report a finding whose location you cannot cite.
+
+Why it is stated here rather than left to each brief: the wide-survey path
+(`wide-survey.md`) hands its agents this shape as a **JSON schema**, so an
+ungraded finding there is unrepresentable — it cannot be produced, not
+merely caught at write-up. The standard path has no schema to hand out, and
+the gap showed: across 20 run directories in one project, `[VERIFIED]`
+appeared 16 times in a single report and `[SUSPECTED]` appeared **zero
+times anywhere** (`general-guidelines.md`). Where the enforcement cannot be
+structural, the demand has to be explicit and the rejection has to be real
+— a report that comes back ungraded goes back, it is not graded for the
+subagent by the lead, who did not make the observation.
+
 ### Choosing an agent type
 
 The Agent tool takes a `subagent_type`. **Omitting it has been safe** — the
