@@ -1,5 +1,7 @@
 # engineering-team Router Shrink Implementation Plan
 
+**Status:** closed — all tasks executed and shipped 2026-07-21 (see [journal/260721-engteam-router-shrink.md](../../../journal/260721-engteam-router-shrink.md)).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Shrink `configs/claude/skills/engineering-team/SKILL.md` by removing internal repetition, and prove no load-bearing meaning was lost with a before/after comprehension-probe test.
