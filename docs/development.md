@@ -13,7 +13,7 @@ every check can be run locally with the same commands.
 | Shell correctness | `shellcheck` | Quoting bugs, `set -euo pipefail` interactions, unsafe expansions |
 | Formatting | `shfmt` | Drift from the repo's formatting convention |
 | Step wiring | `ci/lint-steps.sh` | A `scripts/NN-*.sh` that isn't wired into `setup.sh`'s `STEPS` array (so it would silently never run), or a `STEPS` entry pointing at a missing script |
-| Skill gates | `check_report.py --selftest`, `check_run.py --selftest` | A malformed evaluation report, or a `run.yaml` whose schema is invalid or whose `phase:` disagrees with the artifacts on disk (the `engineering-team` skill's two shipped gates; their fixtures are the test) |
+| Skill gates | `check_report.py`, `check_run.py`, `check_plan.py` (each `--selftest`) | A malformed evaluation report; a `run.yaml` whose schema is invalid or whose `phase:` disagrees with the artifacts on disk; or an improvement plan with an invalid frontmatter index or unit IDs that don't match `run.yaml` (the `engineering-team` skill's three shipped gates; their fixtures are the test) |
 | Router probes | [`tests/engineering-team-probes/`](../tests/engineering-team-probes/) | An edit to the skill router (`SKILL.md`) that dropped a load-bearing invariant. **Manual, LLM-in-the-loop — not in CI** (see that dir's README for why and how to run it on router edits) |
 
 ## Run locally
@@ -32,6 +32,7 @@ bash ci/lint-steps.sh
 # engineering-team skill gates (also run in CI)
 python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
+python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
 ```
 
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace

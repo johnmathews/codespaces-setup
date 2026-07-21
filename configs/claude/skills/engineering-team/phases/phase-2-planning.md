@@ -144,6 +144,14 @@ exists (`open` on macOS, `xdg-open` on Linux; skip on headless hosts).
 the file exists on disk** — a Phase 3 run without a written plan file is a
 contract violation, even if the plan exists in chat.
 
+**Checked mechanically.** Once written, `scripts/check_plan.py "$RUN_DIR"`
+validates the plan's frontmatter index (a `plan:` name, `W<n>` unit IDs, every
+declared unit present as a body section and vice versa, no unfilled `<...>`
+placeholders) and cross-checks those IDs against `run.yaml` (a `run.yaml` unit
+the plan never declared is a hard failure). Run it before announcing the plan —
+the frontmatter that Phase 3 and `run.yaml` are keyed on must parse. It does not
+judge whether the plan is *good*; that is the Plan Review below.
+
 The plan must contain (in order):
 
 **Frontmatter (required)** — exactly as specified in "Frontmatter on the improvement

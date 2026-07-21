@@ -31,7 +31,7 @@ Both are self-contained and assume a Debian/Ubuntu (`apt`) base. They do not dep
 - **Pinned versions** for binary installs (e.g. `EZA_VERSION`, `NODE_VERSION`), kept in sync with the home-server `shell_environment` role — the comment usually cites the matching role variable.
 - Install binaries from upstream tarballs/release assets into `/opt/<tool>-<version>` and symlink into `/usr/local/bin` (or extract into `/usr/local`); detect arch via `uname -m` (`aarch64`/`arm64` vs `x86_64`/`x64`).
 - `configs/` holds the deployed dotfiles (`.zshrc`, `.zsh_aliases`, `.gitconfig_managed`); `11-dotfiles.sh` copies them to `$HOME`, wires `~/.gitconfig_managed` into `~/.gitconfig` via a marked `[include]` block, sets git identity, switches the default shell to zsh, and adds a bash→zsh handoff block to `~/.bashrc`. Edit the file in `configs/` then re-run `bash scripts/11-dotfiles.sh`.
-- `configs/claude/` holds vendored personal Claude Code assets — the `engineering-team` skill (`skills/engineering-team/`) and the `/done`, `/merge-push`, and `/prompt` slash commands (`commands/*.md`). `17-claude-skills.sh` deploys them idempotently into `~/.claude/skills/` and `~/.claude/commands/` (same skip-if-unchanged `diff` convention as `11-dotfiles.sh`, with `diff -rq` for the skill dir — but **deliberately no `.bak`**: `~/.claude/skills/` is scanned, so a backup registers as a duplicate skill, and these assets are in git anyway. The script reaps any `.bak` left by older versions of itself). This repo is the **source of truth** for these assets: edit them in `configs/claude/` and re-run the script to deploy — do not hand-edit `~/.claude` and try to vendor the change back, because the next deploy overwrites it. For the common inner-loop case of just re-pushing the `engineering-team` skill after an edit, the repo-root `deploy-engineering-team-skill.sh` deploys *only* that skill and overwrites the local copy unconditionally (no commands, no diff-skip); `17-claude-skills.sh` remains the setup-path deployer for the skill **and** the commands. To add another skill/command, drop it into `configs/claude/` and add a `deploy_skill`/`deploy_file` call in the script. The skill is not markdown-only: it also ships `templates/evaluation-report.md` (the single definition of an evaluation report's structure) and **two** structural gates — `scripts/check_report.py` + `scripts/fixtures/` (over the evaluation report, run before announcing it) and `scripts/check_run.py` + `scripts/fixtures_run/` (over the run's `run.yaml` state file — schema + reconciliation against artifacts). `deploy_skill` uses `cp -a`, so subdirectories and modes come along; nothing extra is needed to ship them. (The router *probe* test is deliberately **not** here — it lives in the repo's `tests/`, outside the skill, because its value is skill-editing, not skill-use, so it must not deploy to `~/.claude`.)
+- `configs/claude/` holds vendored personal Claude Code assets — the `engineering-team` skill (`skills/engineering-team/`) and the `/done`, `/merge-push`, and `/prompt` slash commands (`commands/*.md`). `17-claude-skills.sh` deploys them idempotently into `~/.claude/skills/` and `~/.claude/commands/` (same skip-if-unchanged `diff` convention as `11-dotfiles.sh`, with `diff -rq` for the skill dir — but **deliberately no `.bak`**: `~/.claude/skills/` is scanned, so a backup registers as a duplicate skill, and these assets are in git anyway. The script reaps any `.bak` left by older versions of itself). This repo is the **source of truth** for these assets: edit them in `configs/claude/` and re-run the script to deploy — do not hand-edit `~/.claude` and try to vendor the change back, because the next deploy overwrites it. For the common inner-loop case of just re-pushing the `engineering-team` skill after an edit, the repo-root `deploy-engineering-team-skill.sh` deploys *only* that skill and overwrites the local copy unconditionally (no commands, no diff-skip); `17-claude-skills.sh` remains the setup-path deployer for the skill **and** the commands. To add another skill/command, drop it into `configs/claude/` and add a `deploy_skill`/`deploy_file` call in the script. The skill is not markdown-only: it also ships `templates/evaluation-report.md` (the single definition of an evaluation report's structure) and **three** structural gates — `scripts/check_report.py` + `scripts/fixtures/` (the evaluation report, run before announcing it), `scripts/check_run.py` + `scripts/fixtures_run/` (the run's `run.yaml` state file — schema + reconciliation against artifacts), and `scripts/check_plan.py` + `scripts/fixtures_plan/` (the improvement plan — frontmatter index + cross-check against `run.yaml`). `deploy_skill` uses `cp -a`, so subdirectories and modes come along; nothing extra is needed to ship them. (The router *probe* test is deliberately **not** here — it lives in the repo's `tests/`, outside the skill, because its value is skill-editing, not skill-use, so it must not deploy to `~/.claude`.)
 
 ### TLS-intercepting-proxy handling (important, easy to break)
 
@@ -75,16 +75,18 @@ shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci  # fo
 bash ci/lint-steps.sh                       # every scripts/NN-*.sh is wired into STEPS
 python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
+python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
 ```
 
-Note the last two: the `engineering-team` skill ships the repo's only
-executable code — **two** structural gates, one over the evaluation reports it
-produces (`check_report.py`) and one over the run's `run.yaml` state file
-(`check_run.py`, which validates the schema and reconciles `phase:` against the
-artifacts on disk). `shellcheck`/`shfmt` do not see them (they are scoped to the
-repo-root shell scripts — `setup.sh`, `deploy-engineering-team-skill.sh`,
-`scripts/`, `ci/` — not the skill tree), so their fixtures are their only test
-and CI runs both.
+Note the last three: the `engineering-team` skill ships the repo's only
+executable code — **three** structural gates over its own artifacts:
+`check_report.py` (the evaluation report), `check_run.py` (the run's `run.yaml`
+state file — schema + reconciliation against artifacts), and `check_plan.py`
+(the improvement plan — a valid frontmatter index whose `W<n>` unit IDs are
+cross-checked against `run.yaml`). `shellcheck`/`shfmt` do not see them (they are
+scoped to the repo-root shell scripts — `setup.sh`,
+`deploy-engineering-team-skill.sh`, `scripts/`, `ci/` — not the skill tree), so
+their fixtures are their only test and CI runs all three.
 
 There are no unit tests (the "product" is the scripts), but CI
 (`.github/workflows/ci.yml`) runs `shellcheck`, `shfmt`, and `ci/lint-steps.sh`

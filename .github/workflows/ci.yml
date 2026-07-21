@@ -6,12 +6,12 @@ name: ci
 #   2. shfmt          — enforce the repo's formatting convention
 #   3. lint-steps.sh  — ensure every scripts/NN-*.sh is wired into setup.sh
 #   4. skill gates    — the engineering-team skill ships the repo's only
-#                       executable code: two structural gates under
+#                       executable code: three structural gates under
 #                       configs/claude/skills/engineering-team/scripts/ —
-#                       check_report (evaluation reports) and check_run
-#                       (the run.yaml state file). Their fixtures are their
-#                       test, and a gate whose tests never run is the
-#                       decoration that skill has a name for.
+#                       check_report (evaluation reports), check_run (the
+#                       run.yaml state file), and check_plan (the improvement
+#                       plan). Their fixtures are their test, and a gate whose
+#                       tests never run is the decoration that skill has a name for.
 
 on:
   push:
@@ -49,3 +49,4 @@ jobs:
         run: |
           python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
+          python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
