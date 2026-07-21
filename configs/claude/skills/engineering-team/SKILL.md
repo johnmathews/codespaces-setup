@@ -310,9 +310,16 @@ interrupted run. Offer the next phase; do not start it unbidden.
 things after the merge. `evaluate` and `plan` reach it at the end of Phase
 1 and Phase 2 respectively — they have no Phase 4, which is exactly why the
 step has to live here rather than only there. A scope that never closes
-leaves `current.txt` naming a finished run, and the next invocation resumes
-it: the hijack the resume rule above exists to prevent, manufactured by the
-skill itself.
+leaves its worktree and branch behind and leaves `current.txt` naming a
+finished run. **Both of those were observed** — two evaluation-only runs of
+this skill on identical repos, one before this section existed and one
+after, differed in exactly those artifacts and in nothing else.
+
+Whether the stale pointer then *hijacks* the next invocation depends on
+`run.yaml`: the resume rule above skips a run marked `complete`, so the
+hijack fires only when `phase:` is stale too. Do not read that as a safety
+margin. It means the failure is intermittent rather than certain — which is
+the kind that survives testing and shows up later.
 
 **Do not close a run that ended early** — a question still outstanding, a
 unit abandoned mid-flight, a lane unmerged. Leave `phase:` where it is and

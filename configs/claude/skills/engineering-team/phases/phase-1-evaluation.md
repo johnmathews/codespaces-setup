@@ -472,6 +472,16 @@ well, and what needs attention first. This should be scannable in 10 seconds.
 severity. This is the layer a human actually reads — every finding in the
 detail sections must have a line here.
 
+**Exactly one severity and exactly one grade per line, from those two closed
+sets.** `[VERIFIED]/[SUPPORTED]` is not a grade — a finding established two
+ways takes the stronger one, and a finding you cannot place takes the weaker;
+a slash is the absence of a decision. `Informational`, `N/A`, and
+`Low (informational)` are not severities: something worth a line in the index
+is at least **Low**, and something that isn't goes in a detail section or
+gets deleted. A row that opts out of the vocabulary cannot be sorted, cannot
+be counted, and cannot be compared against the next run — which is the entire
+purpose of an index. Both were emitted by real runs of this skill.
+
 **Both words on that line are defined in
 `../references/general-guidelines.md`, and neither is a judgement call you
 make fresh each time:** severity is **Critical** / **High** / **Medium** /
@@ -595,9 +605,19 @@ the run dir, not what the conversation now feels like it is about.
 
   This is the step that used to not exist. Phase 4 is the only other place
   that closes a run and it runs **only after Phase 3**, so an
-  evaluation-only run left an empty worktree behind, left `phase: 1` in
-  `run.yaml`, and left `current.txt` naming a run that was over — and the
-  next invocation resumed it.
+  evaluation-only run left its worktree and branch behind and left
+  `current.txt` naming a run that was over. That is not a deduction from
+  reading these files: two evaluation-only runs on identical repos, one
+  before this step existed and one after, differed in exactly those
+  artifacts.
+
+  What the same test did **not** show is the resume hijack. The earlier run
+  set `phase: complete` anyway — a step no doc asked it for, volunteered by
+  the agent — and the resume rule skips a run marked complete, so the stale
+  pointer sat there harmlessly. Read that the right way round: the rule held
+  because one agent happened to do more than it was told, which is the
+  arrangement this step exists to replace. The next agent volunteers
+  something else, and the pointer is live.
 
 - **`scope: plan` or `scope: full`** — do not close anything. Announce
   Phase 2 and continue.

@@ -30,8 +30,8 @@ violation, not thoroughness.
 **Those runs still have to be closed, and they close themselves** — at the end
 of Phase 1 or Phase 2, via "Closing a run" in `../SKILL.md`. Do not read "Phase
 4 is the only place that closes a run" out of this section; that reading is
-what left empty worktrees and live `current.txt` pointers behind every
-evaluation-only run.
+what left worktrees, branches, and live `current.txt` pointers behind after
+an evaluation-only run — no step existed anywhere that would remove them.
 
 ### Step 1: Run `/done` (mandatory)
 

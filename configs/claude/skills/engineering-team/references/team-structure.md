@@ -50,7 +50,10 @@ honest partial answer is useful; a silent one is not.
 > its output), SUPPORTED (you read the code — cite `file:line`), or
 > SUSPECTED (you inferred it — say what would settle it). **SUSPECTED is
 > the default**; promote only by naming the evidence that promoted it. Do
-> not report a finding whose location you cannot cite.
+> not report a finding whose location you cannot cite. **Exactly one grade
+> and exactly one severity per finding, from those two sets** — no
+> `VERIFIED/SUPPORTED`, no `Informational`, no `N/A`. If two grades both
+> seem to fit, the weaker one is the true one.
 
 Why it is stated here rather than left to each brief: the wide-survey path
 (`wide-survey.md`) hands its agents this shape as a **JSON schema**, so an
