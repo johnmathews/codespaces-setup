@@ -1,0 +1,7 @@
+run: manual-20260610T142500Z
+phase: 3
+scope: full
+units:
+  - { id: W1, status: done }
+  - { id: W2, status: in-progress }
+  - { id: W3, status: pending }

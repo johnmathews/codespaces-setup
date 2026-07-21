@@ -134,6 +134,15 @@ Three rules, and they are what make it worth having:
    `run.yaml` reflecting what you inferred, so the next session doesn't have
    to infer it again.
 
+**Checked mechanically.** `scripts/check_run.py "$RUN_DIR"` validates this
+file's schema (the `phase`/`scope`/`status` enums, and that an `abandoned`
+unit carries a `why`) and reconciles `phase:` against the artifacts on disk —
+the same cheap invariants "Decide which phase to load" reasons about, but as a
+gate that exits non-zero rather than prose you have to remember. Run it when
+you resume a run and after you rewrite `run.yaml`. A `phase:` that claims an
+artifact which is not there is the "lies with authority" failure this section
+exists to prevent; this is the check behind that claim.
+
 Always write to `$RUN_DIR/<artifact>` — never to
 `.engineering-team/<artifact>` directly. Add `.engineering-team/` to the
 project's `.gitignore` if it isn't already there: run artifacts are
