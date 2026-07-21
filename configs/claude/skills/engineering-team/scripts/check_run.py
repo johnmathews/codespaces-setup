@@ -76,7 +76,12 @@ class RunFile:
         self.malformed_units: list[int] = []  # line numbers of `- ...` lines we could not parse
         in_units = False
         for i, raw in enumerate(text.splitlines(), start=1):
-            line = raw.rstrip()
+            # Strip a trailing ` # comment` from every line, not just scalar
+            # values — the skill's own run.yaml template comments both the
+            # `units:` header and individual unit lines, and a gate that only
+            # de-commented scalars would drop all units on a commented header
+            # (silently no-op'ing E4/E5/W1) and false-flag a commented unit line.
+            line = COMMENT_RE.sub("", raw).rstrip()
             if not line.strip() or line.strip().startswith("#"):
                 continue
             if line.strip() == "units:":
@@ -96,7 +101,7 @@ class RunFile:
             m = SCALAR_RE.match(line)
             if m:
                 in_units = False
-                key, value = m.group(1), COMMENT_RE.sub("", m.group(2)).strip()
+                key, value = m.group(1), m.group(2).strip()
                 self.scalars[key] = value.strip("'\"")
 
     @staticmethod
