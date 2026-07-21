@@ -5,6 +5,10 @@ name: ci
 #   1. shellcheck     — catch shell bugs (quoting, set -e interactions, etc.)
 #   2. shfmt          — enforce the repo's formatting convention
 #   3. lint-steps.sh  — ensure every scripts/NN-*.sh is wired into setup.sh
+#   4. check_report   — the engineering-team skill ships one executable gate
+#                       (configs/claude/skills/engineering-team/scripts/); its
+#                       fixtures are its test, and a gate whose tests never run
+#                       is the decoration that skill has a name for.
 
 on:
   push:
@@ -37,3 +41,7 @@ jobs:
 
       - name: steps-array wiring
         run: bash ci/lint-steps.sh
+
+      - name: engineering-team report gate (fixtures)
+        run: |
+          python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest

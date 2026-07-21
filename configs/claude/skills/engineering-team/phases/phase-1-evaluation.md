@@ -29,7 +29,10 @@ announcement that the file exists, and later phases and future sessions read
 the file, not this conversation. If `$RUN_DIR` does not exist, `mkdir -p` it
 first. After writing, open it in the user's default viewer if a GUI opener
 exists (`open` on macOS, `xdg-open` on Linux) — skip this on headless hosts.
-Do not proceed past Phase 1 to Phase 2 until the file exists on disk.
+Do not proceed past Phase 1 to Phase 2 until the file exists on disk **and
+passes `../scripts/check_report.py`** (Step 3.5). The report is written by
+filling `../templates/evaluation-report.md`, which is the single definition of
+its structure.
 
 When you create `$RUN_DIR`, also write `$RUN_DIR/run.yaml` with `phase: 1` and
 the `scope:` implied by the user's verb (`evaluate` / `plan` / `full` — see "The
@@ -462,15 +465,24 @@ sections below; they exist for agents and future reference, and a human
 should never need to read them to know what to do. Don't pad: if a
 detail section adds nothing beyond its index line, delete it.
 
-The report should cover:
+**Fill `../templates/evaluation-report.md`.** Copy it to
+`$RUN_DIR/evaluation-report.md` and fill it in. The template is the single
+definition of the report's structure — which sections exist, in what order,
+and what belongs in each. It carries the section list, the index row format,
+and the required fields on a finding's detail block, and it is what
+`../scripts/check_report.py` checks against.
 
-**Executive Summary:** 3-4 sentences at the very top: what the project does, what's working
-well, and what needs attention first. This should be scannable in 10 seconds.
+Two rules the template encodes and this file explains:
 
-**Findings Index:** immediately after the summary, one line per finding:
-`severity · grade · short title · file:line (or doc section)`. Order by
-severity. This is the layer a human actually reads — every finding in the
-detail sections must have a line here.
+1. **Every index row has a detail block and every detail block has an index
+   row.** The index is the layer a human acts on; the detail block is where
+   the evidence lives. A finding in one and not the other is either invisible
+   or unsupported.
+2. **Don't pad.** If a detail block adds nothing beyond its index row, the
+   finding did not need a block — shorten the report, don't pad the template.
+   A section with nothing to say says "none, and here is how I checked".
+
+What follows is the judgement the template cannot carry.
 
 **Exactly one severity and exactly one grade per line, from those two closed
 sets.** `[VERIFIED]/[SUPPORTED]` is not a grade — a finding established two
@@ -498,27 +510,16 @@ known to be true, and they are independent. A Critical [SUSPECTED] and a
 Critical [VERIFIED] call for different next actions, and a reader who only
 sees the index cannot tell them apart otherwise. The evidence that earned
 the grade, and the consequence that earned the severity, are named in the
-detail section — not here.
+detail block — not here.
 
-**Test Suite Results:** Output from Step 1 — what passed, what failed, any errors.
+**Every "prose only" row in the NFR register is a finding** and needs a row in
+the index. A stated quality requirement that nothing enforces is a claim the
+project cannot back, which is the whole reason Step 2.5 produces the register.
 
-**Project Overview:** What the project does, its architecture, key technologies
-
-**Strengths:** What the project does well — be specific, cite code
-
-**Weaknesses:** Where the project falls short — be specific, cite code, explain impact
-
-**NFR Register:** The table from Step 2.5 — *requirement | where stated | how
-enforced (or "prose only")* — plus the un-gated-code inventory and any NFR that is
-**absent** rather than unenforced. Every "prose only" row is a finding and needs a
-line in the Findings Index.
-
-**Onboarding Assessment:** The report from Step 2.6 — what you couldn't learn from
-the docs, what you had to verify against code, where you got lost. Measured against
-the project's stated bar if it has one.
-
-**Assessment Dimensions** (rate each as "X/5" where 5 is best — always write the score
-as "X/5" so the scale is unambiguous, with a justification for each rating).
+**Assessment dimensions.** These are the dimensions, and this list is the only
+place they are defined — the template carries the shape, this carries the
+meaning. Rate each as `X/5` where 5 is best, always written as `X/5` so the
+scale is unambiguous.
 
 **Anchor the number or it is a mood.** Use one scale across every dimension:
 
@@ -555,41 +556,65 @@ observation that would move one of them.
   Engineer 5; omit the dimension entirely otherwise): keyboard navigation, semantics,
   contrast, and whether anything automated checks any of it.
 
-**Dependency Audit:** name the manifest/lockfile inspected (`uv.lock`,
-`package-lock.json`, `go.sum`, ...), and list outdated or known-vulnerable
-dependencies found — or state explicitly that none were found and how you
-checked (e.g. `uv pip list --outdated`, `npm audit`, an advisory search for
-the pinned versions). Mandatory for security-scoped evaluations; expected in
-general evaluations. A security review without a dependency audit is
-incomplete — this is the section evaluations most often silently drop.
+**The dependency audit is the section evaluations most often silently drop.**
+Name the manifest or lockfile you actually inspected, and either list what is
+outdated or vulnerable, or state that none was found **and how you checked**.
+"No issues" with no named check is not an audit. Mandatory for a
+security-scoped evaluation; expected in every other kind.
 
-**Bug Candidates:** Specific code locations that look like they might be bugs, with reasoning.
-Grade each one and name what earned the grade (`../references/general-guidelines.md`):
-**[VERIFIED]** — you reproduced it, and you quote the command and its output;
-**[SUPPORTED]** — you read the code path and cite `file:line`, but did not run it;
-**[SUSPECTED]** — you inferred it, and you say what would settle it. This distinction
-matters: a verified bug is a fact, the other two are hypotheses of differing strength.
+**Bug candidates are findings like any other** — they go in the index and get
+a detail block, not a section of their own. But they are the case the
+disconfirming-check rule exists for, which is why every detail block has a
+**Disconfirming check** field. Before promoting a suspected bug above
+[SUSPECTED], say what you would see if the bug did *not* exist, and go look —
+most often by running the layer beneath the code you read.
 
-**A bug candidate is exactly the case the disconfirming-check rule is for.** Before
-promoting one above [SUSPECTED], say what you would see if the bug did *not* exist, and
-go look — most often by running the layer beneath the code you read. Be most suspicious
-of the finding you like best: a specific, mechanistic story about code that has been in
-production and working is more likely to be a misreading than a live defect, because if
-it were really broken that way something would probably have shown by now.
-
-**Gap Analysis:** What's missing — tests, docs, error handling, features
-
-**Architectural Assessment:** For each major integration or subsystem, evaluate whether the
-chosen approach is the right one — not just whether it's implemented correctly. Use web
-research to check what the official docs recommend, how other projects handle the same
-integration, and whether there are simpler or more robust alternatives. If the project uses
-a CLI subprocess where a direct SDK call would work, or uses an unofficial auth method where
-an official one exists, flag it. The question is not just "does this code work?" but "is this
-the right way to solve this problem?"
+**Be most suspicious of the finding you like best.** A specific, mechanistic
+story about code that has been in production and working is more likely to be
+a misreading than a live defect: if it were really broken that way, something
+would probably have shown by now.
 
 Be honest and direct. "This works but could be better" is less useful than "This error handler on
 line 45 of auth.py silently swallows database connection failures, which means users will see
 a generic 500 error instead of a retry prompt."
+
+### Step 3.5: Run the gate before you announce the report
+
+**`../scripts/check_report.py` is the only control in this skill that can go
+red.** Run it on the report and do not announce that the report exists, and do
+not move to Phase 2, until it exits 0:
+
+```bash
+python3 <skill-dir>/scripts/check_report.py "$RUN_DIR/evaluation-report.md"
+```
+
+`<skill-dir>` is the directory you loaded `SKILL.md` from — commonly
+`~/.claude/skills/engineering-team`, but read it off the path of the file you
+actually loaded rather than assuming. If `python3` is genuinely unavailable,
+say so in the run summary and check the report against the template's section
+list by hand — an unrun gate is not a passed gate, and reporting one as the
+other is the overclaim this skill spends most of its length on.
+
+**What it checks is structure and vocabulary, not quality.** It cannot tell
+you a finding is wrong. It can tell you a finding is ungraded, has no id, has
+no detail block, or is [VERIFIED] while quoting no output — and every one of
+those was emitted by a real run of this skill before the gate existed.
+
+Two rules about failures, and they are the point of having a gate at all:
+
+1. **Fix the report, not the gate.** If a check reds an honest report, that is
+   worth knowing and worth changing — but change it deliberately, in the
+   script, with a fixture, not by skipping the step this time.
+2. **A warning is not a failure, and `W1` especially is not.** `W1` fires when
+   nothing in the report is [SUSPECTED]. The correct response is to re-read
+   the report and ask which finding you promoted without naming what promoted
+   it. The cheapest response — relabelling a real finding as [SUSPECTED] to
+   silence it — corrupts the exact vocabulary the warning exists to protect,
+   and is worse than ignoring it.
+
+The script's own fixtures (`../scripts/fixtures/`) are its test: one per hard
+failure, plus two good reports that must stay green. Run
+`python3 <skill-dir>/scripts/check_report.py --selftest` if you change it.
 
 ### Step 4: Close the run, or hand off to Phase 2
 

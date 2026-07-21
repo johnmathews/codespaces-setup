@@ -15,3 +15,9 @@ vault_password
 # engineering-team run artifacts — working state, not deliverables.
 # The skill writes evaluation reports, plans, and progress dashboards here.
 .engineering-team/
+
+# Python bytecode. The engineering-team skill ships one script; the skill dir
+# is deployed verbatim to ~/.claude/skills/, so a stray __pycache__ would be
+# copied into it on every deploy.
+__pycache__/
+*.pyc
