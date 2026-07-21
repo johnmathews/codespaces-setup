@@ -152,21 +152,53 @@ Only begin this phase when the plan from Phase 2 is complete and coherent.
 
 ### Approach: Documentation First, Then Tests, Then Code
 
-For each work unit in the plan, follow the order appropriate to the work unit's content:
+For each work unit in the plan, follow the order appropriate to the work unit's content.
+
+### The red observation is required, and it is reported
+
+**Every behavioural test this phase writes must be *observed* to fail
+without its fix, and the observation is reported with the unit.** Not
+"should fail initially" — run it, see red, say so. One line with the unit's
+completion is enough:
+
+> W3: `test_ingest_skips_blank_header` failed before the fix (`AssertionError:
+> expected 4 rows, got 5`), passes after.
+
+This is not ceremony, and it is not the same as the suite being green
+afterwards. It is the only control in this skill with a **recorded catch of
+a confident false finding**: a specific, mechanistic, high-value finding
+about a spreadsheet ingest turned out to be false, and what caught it was
+reverting the fix, expecting red, and getting green — because the layer
+below had already handled the case (`../references/general-guidelines.md`,
+"Name what would refute it, then go and look").
+
+A test that passes with the fix reverted proves nothing about the fix, and
+**why** it passes either way is usually the more interesting finding — the
+bug was elsewhere, or was never there. Chase it rather than deleting the
+test.
+
+If a unit genuinely has no behavioural test to redden — a doc fix, a config
+change — say that instead of staying silent. An unreported red observation
+and an impossible one look identical in a summary, which is how this
+degrades into the "should" it used to be.
 
 **Code work units** (the work unit modifies or creates executable code):
 1. **Documentation:** Write or update the relevant documentation first. This forces
    clarity about what the change should accomplish before writing any code.
-2. **Tests:** Write the tests that will verify the change. These tests should fail
-   initially (red phase of TDD). For existing test modifications, update tests to
-   reflect the new expected behavior.
+2. **Tests:** Write the tests that will verify the change, **run them, and confirm
+   they fail** (red phase of TDD) — see "The red observation is required" above.
+   For existing test modifications, update tests to reflect the new expected
+   behavior.
 3. **Code:** Implement the change to make the tests pass. Keep changes minimal —
    make the tests green, nothing more.
 4. **Verify:** Run the **full** test suite. All tests must pass before moving to the next unit.
 
 **Bug fix work units** (the work unit fixes a bug found during evaluation or triage):
-1. **Reproduce:** Write a failing test that reproduces the exact bug. The test must
-   fail before the fix and pass after. This proves the bug exists and prevents regressions.
+1. **Reproduce:** Write a failing test that reproduces the exact bug, and **run it
+   and watch it fail before writing the fix.** Quote the failure when you report
+   the unit. A bug-fix unit whose test was never seen red has not established that
+   the bug existed — and a [SUSPECTED] finding that turns out to have been a
+   misreading is exactly what this catches, at the cheapest possible moment.
 2. **Fix:** Implement the minimal code change to make the test pass.
 3. **Verify:** Run the **full** test suite to confirm no regressions.
 
@@ -200,6 +232,33 @@ CI/CD workflow creation, .gitignore updates, etc.):
 2. If the change affects something testable (e.g., a CI workflow), validate it where
    possible (e.g., lint the YAML, dry-run the workflow).
 3. No TDD cycle needed — do not write tests for markdown or configuration.
+
+**Verification work units** (the unit's deliverable is an **observation**, not a
+diff — see "Verification units" in `phase-2-planning.md`). These come from
+[SUSPECTED] findings the plan chose to settle rather than fix, from a new gate
+that has to be shown going red, and from claims a doc or spec makes that nothing
+has ever checked.
+
+1. **Re-read the claim under test** as the plan quoted it. If the plan's wording
+   drifted from the report's, go back to the report — the finding is the source.
+2. **Make the observation by the planned method.** Do not substitute a cheaper
+   one. The method was chosen because it *differs* from whatever produced the
+   belief; swapping in the original check reproduces the original mistake, which
+   is the specific failure the stale-`$VIRTUAL_ENV` story in
+   `../references/general-guidelines.md` records.
+3. **Record the result verbatim** — the command and its actual output, or the run
+   id and the log line. Paraphrasing an observation downgrades it to hearsay.
+4. **Grade what you now know** — [VERIFIED] / [SUPPORTED] / [SUSPECTED] — and
+   **write the regrade back into `$RUN_DIR/evaluation-report.md`**, naming the
+   unit that settled it. A verification unit that changes nothing in the report
+   has produced evidence and thrown it away.
+5. **A disconfirmed finding is a successful unit.** Report it that way: "W5:
+   settled — the finding was wrong, here is the output." Then check whether any
+   other unit was planned on top of it, and say so if one was. Deleting the unit
+   and moving on hides the most useful result this phase can produce.
+
+Its "done" is the observation existing, not the observation being favourable.
+Never leave a verification unit `in-progress` because you did not like the answer.
 
 ### Test Runner Detection
 

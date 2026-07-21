@@ -105,6 +105,13 @@ reintroduced one level up.
 Adapt this; do not rewrite it from memory. The footguns below are real and
 each one has a way of failing that looks like something else.
 
+**`FINDINGS` below is the machine form of the findings contract in
+`team-structure.md` ("The findings contract").** Same fields, same
+meanings — this path gets to enforce them with a schema, the standard path
+has to demand them in the brief. If you change one, change the other in the
+same edit; two definitions of a finding is how the two paths start
+disagreeing about what a finding is.
+
 ```js
 export const meta = {
   name: 'phase-1-wide-survey',

@@ -27,16 +27,17 @@ convention is shared with humans and other agents who never read this skill,
 and a repo with worktrees in two places is worse off than one with them in the
 "wrong" place consistently.
 
-The same applies to the owner default (`johnmathews`) — see "Project
-configuration" in `../SKILL.md`. A work repo is not a personal repo.
+The same applies to the repo owner — see "Project configuration" in
+`../SKILL.md`. There is no default owner: read it from the remote, and ask
+when there isn't one. A work repo is not a personal repo.
 
 **Git repo check:** Before starting any work, check whether the project is a git repo.
 
 - **If it IS a git repo:** Note its owner (`git remote get-url origin`) — see "Project
-  configuration" in `../SKILL.md`. If there is no remote at all, ask the user to confirm
-  before creating one under the default owner. Do not assume a repo belongs to
-  `johnmathews`; on a work project it does not, and guidance derived from that
-  assumption is wrong.
+  configuration" in `../SKILL.md`. If there is no remote at all, **ask who owns it**;
+  do not assume, and do not create one under a guessed owner. Any guidance or finding
+  derived from a guessed owner is wrong for the same reason any other ungrounded claim
+  is.
 - **If it is NOT a git repo:** Ask the user before initializing one. Some projects (notes, config directories,
   documentation collections) may not need git. If they decline, skip worktree isolation and work directly
   in the directory — Phase 4's merge/push steps become simple "ask the user if they want to commit" instead.
