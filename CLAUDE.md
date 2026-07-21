@@ -74,13 +74,17 @@ shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh   # sh
 shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci  # formatting (‑w to auto-fix)
 bash ci/lint-steps.sh                       # every scripts/NN-*.sh is wired into STEPS
 python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
+python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
 ```
 
-Note the last one: the `engineering-team` skill ships the repo's only
-executable code, a structural gate over the evaluation reports it produces.
-`shellcheck`/`shfmt` do not see it (they are scoped to the repo-root shell
-scripts — `setup.sh`, `deploy-engineering-team-skill.sh`, `scripts/`, `ci/` —
-not the skill tree), so its fixtures are its only test and CI runs them.
+Note the last two: the `engineering-team` skill ships the repo's only
+executable code — **two** structural gates, one over the evaluation reports it
+produces (`check_report.py`) and one over the run's `run.yaml` state file
+(`check_run.py`, which validates the schema and reconciles `phase:` against the
+artifacts on disk). `shellcheck`/`shfmt` do not see them (they are scoped to the
+repo-root shell scripts — `setup.sh`, `deploy-engineering-team-skill.sh`,
+`scripts/`, `ci/` — not the skill tree), so their fixtures are their only test
+and CI runs both.
 
 There are no unit tests (the "product" is the scripts), but CI
 (`.github/workflows/ci.yml`) runs `shellcheck`, `shfmt`, and `ci/lint-steps.sh`
