@@ -205,9 +205,11 @@ scripts/
 ci/
   lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS
 .github/workflows/
-  ci.yml                # shellcheck + shfmt + lint-steps on push/PR
+  ci.yml                # shellcheck + shfmt + lint-steps + skill gates on push/PR
 docs/
   development.md        # CI checks, local lint commands, how to add a step
+tests/
+  engineering-team-probes/  # Manual, LLM-in-the-loop regression probes for the skill router
 journal/                # Dated development-journal entries
 setup.sh                # Main entry point – runs the ordered STEPS array, then
                         # launches 13-nvim-plugins.sh in background
