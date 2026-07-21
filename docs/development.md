@@ -13,6 +13,8 @@ every check can be run locally with the same commands.
 | Shell correctness | `shellcheck` | Quoting bugs, `set -euo pipefail` interactions, unsafe expansions |
 | Formatting | `shfmt` | Drift from the repo's formatting convention |
 | Step wiring | `ci/lint-steps.sh` | A `scripts/NN-*.sh` that isn't wired into `setup.sh`'s `STEPS` array (so it would silently never run), or a `STEPS` entry pointing at a missing script |
+| Skill gates | `check_report.py --selftest`, `check_run.py --selftest` | A malformed evaluation report, or a `run.yaml` whose schema is invalid or whose `phase:` disagrees with the artifacts on disk (the `engineering-team` skill's two shipped gates; their fixtures are the test) |
+| Router probes | [`tests/engineering-team-probes/`](../tests/engineering-team-probes/) | An edit to the skill router (`SKILL.md`) that dropped a load-bearing invariant. **Manual, LLM-in-the-loop — not in CI** (see that dir's README for why and how to run it on router edits) |
 
 ## Run locally
 
@@ -26,10 +28,19 @@ shfmt -i 2 -ci -kp -w setup.sh deploy-engineering-team-skill.sh scripts ci    # 
 
 # Step-array wiring
 bash ci/lint-steps.sh
+
+# engineering-team skill gates (also run in CI)
+python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
+python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
 ```
 
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace
 itself already installs `shfmt` via `scripts/15-dev-tools.sh`).
+
+The **router probe test** (`tests/engineering-team-probes/`) is the one check
+that is not a command here: it is an on-demand, model-in-the-loop regression
+test for the skill router, run when `SKILL.md` changes. Its README documents the
+before/after procedure and why it cannot live in headless CI.
 
 ## Formatting convention
 
