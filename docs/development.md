@@ -18,11 +18,11 @@ every check can be run locally with the same commands.
 
 ```bash
 # Correctness
-shellcheck setup.sh scripts/*.sh ci/*.sh
+shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh
 
 # Formatting (‑d = show diff and fail if anything is unformatted; ‑w = rewrite in place)
-shfmt -i 2 -ci -kp -d setup.sh scripts ci
-shfmt -i 2 -ci -kp -w setup.sh scripts ci    # auto-fix
+shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci
+shfmt -i 2 -ci -kp -w setup.sh deploy-engineering-team-skill.sh scripts ci    # auto-fix
 
 # Step-array wiring
 bash ci/lint-steps.sh
@@ -63,3 +63,22 @@ add a step:
 `ci/lint-steps.sh` fails the build if step 2 is skipped. A script that is
 intentionally *not* in `STEPS` (like `13-nvim-plugins.sh`, which is launched in
 the background) must be listed in that linter's `EXEMPT` array with a reason.
+
+## Deploying the engineering-team skill on its own
+
+This repo is the source of truth for the vendored `engineering-team` skill
+(`configs/claude/skills/engineering-team/`). Two things deploy it into
+`~/.claude/skills/`:
+
+- **`scripts/17-claude-skills.sh`** — runs as part of `bash setup.sh`. Also
+  deploys the `/done`, `/merge-push`, `/prompt` slash commands, and **skips**
+  when the trees already match (`diff -rq`).
+- **`bash deploy-engineering-team-skill.sh`** (repo root) — the standalone
+  inner-loop tool. Deploys *only* the skill and overwrites the local copy
+  **unconditionally**, so after editing the skill you get the repo's exact bytes
+  on disk without diff-guessing. This is the one to reach for after a quick edit.
+
+Both deliberately write **no `.bak`**: `~/.claude/skills/` is scanned, so a
+backup directory registers as a *duplicate skill* rather than sitting inertly
+beside the original. The lint scope (`shellcheck`/`shfmt`) above includes the
+root deploy script so it stays correct.
