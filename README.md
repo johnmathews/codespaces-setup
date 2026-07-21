@@ -211,6 +211,8 @@ docs/
 journal/                # Dated development-journal entries
 setup.sh                # Main entry point – runs the ordered STEPS array, then
                         # launches 13-nvim-plugins.sh in background
+deploy-engineering-team-skill.sh  # Standalone: overwrite ~/.claude engineering-team
+                        # skill with this repo's copy (only the skill; see below)
 ```
 
 > **Note:** `setup.sh` runs an explicit, ordered `STEPS` array — **not** every file in `scripts/`. Filename number
@@ -226,7 +228,9 @@ setup.sh                # Main entry point – runs the ordered STEPS array, the
 - **Git identity**: `scripts/11-dotfiles.sh` sets global Git user details for the Codespace
 - **Claude skills/commands**: edit the files under `configs/claude/` then re-run `bash scripts/17-claude-skills.sh`. To
   add another skill or command, drop it into `configs/claude/skills/<name>/` or `configs/claude/commands/<name>.md` and
-  wire it into the deploy calls in `scripts/17-claude-skills.sh`
+  wire it into the deploy calls in `scripts/17-claude-skills.sh`. For the common case of just re-pushing the
+  `engineering-team` skill after an edit, run `bash deploy-engineering-team-skill.sh` — it deploys *only* that skill and
+  overwrites the local copy unconditionally (no commands, no diff-skip)
 - **Editor tooling**: `scripts/15-dev-tools.sh` installs the formatters/linters (and `glow`) that Neovim expects on
   `PATH`. `.zshrc` also points Node/Python at the system CA bundle so Mason can install npm/pip tools behind a
   TLS-intercepting proxy (otherwise installs fail with `SELF_SIGNED_CERT_IN_CHAIN`)
@@ -239,8 +243,8 @@ There are no unit tests (the "product" is the provisioning scripts), but CI (`.g
 every push to `main` and PR, and you can run the same checks locally:
 
 ```bash
-shellcheck setup.sh scripts/*.sh ci/*.sh    # shell correctness
-shfmt -i 2 -ci -kp -d setup.sh scripts ci    # formatting (-w to auto-fix)
+shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh    # shell correctness
+shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci    # formatting (-w to auto-fix)
 bash ci/lint-steps.sh                         # every scripts/NN-*.sh is wired into STEPS
 ```
 

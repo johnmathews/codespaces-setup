@@ -29,7 +29,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck
-          shellcheck setup.sh scripts/*.sh ci/*.sh
+          shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh
 
       - name: shfmt
         # Pinned to match the local shfmt convention; bump in lockstep with docs.
@@ -37,7 +37,7 @@ jobs:
         with:
           # Keep these flags in sync with docs/development.md and the local
           # convention: 2-space indent, indent switch cases, keep alignment.
-          args: -i 2 -ci -kp -d setup.sh scripts ci
+          args: -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci
 
       - name: steps-array wiring
         run: bash ci/lint-steps.sh
