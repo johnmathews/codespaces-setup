@@ -14,7 +14,11 @@ Checks (HARD = non-zero exit; WARN = printed, exit 0):
      (a path correct where computed, silently wrong after a `cd`). Prose that
      shows the flagless anti-pattern to explain it is fine; only runnable command
      lines are checked. The `$RUN_DIR`-resolution one-liner must also be identical
-     across every copy.
+     across every copy. This check's corpus spans the skill docs AND the vendored
+     slash commands (`configs/claude/commands/*.md`): `/done`, `/merge-push`, and
+     `/prompt` carry their own copies of the idiom and the one-liner, and ship on a
+     separate deploy track, so they'd otherwise be unguarded. (B/C/D are about the
+     skill's own rule-ownership index and stay skill-scoped.)
   B. Index homes resolve (HARD). Every `<file> §"Heading"` home that
      rule-ownership.md cites must resolve to a real heading in that file. This is
      the "the index doesn't lie about where truth lives" check.
@@ -45,6 +49,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 SKILL = REPO / "configs/claude/skills/engineering-team"
 INDEX = SKILL / "references/rule-ownership.md"
+COMMANDS = REPO / "configs/claude/commands"
 
 # Curated invariants: name -> (home file relative to SKILL, signature regex that
 # must appear at the home). Kept small and load-bearing on purpose; extend it when
@@ -87,6 +92,17 @@ def skill_docs() -> dict[str, str]:
         if rel.startswith("scripts/"):
             continue
         out[rel] = p.read_text()
+    return out
+
+
+def command_docs() -> dict[str, str]:
+    """The vendored slash commands, keyed by `commands/<name>`. They carry their own
+    copies of the worktree idiom + $RUN_DIR one-liner, so they join check A's corpus
+    (only) — the commands ship separately from the skill and are otherwise unguarded."""
+    out: dict[str, str] = {}
+    if COMMANDS.is_dir():
+        for p in sorted(COMMANDS.glob("*.md")):
+            out[f"commands/{p.name}"] = p.read_text()
     return out
 
 
@@ -270,7 +286,9 @@ def check_restatements(docs: dict[str, str]) -> list[Finding]:
 
 def scan() -> list[Finding]:
     docs = skill_docs()
-    findings = check_worktree_idiom(docs)
+    # Check A spans the vendored commands too (they carry their own idiom copies and
+    # ship separately, so they'd otherwise be unguarded); B/C/D stay skill-scoped.
+    findings = check_worktree_idiom({**docs, **command_docs()})
     findings += check_index_homes(INDEX.read_text(), SKILL)
     findings += check_signatures_at_home(docs)
     findings += check_restatements(docs)
@@ -312,6 +330,14 @@ def selftest() -> int:
                         '!= "$(git rev-parse --git-common-dir)" ]\n```'}
     expect(any(f.check == "worktree-idiom" for f in check_worktree_idiom(one_side)),
            "A: flag on only one of two rev-parse calls not caught")
+
+    # A (command corpus): the vendored commands must actually be in check A's corpus
+    # (else the widening is inert), and their real idiom copies must be clean.
+    cmds = command_docs()
+    expect("commands/done.md" in cmds and "commands/merge-push.md" in cmds,
+           "A: command corpus does not include the vendored commands")
+    expect(not check_worktree_idiom(cmds),
+           f"A: a real command copy of the idiom is flagless: {check_worktree_idiom(cmds)}")
 
     # B: a citation to a missing heading must be caught; a real one must pass.
     idx_bad = '### Homed in `SKILL.md`\n| rule | §"No Such Heading Here" | x |'

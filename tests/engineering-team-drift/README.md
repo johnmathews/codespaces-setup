@@ -29,7 +29,11 @@ and pass.
   dropping it is the exact bug the idiom guards (a path correct where computed,
   silently wrong after a `cd`). Prose that shows the flagless form to explain it is
   ignored. The `$RUN_DIR`-resolution one-liner must also be identical across every
-  copy. This is what makes the SKILL.md ↔ worktree.md duplication *safe*.
+  copy. This is what makes the SKILL.md ↔ worktree.md duplication *safe*. **Its
+  corpus also includes the vendored slash commands** (`configs/claude/commands/*.md`
+  — `/done`, `/merge-push`, `/prompt`), which carry their own copies of the idiom
+  and ship on a separate track from the skill, so they'd otherwise be unguarded.
+  (Checks B–D stay skill-scoped; only A spans the commands.)
 - **B. Index homes resolve (HARD).** Every `` `<file>` §"Heading" `` home the index
   cites must resolve to a real heading in that file. Directly enforces "the index
   doesn't lie about where truth lives."
