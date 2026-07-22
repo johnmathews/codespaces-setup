@@ -20,7 +20,7 @@
   own, state the one-line application and link the home — do not paste the
   rationale/war-story. Those live at the home so there is one place to edit them.
 - **Anchors are section headings, not line numbers**, because line numbers rot on
-  the first edit above them. `file §"Heading"` is the durable address.
+  the first edit above them. `<file>` §<heading> is the durable address.
 - This index lists the **cross-cutting** invariants — the ones stated in one file
   and applied in others, where drift is possible. A rule that appears in exactly
   one file owns itself; §2 tells you which file that would be.
@@ -69,7 +69,7 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
-| Worktree-detection idiom: compare `--git-dir` vs `--git-common-dir` with `--path-format=absolute` **on both sides** | §"Worktree Isolation" | `SKILL.md` §"Always work in a worktree" (carries the command too); phase 3 (carries the command). **See §4 — this one has no single home.** |
+| Worktree-detection idiom: compare `--git-dir` vs `--git-common-dir` with `--path-format=absolute` **on both sides** | §"Worktree Isolation" | `SKILL.md` §"Always work in a worktree" carries the same command (both needed at routing time); the drift-scan (§5) holds the two byte-identical |
 | Always work in a worktree; already in one → don't nest a second | §"Worktree Isolation" | phases 1, 3, 4; `multi-session.md` (assumed throughout) |
 | Doc freshness is change-driven (`git log` over covered paths), not a calendar | §"Documentation gates" | `documentation-model.md` §6 (points here) |
 | The laws for promoting a check to required (unfiltered triggers, aggregator name, required ≠ enabled) | §"Making a check required…" | phase 4 (points here) |
@@ -117,28 +117,36 @@ These are where drift actually happens — two places each stating a rule *in fu
    `documentation-model.md` §8 states its doc-stamp instance. They share a
    war-story pattern and can diverge; edit the general form first.
 
-Two rules currently lack a clean single home — the honest gaps this index
-surfaces:
+Two rules used to lack a clean owner; both are now resolved:
 
-- **The worktree-detection command** is duplicated verbatim in `SKILL.md`,
-  `worktree.md`, and `phase-3-development.md`. `worktree.md` §"Worktree
-  Isolation" is the designated home for the *rationale*; the command itself has
-  no single owner. Consolidating the copies is a real follow-up (the router-shrink
-  journal named this exact duplication as the remaining cross-file cut).
-- **Announce-the-phase** lives as four parallel copies in the phase docs.
-  `SKILL.md` §"Announce phase transitions" is the natural home; the phase docs
-  restate it without pointing there. Adding the pointer is a cheap fix.
+- **The worktree idiom** (the `--path-format=absolute` resolution and detection
+  commands). `phase-3-development.md`'s copy was a pure restatement and now points
+  to `SKILL.md` §"The run directory". The two remaining copies —
+  `SKILL.md` and `worktree.md` §"Worktree Isolation" — are both operationally
+  required (the router must resolve these at routing time without loading another
+  doc), so they are **kept but guarded**: the drift-scan (§5) asserts every
+  `git rev-parse --git-dir`/`--git-common-dir` in the skill keeps
+  `--path-format=absolute` (dropping it — the actual bug — reds), and that the
+  `$RUN_DIR`-resolution one-liner stays byte-identical across its copies.
+  `worktree.md` remains the home for the *rationale*.
+- **Announce-the-phase.** `SKILL.md` §"Announce phase transitions" is the home;
+  each phase doc's "Announce the phase" section now names it as such rather than
+  restating the rule free-standing.
 
 ## 5. What this is not, and the follow-up
 
 - **Not a source.** The rules live at their homes; this only maps them. Do not
   cite this file *as* the rule.
-- **Not auto-enforced (yet).** The value is only fully realized paired with a
-  mechanical **drift-scan** — grep each invariant's signature phrase, assert it
-  appears at its home and that other occurrences sit next to a link home rather
-  than re-arguing the rule. That is out of scope here; noted as the natural next
-  step. An index without a scan still answers the editor's real question: *which
-  file do I change?*
+- **Mechanically checked.** A **drift-scan** (`tests/engineering-team-drift/`,
+  wired into CI) now enforces the parts of this index that are unambiguous: every
+  `<file>` §<heading> home this index cites must resolve to a real heading; each
+  catalogued invariant's signature phrase must still appear at its home; and every
+  duplicated worktree-idiom command must keep its `--path-format=absolute` flag
+  (with the resolution one-liner identical across copies).
+  Occurrences of a signature phrase outside its home are reported as **warnings**
+  (a restatement that should be a pointer is a judgement call, not a mechanical
+  fault). Run it after editing this index or moving a rule.
 - **A stale index is worse than none.** If you rename a section or move a rule's
   home, update the affected row here in the same edit — the map lying about where
-  truth lives is the one failure mode that makes it net-negative.
+  truth lives is the one failure mode that makes it net-negative, and the
+  home-resolution check above is what reds when it happens.

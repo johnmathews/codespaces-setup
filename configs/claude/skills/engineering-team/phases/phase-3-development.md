@@ -5,7 +5,9 @@
 ## Announce the phase
 
 Before any other action in this phase, tell the user in one plain-prose
-line that you are entering Phase 3 (development).
+line that you are entering Phase 3 (development). This is the per-phase
+instance of the announce-every-transition rule, whose home is `../SKILL.md`
+§"Announce phase transitions".
 
 ## Create a worktree before your first edit
 
@@ -47,17 +49,11 @@ have started the session in one. Nesting splits the work across two
 branches, so the PR ships half of it.
 
 **Do not create a `.engineering-team/` inside the worktree.** `$RUN_DIR`
-lives in the main checkout and is referenced by absolute path:
-
-```bash
-MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
-```
-
-Keep `--path-format=absolute` — without it the path is relative to your cwd
-and breaks as soon as you `cd` into the worktree. A run dir inside the
-worktree is deleted by Phase 4's cleanup, taking the evaluation report and
-the plan with it, and no other session can see it. See "The run directory"
-in `../SKILL.md`.
+lives in the main checkout and is referenced by absolute path — resolve it
+exactly as shown under "The run directory" in `../SKILL.md` (loaded this whole
+run), keeping `--path-format=absolute`. A run dir placed inside the worktree is
+deleted by Phase 4's cleanup, taking the evaluation report and the plan with
+it, and no other session can see it.
 
 If you find yourself running `pytest` or editing files in the
 project root rather than under `.claude/worktrees/`, you have skipped this
