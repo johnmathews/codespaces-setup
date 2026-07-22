@@ -24,6 +24,34 @@ PR), Housekeeping. A phase that does not apply is `N/A` **with a reason**, not a
 you get to drop from the list. If the run ends and any row is unaccounted for, you did
 not finish the wrap-up.
 
+## Phase checklist (the scannable version)
+
+The phases below run in this fixed order. The letter suffixes are historical and
+**not** a hierarchy: `7b` and `8c` are full, standalone phases (they each get a
+summary row), while `8a`/`8b` are the two mutually-exclusive branches *inside*
+Phase 8 (remote vs. no remote). Phase 0 (Sanity) and Phase 9 (the summary table
+itself) are the only phases without their own summary row.
+
+```
+0    Sanity check — repo/remote/governance/worktree, classify project type
+1    CI/CD — Docker publish workflow (only if a Dockerfile/compose exists)
+2    Documentation — freshness audit vs shipped code (do NOT self-certify)
+3    Tests (pre-review) — suite green; write tests for new code
+4    Security & Privacy — secrets/PII/.gitignore scan
+5    Code Review — architecture/robustness/security/dup/naming (loops to 0, max 2x)
+6    Tests (post-review) — re-run suite after review fixes
+7    Lint — detect and run the project's linter
+7b   Journal — write the dated entry AFTER all work phases (never before)
+8    Commit & open a PR — never pushes to main
+       8a  remote exists (the normal path: branch → push → PR → watch CI)
+       8b  no remote (scratch repo: commit locally, offer /merge-push)
+8c   Housekeeping — reap merged worktrees/branches (propose, then confirm)
+9    Session summary — the plain-ASCII table of what each phase found/did
+```
+
+Each imperative line is the one-sentence version; the authoritative rules are the
+per-phase sections below. When they seem to differ, the section wins.
+
 ## Ground Rule — Research Before Acting
 
 Do not rely on training data for technical details. API surfaces change, security best practices evolve, documentation
@@ -89,7 +117,10 @@ This applies throughout every phase below. When in doubt, search first.
   to a registry.
 - **Read where it publishes; don't assume where it should.** `ghcr.io/<owner>/<repo-name>` is the sensible default
   for a personal repo with no existing publisher. A repo owned by someone else, or one already publishing to its own
-  registry, is not misconfigured for failing to match a personal default.
+  registry, is not misconfigured for failing to match a personal default. **`<owner>` is always read from
+  `git remote`, never hardcoded** — not even to a personal default like `johnmathews`. This deliberately generalizes
+  the account-wide "push to `ghcr.io/johnmathews/…`" convention so it stays correct on work and third-party repos;
+  do not "simplify" it back to a fixed owner.
 - **If an existing workflow already builds and pushes to `ghcr.io`:** verify it looks correct (targets the right
   registry and image name). Fix any obvious issues. **Do not create a second workflow.**
 - **If no existing workflow handles Docker publishing:** before creating anything, double-check by running
@@ -252,6 +283,13 @@ Review all changes made in this session (use `git diff` and conversation context
 
 If issues are found, fix them and loop back to Phase 0. **Maximum 2 iterations** — if issues persist after two passes,
 flag them to the user and proceed.
+
+**On a loop-back, re-audit incrementally — don't blindly re-run the full Phase 2 audit.** Phase 2 dispatches a
+subagent, so re-running it wholesale after a small review fix burns a second pass and tempts you to rubber-stamp it
+(the self-certification Phase 2 exists to prevent). Re-audit **only the surfaces your review fixes actually
+touched** — if the fixes changed no documented surface (no public signature, config key, route, flag, or documented
+behaviour), the prior Phase 2 result still stands and you may carry it forward; say so explicitly rather than
+re-asserting a fresh `OK`. If a fix *did* change a documented surface, re-audit that surface and nothing else.
 
 ## Phase 6 — Tests (post-review)
 

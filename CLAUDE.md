@@ -94,7 +94,9 @@ CI-checked; and the **rule-ownership drift-scan**
 (`tests/engineering-team-drift/drift_scan.py`), which is fully headless and so
 runs its real scan in CI — it fails if the skill's rule-ownership index lies about
 where a rule lives, or a duplicated worktree-idiom command drops
-`--path-format=absolute`. A sibling headless check, the **command→skill
+`--path-format=absolute` (its worktree-idiom check spans both the skill docs **and**
+the vendored slash commands, which carry their own copies of the idiom). A sibling
+headless check, the **command→skill
 link-check** (`tests/engineering-team-command-links/check_command_links.py`), also
 runs its real check in CI: it fails if a `/done` or `/merge-push` cross-reference
 into the skill tree (e.g. `references/worktree.md`) no longer resolves — the
