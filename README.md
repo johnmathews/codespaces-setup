@@ -158,6 +158,7 @@ The script is idempotent – safe to run multiple times.
 | **Claude Code**             | latest   | AI coding assistant CLI                                                                                                     |
 | **Claude skills/commands**  | —        | Personal `/engineering-team` skill + `/done`, `/merge-push`, and `/prompt` slash commands, deployed into `~/.claude`                    |
 | **GitHub CLI** (`gh`)       | v2.95.0  | GitHub from the terminal; also used as git's credential helper                                                              |
+| **Azure CLI** (`az`)        | v2.68.0  | Azure from the terminal; installed via `uv` (isolated env; works behind the TLS-intercepting proxy)                         |
 | **Zsh** + **Oh My Zsh**     | —        | Shell                                                                                                                       |
 | **Powerlevel10k** (lean)    | —        | Zsh theme                                                                                                                   |
 | **zsh-autosuggestions**     | —        | Fish-style suggestions                                                                                                      |
@@ -202,6 +203,7 @@ scripts/
   15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
   16-gh.sh              # Install GitHub CLI (gh) from release tarball
   17-claude-skills.sh   # Deploy configs/claude/ skills + commands into ~/.claude
+  18-azure-cli.sh       # Install Azure CLI (az) via uv, symlinked into /usr/local/bin
 ci/
   lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS
 .github/workflows/
@@ -209,7 +211,10 @@ ci/
 docs/
   development.md        # CI checks, local lint commands, how to add a step
 tests/
-  engineering-team-probes/  # Manual, LLM-in-the-loop regression probes for the skill router
+  engineering-team-probes/      # Manual, LLM-in-the-loop regression probes for the skill router
+  engineering-team-triggering/  # Does the skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
+  engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
+  engineering-team-command-links/ # Link-check: the /done + /merge-push commands' cross-references into the skill tree still resolve (headless, in CI)
 journal/                # Dated development-journal entries
 setup.sh                # Main entry point – runs the ordered STEPS array, then
                         # launches 13-nvim-plugins.sh in background

@@ -20,6 +20,10 @@ name: ci
 #                       selftest): the skill's rule-ownership index must not lie
 #                       about where a rule lives, and the duplicated
 #                       worktree-idiom commands must keep --path-format=absolute.
+#   7. command-links  — tests/engineering-team-command-links/check_command_links.py,
+#                       also fully headless, runs the REAL check here: every
+#                       cross-reference the /done + /merge-push commands make into
+#                       the skill tree must still resolve to a real file.
 
 on:
   push:
@@ -73,3 +77,12 @@ jobs:
         run: |
           python3 tests/engineering-team-drift/drift_scan.py --selftest
           python3 tests/engineering-team-drift/drift_scan.py
+
+      - name: command→skill link-check
+        # Also fully headless, so it runs the real check here: the /done and
+        # /merge-push commands cross-reference skill files by hardcoded path, and
+        # those ship separately — a rename inside the skill strands the pointer
+        # silently. This reds before that reaches a Codespace.
+        run: |
+          python3 tests/engineering-team-command-links/check_command_links.py --selftest
+          python3 tests/engineering-team-command-links/check_command_links.py

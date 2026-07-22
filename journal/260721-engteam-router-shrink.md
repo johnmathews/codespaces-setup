@@ -1,6 +1,6 @@
 # Shrinking the router, and what the probe test proved instead
 
-**Date:** 2026-07-21. **PR:** feat/engteam-router-shrink. Spec: [docs/superpowers/specs/2026-07-21-engteam-router-shrink-design.md](../docs/superpowers/specs/2026-07-21-engteam-router-shrink-design.md). Plan: [docs/superpowers/plans/2026-07-21-engteam-router-shrink.md](../docs/superpowers/plans/2026-07-21-engteam-router-shrink.md). Point-in-time record; authoritative for nothing.
+**Date:** 2026-07-21. **PR:** feat/engteam-router-shrink. Spec: [docs/archive/2026-07-21-engteam-router-shrink-design.md](../docs/archive/2026-07-21-engteam-router-shrink-design.md). Plan: [docs/archive/2026-07-21-engteam-router-shrink.md](../docs/archive/2026-07-21-engteam-router-shrink.md) (both archived 2026-07-22). Point-in-time record; authoritative for nothing.
 
 The goal was legibility: shrink `SKILL.md` — the engineering-team router, the one file loaded on *every* invocation — by removing internal repetition without dropping any distinct invariant or war-story, and **prove** nothing was lost rather than asserting it.
 

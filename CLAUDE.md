@@ -39,6 +39,7 @@ Corporate Codespaces sit behind a TLS-intercepting proxy. Tools that bundle thei
 
 - `configs/.zshrc` exports `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE` → `/etc/ssl/certs/ca-certificates.crt` (so Mason's npm/pip installs work).
 - `02-nodejs.sh` deliberately installs Node from the official nodejs.org tarball into `/usr/local` (not NodeSource/apt), because NodeSource silently no-ops behind the proxy and Ubuntu's node is too old / ships without npm.
+- `18-azure-cli.sh` installs the Azure CLI (`az`) via `uv` (not the Microsoft apt repo) for the same reason: `uv` honours `SSL_CERT_FILE`/the system CA bundle, so the install succeeds behind the proxy where the apt repo path is fragile.
 
 Don't "simplify" these back to apt/NodeSource or remove the CA exports.
 
@@ -78,6 +79,7 @@ python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
 python3 tests/engineering-team-triggering/run.py --selftest
 python3 tests/engineering-team-drift/drift_scan.py --selftest && python3 tests/engineering-team-drift/drift_scan.py
+python3 tests/engineering-team-command-links/check_command_links.py --selftest && python3 tests/engineering-team-command-links/check_command_links.py
 ```
 
 The `engineering-team` skill ships **three** structural gates over its own
@@ -92,7 +94,12 @@ CI-checked; and the **rule-ownership drift-scan**
 (`tests/engineering-team-drift/drift_scan.py`), which is fully headless and so
 runs its real scan in CI — it fails if the skill's rule-ownership index lies about
 where a rule lives, or a duplicated worktree-idiom command drops
-`--path-format=absolute`. `shellcheck`/`shfmt` do not see any of this Python (they
+`--path-format=absolute`. A sibling headless check, the **command→skill
+link-check** (`tests/engineering-team-command-links/check_command_links.py`), also
+runs its real check in CI: it fails if a `/done` or `/merge-push` cross-reference
+into the skill tree (e.g. `references/worktree.md`) no longer resolves — the
+commands ship on a separate deploy track, so the drift-scan's skill-internal scope
+doesn't cover their inbound links. `shellcheck`/`shfmt` do not see any of this Python (they
 are scoped to the repo-root shell scripts — `setup.sh`,
 `deploy-engineering-team-skill.sh`, `scripts/`, `ci/` — not the skill tree), so
 their fixtures/selftests are their only test.

@@ -1,6 +1,6 @@
 # engineering-team router shrink — design
 
-**Status:** implemented — shipped 2026-07-21 (see [journal/260721-engteam-router-shrink.md](../../../journal/260721-engteam-router-shrink.md)). **Last updated:** 2026-07-21. **Supersedes:** none.
+**Status:** implemented — shipped 2026-07-21 (see [journal/260721-engteam-router-shrink.md](../../journal/260721-engteam-router-shrink.md)). **Last updated:** 2026-07-21. **Supersedes:** none.
 
 > Purpose: shrink `configs/claude/skills/engineering-team/SKILL.md` (the router, loaded on every invocation) by removing *internal repetition* — without dropping any distinct invariant or war-story — and prove the shrink lost no load-bearing meaning with a reusable comprehension-probe test.
 
