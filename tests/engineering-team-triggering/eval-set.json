@@ -1,0 +1,128 @@
+[
+  {
+    "id": "P1",
+    "query": "Evaluate this repo and tell me where the biggest problems are.",
+    "should_trigger": true,
+    "category": "positive-clear",
+    "boundary": "Canonical positive: whole-repo evaluation. Anchor case; a miss here means the description is broken, not borderline."
+  },
+  {
+    "id": "P2",
+    "query": "Do a full audit of this project's code quality and technical debt.",
+    "should_trigger": true,
+    "category": "positive-clear",
+    "boundary": "Project audit / code-quality review / tech-debt analysis - all named explicitly in the description."
+  },
+  {
+    "id": "P3",
+    "query": "Use the engineering team to improve this codebase end to end.",
+    "should_trigger": true,
+    "category": "positive-clear",
+    "boundary": "Explicit ask for the engineering team + full evaluate-plan-implement cycle. Must fire."
+  },
+  {
+    "id": "P4",
+    "query": "Go through the whole codebase and systematically hunt for bugs.",
+    "should_trigger": true,
+    "category": "positive-near-miss",
+    "boundary": "Systematic bug-finding across the project (fires) - deliberately adjacent to the quick-targeted-fix negatives (N3, N9). The distinguisher is 'whole codebase / systematically', not a single site."
+  },
+  {
+    "id": "P5",
+    "query": "Do a security review of this service before we ship it.",
+    "should_trigger": true,
+    "category": "positive-near-miss",
+    "boundary": "Security review OF A PROJECT (fires) - near-miss against N4, a single-snippet vulnerability question that should NOT fire."
+  },
+  {
+    "id": "P6",
+    "query": "Check that the docs in /docs actually match what the code does.",
+    "should_trigger": true,
+    "category": "positive-near-miss",
+    "boundary": "Checking documentation accuracy against the code (fires) - near-miss against N5, fixing a single doc typo, which should NOT."
+  },
+  {
+    "id": "P7",
+    "query": "We're choosing between Postgres and DynamoDB for this app's data layer. Walk me through the tradeoffs for our case.",
+    "should_trigger": true,
+    "category": "positive-near-miss",
+    "boundary": "Architecture/tradeoff discussion GROUNDED in this codebase -> Discussion workflow (fires). Near-miss against N6, the same question with no codebase in play."
+  },
+  {
+    "id": "P8",
+    "query": "What would change in our architecture if we moved this service off Kafka?",
+    "should_trigger": true,
+    "category": "positive-near-miss",
+    "boundary": "'What would change if we moved to Z' - verbatim a Discussion-workflow trigger, grounded in the project (fires). Near-miss against N7, a generic 'how does X work' explainer."
+  },
+  {
+    "id": "P9",
+    "query": "Assess the overall architecture of this project and flag the design risks.",
+    "should_trigger": true,
+    "category": "positive-near-miss",
+    "boundary": "Architecture review of a whole project (fires). Sits near the Discussion cases but is an evaluation, not a decision - both routes land in the skill."
+  },
+  {
+    "id": "N1",
+    "query": "What's the current state of the art in retrieval-augmented generation?",
+    "should_trigger": false,
+    "category": "negative-clear",
+    "boundary": "Standalone research question, no codebase in play -> deep-research skill. The description carves this out by name. Anchor negative."
+  },
+  {
+    "id": "N2",
+    "query": "Review this PR and tell me if it's good to merge: https://github.com/acme/app/pull/482",
+    "should_trigger": false,
+    "category": "negative-clear",
+    "boundary": "Reviewing a single diff/PR - explicitly excluded. Anchor negative."
+  },
+  {
+    "id": "N3",
+    "query": "Fix the off-by-one error in parse_date() in utils.py.",
+    "should_trigger": false,
+    "category": "negative-clear",
+    "boundary": "Quick targeted fix, single known site - explicitly excluded. Anchor negative."
+  },
+  {
+    "id": "N4",
+    "query": "Is this login function vulnerable to SQL injection? def login(u): db.query(\"select * from users where name='\" + u + \"'\")",
+    "should_trigger": false,
+    "category": "negative-near-miss",
+    "boundary": "Single-snippet security question, not a project security review -> targeted, does NOT fire. Near-miss against P5. The distinguisher is scope: one function vs a service."
+  },
+  {
+    "id": "N5",
+    "query": "Fix the broken link and the typo in the README.",
+    "should_trigger": false,
+    "category": "negative-near-miss",
+    "boundary": "Targeted single-doc fix, not a docs-vs-code accuracy audit -> does NOT fire. Near-miss against P6."
+  },
+  {
+    "id": "N6",
+    "query": "In general, should I use Postgres or MySQL for a new side project?",
+    "should_trigger": false,
+    "category": "negative-near-miss",
+    "boundary": "Tradeoff question with NO codebase in play -> research, not the Discussion workflow. Near-miss against P7; 'in general' / 'a new side project' is the tell that it is ungrounded."
+  },
+  {
+    "id": "N7",
+    "query": "Explain how React's reconciliation algorithm works.",
+    "should_trigger": false,
+    "category": "negative-near-miss",
+    "boundary": "General explainer, no codebase decision -> not the Discussion workflow. Near-miss against P8."
+  },
+  {
+    "id": "N8",
+    "query": "Add a dark-mode toggle to the settings page.",
+    "should_trigger": false,
+    "category": "negative-near-miss",
+    "boundary": "A single scoped feature request, not a whole-codebase review or an end-to-end improvement cycle -> does NOT fire (feature-dev territory). Deliberate boundary case: 'improve this codebase' fires, one feature does not."
+  },
+  {
+    "id": "N9",
+    "query": "Review the changes on my current branch before I open a PR.",
+    "should_trigger": false,
+    "category": "negative-near-miss",
+    "boundary": "A single-diff review (the uncommitted branch), not a whole-repo evaluation -> does NOT fire. Near-miss against P1: 'review my changes' vs 'evaluate this repo'."
+  }
+]

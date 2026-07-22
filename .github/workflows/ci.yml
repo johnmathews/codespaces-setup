@@ -5,13 +5,16 @@ name: ci
 #   1. shellcheck     — catch shell bugs (quoting, set -e interactions, etc.)
 #   2. shfmt          — enforce the repo's formatting convention
 #   3. lint-steps.sh  — ensure every scripts/NN-*.sh is wired into setup.sh
-#   4. skill gates    — the engineering-team skill ships the repo's only
-#                       executable code: three structural gates under
-#                       configs/claude/skills/engineering-team/scripts/ —
+#   4. skill gates    — the engineering-team skill ships three structural gates
+#                       under configs/claude/skills/engineering-team/scripts/ —
 #                       check_report (evaluation reports), check_run (the
 #                       run.yaml state file), and check_plan (the improvement
 #                       plan). Their fixtures are their test, and a gate whose
 #                       tests never run is the decoration that skill has a name for.
+#   5. triggering test — headless selftest of the parsers in
+#                       tests/engineering-team-triggering/run.py. The skill's
+#                       triggering measurement is LLM-in-the-loop and on-demand
+#                       (not here), but its deterministic parsers are testable.
 
 on:
   push:
@@ -50,3 +53,9 @@ jobs:
           python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
+
+      - name: triggering-eval parser selftest
+        # The LLM routing in this test is on-demand (not in CI), but its
+        # deterministic parsers — where a silent bug yields a confident wrong
+        # number — are headless-testable. This runs only those checks.
+        run: python3 tests/engineering-team-triggering/run.py --selftest

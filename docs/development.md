@@ -14,7 +14,9 @@ every check can be run locally with the same commands.
 | Formatting | `shfmt` | Drift from the repo's formatting convention |
 | Step wiring | `ci/lint-steps.sh` | A `scripts/NN-*.sh` that isn't wired into `setup.sh`'s `STEPS` array (so it would silently never run), or a `STEPS` entry pointing at a missing script |
 | Skill gates | `check_report.py`, `check_run.py`, `check_plan.py` (each `--selftest`) | A malformed evaluation report; a `run.yaml` whose schema is invalid or whose `phase:` disagrees with the artifacts on disk; or an improvement plan with an invalid frontmatter index or unit IDs that don't match `run.yaml` (the `engineering-team` skill's three shipped gates; their fixtures are the test) |
+| Triggering parsers | `tests/engineering-team-triggering/run.py --selftest` | A silent bug in the triggering test's own deterministic parsers (verdict parsing, folded-description extraction) — the part that turns an LLM reply into a scored number, where a bug yields a confident wrong result. Headless; the LLM measurement itself is not in CI (next two rows) |
 | Router probes | [`tests/engineering-team-probes/`](../tests/engineering-team-probes/) | An edit to the skill router (`SKILL.md`) that dropped a load-bearing invariant. **Manual, LLM-in-the-loop — not in CI** (see that dir's README for why and how to run it on router edits) |
+| Triggering eval | [`tests/engineering-team-triggering/`](../tests/engineering-team-triggering/) | An edit to the skill's `description:` frontmatter that makes it mis-fire — trigger on prompts it shouldn't, or miss the ones it should. **Manual, LLM-in-the-loop — not in CI** (a frozen labelled prompt set scored by `claude -p`; see that dir's README). Its parsers *are* CI-checked — the row above. |
 
 ## Run locally
 
@@ -33,15 +35,28 @@ bash ci/lint-steps.sh
 python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
+
+# triggering-eval parser selftest (also run in CI; the LLM measurement is not)
+python3 tests/engineering-team-triggering/run.py --selftest
 ```
 
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace
 itself already installs `shfmt` via `scripts/15-dev-tools.sh`).
 
-The **router probe test** (`tests/engineering-team-probes/`) is the one check
-that is not a command here: it is an on-demand, model-in-the-loop regression
-test for the skill router, run when `SKILL.md` changes. Its README documents the
-before/after procedure and why it cannot live in headless CI.
+Two checks are not commands here — both are on-demand, model-in-the-loop
+regression tests for the `engineering-team` skill, run when the relevant part of
+`SKILL.md` changes, and neither can live in headless CI:
+
+- The **router probe test** (`tests/engineering-team-probes/`) — run when the
+  router body changes, to confirm no load-bearing invariant was dropped.
+- The **triggering eval** (`tests/engineering-team-triggering/`) — run when the
+  `description:` frontmatter changes, to confirm the skill still fires on the
+  right prompts and not the wrong ones. `python3 tests/engineering-team-triggering/run.py`.
+  Its *deterministic parsers* have a headless `--selftest` that **does** run in CI
+  (the table above); only the `claude -p` routing measurement is on-demand.
+
+Each dir's README documents its before/after procedure and why the LLM-in-the-loop
+part cannot live in headless CI.
 
 ## Formatting convention
 
