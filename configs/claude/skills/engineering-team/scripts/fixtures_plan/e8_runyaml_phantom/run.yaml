@@ -1,0 +1,7 @@
+run: r
+phase: 3
+scope: full
+units:
+  - { id: W1, status: done }
+  - { id: W2, status: pending }
+  - { id: W3, status: pending }
