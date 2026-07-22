@@ -1,6 +1,6 @@
 # engineering-team Router Shrink Implementation Plan
 
-**Status:** closed — all tasks executed and shipped 2026-07-21 (see [journal/260721-engteam-router-shrink.md](../../../journal/260721-engteam-router-shrink.md)).
+**Status:** closed — all tasks executed and shipped 2026-07-21 (see [journal/260721-engteam-router-shrink.md](../../journal/260721-engteam-router-shrink.md)).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -222,7 +222,7 @@ Expected: all clean (the shrink is markdown-only; this confirms no collateral).
 ### Task 4: Wrap-up (docs + journal + PR)
 
 **Files:**
-- Modify: `docs/superpowers/specs/2026-07-21-engteam-router-shrink-design.md` (stamp result if needed)
+- Modify: `docs/archive/2026-07-21-engteam-router-shrink-design.md` (stamp result if needed)
 - Create: `journal/260721-engteam-router-shrink.md`
 
 **Interfaces:**

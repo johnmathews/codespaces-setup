@@ -11,6 +11,19 @@ When presenting recommendations, questions, conclusions, or advice to the user, 
 findings, security findings, and any other actionable or notable points. The user refers to items by number,
 so every such point must be numbered.
 
+## Track the phases as a todo list
+
+This is a multi-phase workflow with a loop-back (Phase 5 can return to Phase 0), and
+the single biggest reliability risk is losing your place or silently skipping a
+phase. Before starting Phase 0, create a todo list — one item per phase — and keep it
+current: mark a phase in-progress when you enter it and completed when it genuinely
+passed (not when you skipped past it). The **eleven rows of the Phase 9 summary table
+are the required checklist** — CI/CD, Documentation, Journal, Tests (pre-review),
+Security & Privacy, Code Review, Tests (post-review), Lint, Commit & PR, CI (on the
+PR), Housekeeping. A phase that does not apply is `N/A` **with a reason**, not a phase
+you get to drop from the list. If the run ends and any row is unaccounted for, you did
+not finish the wrap-up.
+
 ## Ground Rule — Research Before Acting
 
 Do not rely on training data for technical details. API surfaces change, security best practices evolve, documentation
