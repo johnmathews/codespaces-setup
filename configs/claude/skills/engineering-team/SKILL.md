@@ -389,6 +389,9 @@ Load these on demand when their topic becomes relevant:
 - `references/wide-survey.md` — the Workflow fan-out for Phase 1
   reconnaissance on large projects. Loaded only after the user agrees to
   one; Phase 1's Step 2 decides whether to offer it.
+- `references/rule-ownership.md` — for **editing** this skill, not running it:
+  the map of which file owns each load-bearing invariant, so a restatement is a
+  pointer rather than a competing source. Consult it before changing a rule.
 
 ## What this router does NOT contain
 
