@@ -7,7 +7,9 @@
 ## Announce the phase
 
 Before any other action in this phase, tell the user in one plain-prose
-line that you are entering Phase 1 (evaluation).
+line that you are entering Phase 1 (evaluation). This is the per-phase
+instance of the announce-every-transition rule, whose home is `../SKILL.md`
+§"Announce phase transitions".
 
 ## Create a worktree first
 

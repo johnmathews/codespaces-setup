@@ -77,20 +77,25 @@ python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftes
 python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
 python3 tests/engineering-team-triggering/run.py --selftest
+python3 tests/engineering-team-drift/drift_scan.py --selftest && python3 tests/engineering-team-drift/drift_scan.py
 ```
 
 The `engineering-team` skill ships **three** structural gates over its own
 artifacts — `check_report.py` (the evaluation report), `check_run.py` (the run's
 `run.yaml` state file — schema + reconciliation against artifacts), and
 `check_plan.py` (the improvement plan — a valid frontmatter index whose `W<n>`
-unit IDs are cross-checked against `run.yaml`). The fourth selftest above belongs
-to a repo-level test that is **not** shipped in the skill:
-`tests/engineering-team-triggering/run.py`, whose LLM-in-the-loop routing
+unit IDs are cross-checked against `run.yaml`). The last two commands belong to
+repo-level tests that are **not** shipped in the skill: the triggering eval
+(`tests/engineering-team-triggering/run.py`), whose LLM-in-the-loop routing
 measurement is on-demand but whose deterministic parsers are headless and
-CI-checked. `shellcheck`/`shfmt` do not see any of this Python (they are scoped to
-the repo-root shell scripts — `setup.sh`, `deploy-engineering-team-skill.sh`,
-`scripts/`, `ci/` — not the skill tree), so their fixtures/selftests are their
-only test and CI runs all four.
+CI-checked; and the **rule-ownership drift-scan**
+(`tests/engineering-team-drift/drift_scan.py`), which is fully headless and so
+runs its real scan in CI — it fails if the skill's rule-ownership index lies about
+where a rule lives, or a duplicated worktree-idiom command drops
+`--path-format=absolute`. `shellcheck`/`shfmt` do not see any of this Python (they
+are scoped to the repo-root shell scripts — `setup.sh`,
+`deploy-engineering-team-skill.sh`, `scripts/`, `ci/` — not the skill tree), so
+their fixtures/selftests are their only test.
 
 There are no unit tests (the "product" is the scripts), but CI
 (`.github/workflows/ci.yml`) runs `shellcheck`, `shfmt`, and `ci/lint-steps.sh`

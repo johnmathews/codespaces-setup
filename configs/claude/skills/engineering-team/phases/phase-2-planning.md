@@ -6,7 +6,9 @@
 ## Announce the phase
 
 Before any other action in this phase, tell the user in one plain-prose
-line that you are entering Phase 2 (planning).
+line that you are entering Phase 2 (planning). This is the per-phase
+instance of the announce-every-transition rule, whose home is `../SKILL.md`
+§"Announce phase transitions".
 
 ## Frontmatter on the improvement plan (required)
 

@@ -15,6 +15,11 @@ name: ci
 #                       tests/engineering-team-triggering/run.py. The skill's
 #                       triggering measurement is LLM-in-the-loop and on-demand
 #                       (not here), but its deterministic parsers are testable.
+#   6. drift-scan     — tests/engineering-team-drift/drift_scan.py, fully
+#                       headless, so it runs the REAL scan here (not just a
+#                       selftest): the skill's rule-ownership index must not lie
+#                       about where a rule lives, and the duplicated
+#                       worktree-idiom commands must keep --path-format=absolute.
 
 on:
   push:
@@ -59,3 +64,12 @@ jobs:
         # deterministic parsers — where a silent bug yields a confident wrong
         # number — are headless-testable. This runs only those checks.
         run: python3 tests/engineering-team-triggering/run.py --selftest
+
+      - name: rule-ownership drift-scan
+        # Fully headless (pure text analysis), so unlike the probe/triggering
+        # tests it runs the real scan in CI, not just a selftest: the skill's
+        # rule-ownership index must not lie about where a rule lives, and the
+        # duplicated worktree-idiom commands must keep --path-format=absolute.
+        run: |
+          python3 tests/engineering-team-drift/drift_scan.py --selftest
+          python3 tests/engineering-team-drift/drift_scan.py
