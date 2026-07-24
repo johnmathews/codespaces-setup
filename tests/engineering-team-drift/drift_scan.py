@@ -70,6 +70,9 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "closing-a-run": ("SKILL.md", r"Closing a run"),
     "heading-numbering": ("references/documentation-model.md", r"Heading numbering"),
     "announce-the-phase": ("SKILL.md", r"Announce phase transitions"),
+    "shared-singleton-doc": ("references/documentation-model.md", r"shared singleton"),
+    "stale-base-push": ("references/worktree.md", r"stale-base"),
+    "peer-session-survey": ("references/multi-session.md", r"peer session"),
 }
 
 

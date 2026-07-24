@@ -257,7 +257,55 @@ confirms rather than reaping silently.
 - **Shared-file units.** If two units genuinely must touch one file, they are
   **sequenced**, never forced parallel (§3).
 
-## 11. In one line
+## 11. Peer sessions
+
+Everything above is one **coordinated** run: a coordinator spawns lanes, owns
+`progress.md`, and reconciles. A different case has none of that — **separate
+sessions a human started independently**, each on unrelated work, no shared run
+dir and no coordinator. Worktrees still isolate their files perfectly (the
+reference run interleaved six PRs from one session with three from another, zero
+conflicts). What a peer session lacks is any way to *see the others* before it
+collides on a lane — it learns another exists only when `main` moves under it,
+which is too late to pick a disjoint footprint.
+
+**Do not build a session registry for this.** A hand-maintained `sessions/`
+directory with heartbeats, declared footprints, and staleness heuristics
+reinvents — badly — a fact git already holds authoritatively and
+self-cleaningly, and a registry that drifts *lies*, which is worse than none. It
+also violates the shared-singleton rule (`documentation-model.md` §9): it is a
+contended global no per-session write can keep true. An agent session is not a
+daemon either — it is idle between turns, so any heartbeat marks a live session
+dead; and footprints are often unknowable up front, because the work is
+exploratory. Every hard part of a registry is a part git gives you for free.
+
+**Survey the authoritative source instead — read-only, at startup:**
+
+```bash
+git worktree list                             # same-machine peers — the case that matters here
+git branch -r --sort=-committerdate | head    # cross-machine peers, most-recent first
+git diff --name-only origin/main...<branch>   # a peer branch's footprint, derived not declared
+```
+
+`git worktree list` *is* the peer registry: a worktree exists exactly while its
+session is live and vanishes when it ends — no heartbeat, no cleanup, no
+staleness field to rot. The branch names are rough lane labels; the per-branch
+diff turns each into a real footprint. Open PRs are a **weak** signal and must
+not be relied on — in the reference repo they were merged on green immediately,
+so `gh pr list` was routinely empty while work was very much in flight. Trust
+worktrees and branches.
+
+**Then apply §3's rule across sessions, not just within one:** if your intended
+footprint intersects a live peer's, say so to the user and pick a disjoint lane,
+or ask. This is a **prompt, not a hard stop** — a human may intend the overlap
+(two sessions deliberately on one subsystem), and the survey's job is to turn
+"discovered `main` moved" into "knew someone held `anchor/` before I started,"
+not to forbid it.
+
+The same-machine caveat from §10 applies unchanged: `git worktree list` sees
+only peers sharing this filesystem, which is why the remote-branch scan is in the
+survey too — a session on another host is visible only through its pushed branch.
+
+## 12. In one line
 
 Give every file a single writer, give every parallel lane a disjoint file
 footprint, keep all state on disk and in git rather than in chat, verify reality

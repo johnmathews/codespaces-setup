@@ -192,7 +192,10 @@ sides before comparing.
   this run ships.
 - **In the main checkout** → create the worktree now (`references/worktree.md`).
 
-The full discipline is in `references/worktree.md`. Two exceptions:
+The full discipline is in `references/worktree.md` — including the rule that a
+**stale-base push silently reverts a peer's merged files** (fetch and
+two-endpoint-diff against a fresh `origin/main` before every push). Two
+exceptions:
 
 - A **non-git project**, or a repo where the user declined `git init` —
   work in place; wrap-up degrades to "ask whether to commit."
@@ -235,6 +238,14 @@ the request; derive the lanes first and let the footprints decide whether
 the split is real (`phases/phase-2-planning.md`, Step 3.5). If the plan
 turns out not to qualify, say so and recommend solo — the user asked for
 parallelism to go faster, not for ceremony.
+
+**Survey concurrent peers before you pick a lane.** The check above reads *this*
+run's lanes; it is blind to independent sessions a human started separately,
+which you otherwise discover only when `main` moves under you. Run `git worktree
+list` and `git branch -r --sort=-committerdate`; if your intended footprint
+overlaps a live peer's, say so and pick a disjoint lane. It is a prompt, not a
+stop. Why to survey git rather than build a registry for it:
+`references/multi-session.md` §11.
 
 ## Decide which phase to load
 
