@@ -292,6 +292,14 @@ worktree, a branch, and a PR. If you're proposing a split, load
 `../references/multi-session.md` before writing the dashboard or any hand-off
 prompts.
 
+**Then build the contract register**, once every unit has a footprint, and
+allocate reservation ranges per lane. Full rules and the table shapes:
+`../references/coordination-protocol.md` §4.
+
+**If the register is non-empty, the plan gets a U0** that lands every seam as
+stubs and types and merges before any lane launches. If it is empty, there is
+no U0.
+
 ### Step 3.6: If the user agrees to split — you are now the coordinator
 
 Only after the user confirms the split at the gate below. Writing `progress.md` is
@@ -308,14 +316,67 @@ single-writer rule binds you from here (`../SKILL.md`, "Decide your role").
    a distinct name** — they all read the same plan, so a name derived from the plan
    alone collides across every lane, and the second session to start would fail on the
    branch that already exists.
-3. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
+3. **Validate the board before handing out prompts:**
+   `python3 scripts/check_board.py "$RUN_DIR"`. It catches footprint overlaps,
+   prose footprints, and a non-empty register with no U0 — all of which are
+   cheap now and expensive after three sessions have started.
+4. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
    the lane, its footprint, its branch and worktree, and absolute paths to the plan,
    the dashboard, and its own `status-<lane>.md`. **If `/prompt` is not installed on
    this machine**, write the prompts inline to that same shape and say which skill
    was missing — a sibling skill's absence changes who writes the prompt, not
    whether one is written.
-4. **Hand them to the user.** They open the sessions and paste. Do not start a lane's
-   work yourself unless you are also running that lane.
+5. **Inline the coordination protocol in every prompt.** Pointing at
+   `../references/coordination-protocol.md` is not enough: the receiving session is
+   fresh, loads only `../SKILL.md`, and reaches phase 3's worker section — where the
+   gate is described — only if it happens to route there. A worker that never loads
+   it opens an ungated PR while believing it followed the plan. So the prompt must
+   carry the rules themselves, in full, so the worker complies without loading
+   anything. Paste this block into each prompt, with `<lane>` and the paths filled in:
+
+   ```text
+   Coordination protocol — these rules bind you; you need not load anything to follow them.
+
+   - Message the coordinator only. Never message another lane. Use exactly these
+     types: CLAIM (starting: here is my branch and worktree), SURPRISE (reality
+     diverged from the plan), GATE-REQUEST (unit believed done), BLOCKED (named
+     blocker). You will receive VERDICT (PASS or CHANGES) and ADVISE (ground truth
+     you depend on moved). Do not invent a seventh type.
+   - Every message carries a `ref`: an absolute path or URL where the detail is
+     written down. Envelope, every time:
+         <TYPE> lane=<lane> unit=<U-id>
+         ref: <absolute path or URL>
+         <one to three fields specific to the type>
+     A message whose fact is written nowhere else is malformed. Ticks go in your
+     status file, not into messages — there is no TICK, STATUS or ACK type.
+   - THE GATE BLOCKS, AND IT RUNS BEFORE THE PR EXISTS. When a unit is done:
+     self-check it against its acceptance criteria, commit and push the branch
+     (NO PR), write your evidence to status-<lane>.md, then send GATE-REQUEST.
+     Wait. Open a PR only once the coordinator has written Verdict PASS on the
+     status line of <RUN_DIR>/gate-<lane>-<unit>.md. `/done` checks this and will
+     stop you; do not work around it. Your lane may carry several units — every
+     one of them that is not already merged needs its own PASS before the PR opens.
+   - CHANGES means fix and resubmit as the next round. After two CHANGES on one
+     unit, stop: the spec is the suspect, and that is the coordinator's to fix.
+   - No VERDICT? Resend GATE-REQUEST once after a reasonable wait. Still nothing:
+     write "gate pending since <t>" to your status file, stop, and say in your own
+     terminal that you are waiting on an unresponsive coordinator. NEVER
+     self-clear. A stalled lane is recoverable; an ungated merge is the thing the
+     gate is paid to prevent.
+   - Cross-lane seams are frozen. Never change one unilaterally, even when the
+     file is inside your footprint — owning a file grants the right to edit it,
+     not the right to change a promise another lane is coding against. Raise
+     SURPRISE naming the replacement you want and wait for ADVISE.
+   - Never ask a peer session to do something your own permissions blocked. Route
+     it back to the human.
+   ```
+
+   The rules above are restatements; the canonical home for all of them is
+   `../references/coordination-protocol.md` (§2 for the message protocol, §3 for the
+   gate, §4.3 for frozen seams). Edit them there, then re-emit prompts.
+6. **Hand them to the user.** They open the sessions and paste.
+   **Do not run a lane yourself.** As coordinator you own the gate, and a gate
+   applied to your own work is not a gate (`../references/multi-session.md` §5.1).
 
 From here you own the plan, the dashboard, and memory. You do **not** write any
 lane's `status-<lane>.md`, and you do not reach into a lane's worktree.

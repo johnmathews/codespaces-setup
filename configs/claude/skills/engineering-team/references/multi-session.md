@@ -119,8 +119,11 @@ single-writer rule binds it from there.
    sessions and pastes them in.
 5. **Reconcile**: poll `gh pr list`, read each `status-<lane>.md`, update the
    board, and fold surprises back into the plan.
-6. May run a lane itself — but then it wears both hats and must respect the
-   single-writer rule on both.
+6. **Writes no code and runs no lane.** The coordinator owns the gate
+   (`coordination-protocol.md` §3), and a gate applied to your own work is not a
+   gate — nor is a reviewer independent once it has written the code it reviews.
+   A run with no spare session stays solo; it does not get a coordinator that
+   also builds.
 
 The coordinator is a **role, not a required living process.** If its session
 dies, a new one reads the dashboard and memory and adopts the role. Nothing is
@@ -164,10 +167,20 @@ Statuses: `not-started` · `in-progress` · `pr-open` · `merged` · `blocked`
 | Unit | Lane | Owns (file footprint) | Branch | Status | PR | Blocker | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 
-## 3. Cross-session facts (verified this session)
+## 3. Contract register
+<frozen cross-lane interfaces and reservations — `coordination-protocol.md` §4.
+Interfaces: ID, producer lane, consumer lanes, the contract, frozen-at.
+Reservations: migration-number / port / config-key / flag-name / error-code
+ranges, allocated per lane.>
+
+## 4. Proposals (coordinator → human, never self-enacted)
+<plan changes, re-lanes, and new units the coordinator has sensed a need for and
+is asking for. `coordination-protocol.md` §5.>
+
+## 5. Cross-session facts (verified this session)
 <shared ground truth, each naming how it was verified>
 
-## 4. Coordinator log
+## 6. Coordinator log
 <append-only, timestamped. Includes corrections of the coordinator's own earlier claims>
 ```
 
@@ -212,6 +225,12 @@ breaches the declared scope.
 5. **A human gate at every merge** → nothing auto-merges.
 6. **One reconciliation point** → the coordinator aggregates; lanes never need to
    know about each other, so adding or removing a lane doesn't ripple.
+7. **Messages carry no state** → a session dying loses nothing
+   (`coordination-protocol.md` §2).
+8. **No message can assign work** → the autonomy boundary is structural
+   (`coordination-protocol.md` §5).
+9. **The gate blocks before the PR exists** → broken work never becomes a review
+   artifact (`coordination-protocol.md` §3).
 
 ## 8. Staying flexible when not everything is known
 
@@ -250,7 +269,9 @@ confirms rather than reaping silently.
 - **Same-machine assumption.** `$RUN_DIR` is git-untracked, so parallel sessions
   must share a filesystem to read it by absolute path. A session on a different
   host needs its context **inlined into its prompt** — `/prompt` can do this when
-  asked.
+  asked. The append-only tier of the state plane (issue and PR comments —
+  `coordination-protocol.md` §1) is reachable from anywhere and lifts part of
+  this, but `$RUN_DIR` itself is still local.
 - **Coordinator as aggregation point.** Not a single point of failure (state is
   durable), but if the coordinator is absent, reconciliation pauses until a
   session adopts the role.

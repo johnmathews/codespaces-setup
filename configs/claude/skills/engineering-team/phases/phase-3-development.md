@@ -78,10 +78,26 @@ narrower than the ones below:
   `../references/multi-session.md` explains why that judgement is unreliable).
 - Keep `status-<lane>.md` ticking as you go. It is scratch; the PR and the
   `/done` journal are the durable record.
+- **Pass the gate before `/done`.** When you believe the unit is complete,
+  commit and push your branch — **no PR** — then send `GATE-REQUEST` to the
+  coordinator. `/done` will refuse to open a PR without a `Verdict PASS`
+  (`../references/coordination-protocol.md` §3). If no verdict arrives, resend
+  once, then stop and say so. Never self-clear.
 
-If you are the **coordinator**, load `../references/multi-session.md` and follow
-it: you own the plan, the dashboard, and memory, and you reconcile — you do not
-reach into lanes.
+If you are the **coordinator**, load `../references/multi-session.md` *and*
+`../references/coordination-protocol.md`, and follow both: you own the plan, the
+dashboard, memory, and the gate, and you reconcile — you do not reach into lanes
+and you do not run one. Arm the liveness monitor and the reconciliation tick
+(§5 of the protocol) before the first lane starts, so a silent lane looks
+different from a working one.
+
+- **Run the integration gate whenever the set of gate-passing lanes changes** —
+  including after a resubmit, not only at the end. Create your own throwaway
+  worktree `eng-<plan>-integration`, merge every passing lane branch into it,
+  and run the full suite, build, and lint. Green greenlights the merges to the
+  user in the recorded order; red attributes the failure to a seam and `ADVISE`s
+  the owning lane. The tree is a **probe, never merged** — delete and rebuild it
+  freely (`../references/coordination-protocol.md` §4).
 
 ## Progress reporting (read first)
 

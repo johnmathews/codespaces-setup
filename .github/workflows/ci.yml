@@ -62,6 +62,7 @@ jobs:
           python3 configs/claude/skills/engineering-team/scripts/check_report.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
+          python3 configs/claude/skills/engineering-team/scripts/check_board.py --selftest
 
       - name: triggering-eval parser selftest
         # The LLM routing in this test is on-demand (not in CI), but its

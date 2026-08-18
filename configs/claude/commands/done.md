@@ -359,24 +359,98 @@ Then branch on what Phase 0's governance check found:
 
 ### 8a — Remote exists (the normal path)
 
-1. **Check you're not on `main`.** If you are, stop and ask the user — the work needs a branch, and which one is
+1. **Gate check — lane runs only.** A worker on an engineering-team lane may not
+   open a PR for a unit the coordinator has not cleared
+   (`~/.claude/skills/engineering-team/references/coordination-protocol.md` §3).
+   `/done` also runs on ordinary work with no engineering-team run in sight, so
+   **resolve which case you are in first, and take the branch explicitly.** Every
+   variable below is one you must resolve here — this command runs standalone,
+   without the skill loaded, so nothing else in the session defines them.
+
+   **Step 1 — resolve the run directory.** If the prompt that started this
+   session named an absolute run directory, that is `$RUN_DIR`. Otherwise resolve
+   it the way the skill does
+   (`~/.claude/skills/engineering-team/SKILL.md`, "The run directory"):
+
+   ```bash
+   MAIN_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+   RUN_ID="$(cat "$MAIN_CHECKOUT/.engineering-team/current.txt" 2>/dev/null)"
+   RUN_DIR="${RUN_ID:+$MAIN_CHECKOUT/.engineering-team/runs/$RUN_ID}"
+   ```
+
+   **Step 2 — take exactly one of these four branches.**
+
+   | # | Condition | What it means | Do |
+   |---|---|---|---|
+   | 1 | `$RUN_DIR` empty, or not a directory | Not an engineering-team run — ordinary `/done` | Gate does not apply. **Continue** to step 2 below. |
+   | 2 | `$RUN_DIR` exists, no `$RUN_DIR/progress.md` | An engineering-team run, but solo — no lanes, so no gate | Gate does not apply. **Continue.** |
+   | 3 | `$RUN_DIR/progress.md` exists **and** you can resolve your lane and its units | A lane-bearing run and you are a worker | Gate **applies** — run the check below. |
+   | 4 | `$RUN_DIR/progress.md` exists but you **cannot** resolve your lane or its units | Unknown — you may or may not be gated | **Stop and ask the user** which lane this session is. Never continue. |
+
+   Branch 4 is the one that matters. An unresolvable identifier is *not* evidence
+   that no gate is needed; treating it as "no gate" is precisely how a barrier
+   fails open. The three continue/apply answers are all positive findings; only a
+   positive finding lets you past.
+
+   **Resolving `$LANE`.** It is named in the hand-off prompt that started this
+   session, on the `# <lane> — status log` H1 of the `$RUN_DIR/status-<lane>.md`
+   you have been writing, and in your branch name (`eng-<plan>-<lane>`). If those
+   disagree or none is present, that is branch 4.
+
+   **Step 3 — the check itself: every open unit on the lane, not just one.** A
+   lane is one branch and one PR
+   (`~/.claude/skills/engineering-team/references/multi-session.md` §5.2) but may
+   carry several units, and pushing the branch ships all of them. So the barrier
+   clears only when **every unit the board assigns to `$LANE` whose Status is not
+   already `merged`** has a PASS gate file. Units already merged (a U0 that landed
+   before the lanes launched, say) are excluded — they were gated in their own
+   round.
+
+   ```bash
+   # every unit still riding on this branch: status-board rows for $LANE, minus merged
+   UNITS=$(awk '/^## /{inside = /Status board/} inside && /^\|/' "$RUN_DIR/progress.md" \
+     | awk -F'|' -v lane="$LANE" '
+         { for (i = 2; i <= 6; i++) gsub(/^[ \t`]+|[ \t`]+$/, "", $i) }
+         $2 != "Unit" && $2 !~ /^-+$/ && $3 == lane && $6 != "merged" { print $2 }')
+
+   BLOCKED=""
+   for UNIT in $UNITS; do
+     head -5 "$RUN_DIR/gate-$LANE-$UNIT.md" 2>/dev/null \
+       | grep -qE '^_Requested.*·[[:space:]]*Verdict PASS[[:space:]]*·' \
+       || BLOCKED="$BLOCKED $UNIT"
+   done
+   [ -n "$BLOCKED" ] && echo "BLOCKED: no PASS verdict for lane $LANE, unit(s):$BLOCKED"
+   ```
+
+   The verdict lives on the status line of `$RUN_DIR/gate-<lane>-<unit>.md`
+   (`~/.claude/skills/engineering-team/references/coordination-protocol.md` §3.6).
+   Match **only the file's header block** — the first few lines — never the whole
+   file: a `Verdict PASS` mention in prose or in a quoted/fenced example anywhere
+   in the body (a `CHANGES` gate's notes, an illustrative code fence showing the
+   format) must not clear the barrier.
+
+   If any unit's gate file is missing or reads `PENDING`/`CHANGES`, **stop**. Send
+   `GATE-REQUEST` to the coordinator for it if you have not already, and wait.
+   Never self-clear — a stalled lane is recoverable, an ungated merge is what the
+   gate is paid to prevent.
+2. **Check you're not on `main`.** If you are, stop and ask the user — the work needs a branch, and which one is
    their call.
-2. **Check the PR isn't already merged**, if a PR exists for this branch: `gh pr view --json state,number`. A push to
+3. **Check the PR isn't already merged**, if a PR exists for this branch: `gh pr view --json state,number`. A push to
    a **merged** PR's branch **succeeds silently**, is never merged, and runs no CI — the commits are stranded and
    nothing tells you. If the PR is `MERGED` or `CLOSED`, stop: the fix is a fresh branch off `main` with the commits
    cherry-picked, and you should say so rather than pushing into the void.
-3. **Push the branch:** `git push -u origin <branch>`.
-4. **Open the PR:** `gh pr create --fill` (respect any PR template — fill it in rather than around it). If a PR
+4. **Push the branch:** `git push -u origin <branch>`.
+5. **Open the PR:** `gh pr create --fill` (respect any PR template — fill it in rather than around it). If a PR
    already exists and is open, the push updated it; say so instead of opening a second.
-5. **Watch CI on the PR:** `gh pr checks <pr> --watch`. On failure: read the logs (`gh run view <id> --log-failed`),
+6. **Watch CI on the PR:** `gh pr checks <pr> --watch`. On failure: read the logs (`gh run view <id> --log-failed`),
    diagnose, fix **on the branch**, commit, push, re-watch. Up to 3 cycles, then report and stop.
    - A required check stuck at "Expected — Waiting for status" is almost always a path-filtered workflow that never
-     started. That's a repo config bug, not something to wait out — see "Making a check required" in the
-     engineering-team skill's `references/worktree.md`.
-6. **Do not merge.** Merging is a separate, explicitly-confirmed act (`/merge-push`). A green PR is a fact about the
+     started. That's a repo config bug, not something to wait out — see "Making a check required" in
+     `~/.claude/skills/engineering-team/references/worktree.md`.
+7. **Do not merge.** Merging is a separate, explicitly-confirmed act (`/merge-push`). A green PR is a fact about the
    PR, not permission to merge.
 
-**"Don't push" narrows this to step 1 only** — commit, and report that the branch is ready. It does not cancel the
+**"Don't push" narrows this to step 2 only** — commit, and report that the branch is ready. It does not cancel the
 phase, and it does not license skipping Phase 9.
 
 ### 8b — No remote (scratch repo)

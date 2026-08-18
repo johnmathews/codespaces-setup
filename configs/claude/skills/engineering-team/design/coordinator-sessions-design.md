@@ -1,6 +1,14 @@
 # Coordinator sessions — design
 
-**Status:** design complete (2026-08-18). Sections 1–7 approved. Not yet implemented.
+**Status:** implemented, with the release gate NOT PASSED (2026-08-18).
+Sections 1–7 approved and built on `feat/coordinator-sessions`; §7.2 records which
+checks were deliberately left unbuilt, and §8 item 7 records the red-team gate as
+partially satisfied. **Verification:** the built parts were verified by running
+them — `check_board.py --selftest`, the gate-predicate selftest, the drift-scan and
+the command→skill link-check, all green. The unbuilt and unobserved parts are
+marked as such rather than described in the past tense
+(`references/documentation-model.md` §8: the verification method must match the
+claim).
 
 > **This file is documentation, not skill instruction. Nothing loads it at runtime.**
 > `SKILL.md` is the only auto-loaded file in this skill; every other file is pulled
@@ -98,10 +106,12 @@ Consequences:
 **Coordinator.** Owns `improvement-plan.md`, `run.yaml`, `progress.md`, memory, and
 the gate. Writes no code, enters no worktree, runs no lane.
 
-> **This tightens the current rule.** `multi-session.md` §5.1 permits a coordinator
-> to also run a lane ("wears both hats"). That is now forbidden: a gate applied to
-> your own work is not a gate, and a coordinator that has written code no longer has
-> the clean context that makes its review independent.
+> **This tightened the rule, and the change has landed.** `multi-session.md` §5.1
+> used to permit a coordinator to also run a lane ("wears both hats"); it now says
+> "writes no code and runs no lane", which is its canonical home
+> (`references/rule-ownership.md` §3, under `multi-session.md`). The reason: a gate
+> applied to your own work is not a gate, and a coordinator that has written code no
+> longer has the clean context that makes its review independent.
 
 **Worker.** Owns one lane: one `status-<lane>.md`, one worktree, one branch, one PR.
 Unchanged from today, except it must pass the gate before `/done`.
@@ -415,6 +425,12 @@ done
 Run with `persistent: true`. Every remote call is `|| true` guarded so one failed
 request cannot kill the monitor.
 
+> **The gate-file line above is the design's draft, not what shipped.** Its
+> whole-file `grep -l 'Verdict PENDING'` matches a verdict word anywhere in the body
+> — including a fenced example of the format — which is the same fail-open defect
+> the `/done` barrier had. The shipped Monitor anchors the match to the header status
+> line; use `references/coordination-protocol.md` §5.3, which is the live version.
+
 ### 5.4 The reconciliation tick — `ScheduleWakeup`, ~1800s
 
 A long fallback, because the Monitor is the primary wake signal. Each tick:
@@ -512,15 +528,38 @@ Canonical home for the entire new rule family:
 | `phases/phase-3-development.md` | Worker: gate before `/done`. Coordinator: arm Monitor, schedule reconciliation, run gates, run the integration gate |
 | `SKILL.md` | Add `references/coordination-protocol.md` to its file list — the only place that makes it loadable |
 | `references/rule-ownership.md` | New home row in §2; new "Homed in coordination-protocol.md" subsection in §3; the §5.1 change reflected |
-| `commands/done.md` Phase 8 | Gate barrier — below |
+| `commands/done.md` §`8a` item 1 | Gate barrier — below |
 
 ### 6.4 The `/done` change — the most important row in the table
 
 `commands/done.md` Phase 8 ("Commit & Open a PR") is where the PR gets created.
-Insert a **step 0**:
+The barrier goes in **section `8a` ("Remote exists — the normal path"), as item 1** —
+ahead of the push and the `gh pr create`:
 
-> If this run has lanes, refuse to open a PR unless
-> `$RUN_DIR/gate-<lane>-<unit>.md` exists and records `Verdict PASS`.
+> If this run has lanes, refuse to open a PR unless every unit the board assigns to
+> this lane that is not already `merged` has a `$RUN_DIR/gate-<lane>-<unit>.md`
+> recording `Verdict PASS` on its header status line.
+
+**Cite it as `§8a` item 1, not "Phase 8 step 0".** `done.md` has no step 0; the
+address was wrong in every citation of it (this file, `coordination-protocol.md`
+§3.6, `rule-ownership.md` §3 and §4) until 2026-08-18, and nothing caught it — the
+link-check verifies file paths, not step numbers. The `8a`/`8b` split is `done.md`'s
+own documented structure, so it is the stable address.
+
+**The gate is per unit; the PR is per lane.** A lane may carry several units on one
+branch, so checking one gate file would let an ungated unit ride along beside a
+cleared one. The barrier therefore iterates every non-merged unit on the lane —
+stated at the rule's home, `references/coordination-protocol.md` §3.
+
+**The trigger's default must be "continue", and its unknown must be "stop".**
+`/done` runs on ordinary work far more often than on lanes, so a barrier that stops
+by default would be switched off within a day. But `done.md` runs standalone,
+without the skill loaded, so `$RUN_DIR`, `$LANE` and `$UNIT` are undefined unless it
+defines them — and an undefined `$RUN_DIR` made the guard test `/progress.md`, which
+is always absent, silently skipping the whole gate. Four explicit branches replace
+the two-way test: no run dir → continue; run dir without `progress.md` → continue
+(solo); lane resolved → gate applies; **lane unresolvable → stop and ask the human**.
+An unresolvable identifier is never "no gate needed".
 
 This converts the gate from a rule workers are asked to follow into a **barrier they
 cannot walk past**, which is what the blocking-gate decision actually requires to be
@@ -533,15 +572,33 @@ skill's own invariants. Audited against it:
 
 | Rule | Enforcement |
 | --- | --- |
-| Coordinator cannot assign work | **Structural** — no such message type exists (§5.6) |
-| Gate blocks the PR | **Structural** — `/done` Phase 8 step 0 (§6.4) |
+| Coordinator cannot assign work | **Policy** — the closed vocabulary (§5.6) is a *prose* rule; `SendMessage` carries free text, so an `ADVISE` that assigns work is a well-formed message nothing rejects |
+| Gate blocks the PR | **Policy** — strongest advisory placement available: `/done` §`8a` item 1 (§6.4), not mechanical prevention |
 | Footprint drift detected | **Structural** — mechanical `comm` (§5.5) |
-| Board / register well-formed | **Structural** — `check_board.py` (§7) |
+| Board / register well-formed | **Partly structural** — `check_board.py` (§7) mechanically enforces E1–E4, E6, E7 and W1; E5, E8, W2–W4 are unbuilt (§7.2), and its E4/E6 selection had to be narrowed to the Interfaces table after it hard-failed an honest reservations register |
 | Every message carries a `ref` | **Policy** — checkable only on recorded gate files |
 | Workers never message each other | **Policy** — unenforceable |
 
-Two rules remain policy. This is not believed fixable, and the scorecard is recorded
-rather than the design being described as fully structural.
+**Four rules are policy and one is only partly structural** — a majority of the six.
+Two rows were downgraded on 2026-08-18 after review; both had been graded on what the
+design *says* rather than on what a session can actually do.
+
+- *Coordinator cannot assign work* was graded structural because "no message type can
+  assign work" (§5.6). That argument holds only if the vocabulary is closed **by the
+  transport**, and it is not: `SendMessage` takes arbitrary text, so nothing stops an
+  `ADVISE` whose body assigns a unit. The closure is a rule a coordinator follows, and
+  a rule an agent follows is policy. It is a *good* policy — naming the six types makes
+  a seventh conspicuous — but calling it structural was the design flattering itself.
+- *Board / register well-formed* was graded structural on the existence of
+  `check_board.py`. Five of its twelve specified checks were never built (§7.2), and
+  the checks that were built proved able to hard-fail an honest board (the Interfaces
+  vs Reservations defect). "A script exists" is not the same claim as "the property is
+  enforced".
+
+The two genuinely structural guards are the footprint drift check (§5.5) and the parts
+of the board gate that are built and fixture-proven. Nothing here is believed
+straightforwardly fixable; the scorecard is recorded honestly rather than the design
+being described as more structural than it is.
 
 ## 7. Validation
 
@@ -563,32 +620,51 @@ docstring:
 >    plan trips it and the gate gets switched off.**
 > 2. Softer signals are WARNINGS.
 
-### 7.2 Checks
+### 7.2 Checks — designed, and what was actually built
+
+This section was written as a specification. **Five of its twelve checks were
+deliberately not implemented**, and the shipped script says so in its docstring. The
+Built column below is the honest record; a designed-but-absent check is worse than a
+missing one if the design keeps claiming it runs.
 
 **ERRORs — unambiguous and mechanically fixable:**
 
-| Code | Condition |
-| --- | --- |
-| E1 | No status board table in `progress.md` |
-| E2 | An `Owns` cell containing prose rather than paths ("the auth stuff" is not a footprint) |
-| E3 | **Definite** footprint overlap — identical path, or one a directory-prefix of another |
-| E4 | Contract register names a lane absent from the board |
-| E5 | Reservation ranges overlap between lanes (migrations, ports, codes) |
-| E6 | Contract register non-empty but the plan declares no U0 (§4.4) |
-| E7 | The board names the coordinator as a lane owner (violates §1.3) |
-| E8 | A gate file at round ≥ 3 with no escalation note (violates §3.5) |
+| Code | Condition | Built |
+| --- | --- | --- |
+| E1 | No status board table in `progress.md` | **yes** |
+| E2 | An `Owns` cell containing prose rather than paths ("the auth stuff" is not a footprint) | **yes** |
+| E3 | **Definite** footprint overlap — identical path, or one a directory-prefix of another | **yes** |
+| E4 | Contract register names a lane absent from the board | **yes** — Interfaces table only |
+| E5 | Reservation ranges overlap between lanes (migrations, ports, codes) | **no — not implemented** |
+| E6 | Contract register non-empty but the plan declares no U0 (§4.4) | **yes** — Interfaces table only |
+| E7 | The board names the coordinator as a lane owner (violates §1.3) | **yes** |
+| E8 | A gate file at round ≥ 3 with no escalation note (violates §3.5) | **no — not implemented** |
 
 **WARNs — real signals that honest work can legitimately trip:**
 
-| Code | Condition |
-| --- | --- |
-| W1 | A lane on the board with no `status-<lane>.md` yet (may simply not have started) |
-| W2 | A branch named on the board that does not exist in git yet |
-| W3 | *Possible* overlap via globs that cannot be resolved against the working tree |
-| W4 | A plan unit assigned to no lane |
+| Code | Condition | Built |
+| --- | --- | --- |
+| W1 | A lane on the board with no `status-<lane>.md` yet (may simply not have started) | **yes** |
+| W2 | A branch named on the board that does not exist in git yet | **no — not implemented** |
+| W3 | *Possible* overlap via globs that cannot be resolved against the working tree | **no — not implemented** |
+| W4 | A plan unit assigned to no lane | **no — not implemented** |
 
-W3 exists specifically to honour gate-design rule 1: unresolvable globs are a real
-signal but an ambiguous one, so they must not hard-fail.
+**Why E5 is not implemented, and is not going to be.** The reservations table (§4.2)
+has **no defined grammar**. Its Allocation cell is free prose — `lane-a: 0007–0009,
+lane-b: 0010–0012`, `namespaced per lane`, `registered in advance` — with no rule
+saying which of those is a range, a namespace, or a note. Any E5 would therefore
+either miss real overlaps or hard-fail on honest reservations, and gate-design rule 1
+forbids the second. Approximating it was rejected in favour of leaving it out and
+saying so. Implementing E5 requires first giving §4.2 a parseable allocation grammar;
+that is a design change, not a script change.
+
+E8, W2, W3 and W4 were dropped as scope: E8 needs gate-file parsing the script does
+not do, W2 and W3 need the working tree and git, and W4 needs the plan as well as the
+board. None is blocked the way E5 is — they are simply unbuilt, and the script's
+docstring lists them as such.
+
+W3's original rationale still stands as a *design* note: unresolvable globs are a
+real but ambiguous signal, so if it is ever built it must warn, never hard-fail.
 
 ### 7.3 The overlap check is the headline
 
@@ -610,8 +686,8 @@ Add to `tests/engineering-team-drift/drift_scan.py`:
    - `sense autonomously; act only on request`
 
 **One registration that is not optional.** The gate *rule* lives in
-`coordination-protocol.md`; its *enforcement* lives in `commands/done.md` Phase 8
-step 0. That is a rule/enforcement split across two files — structurally identical
+`coordination-protocol.md`; its *enforcement* lives in `commands/done.md`
+§`8a` item 1. That is a rule/enforcement split across two files — structurally identical
 to the status-stamp pair already catalogued in `rule-ownership.md` §4 — so it must
 be added there as **edit-together pair #4**, or the two will silently diverge.
 
@@ -628,7 +704,7 @@ Before this is used on real work: a throwaway run on a scratch repo — 3 units,
 | --- | --- |
 | Kill a worker's terminal mid-lane | Monitor quiet-band notification (§5.3) |
 | Lane edits a file outside its footprint | Drift check flags it (§5.5) |
-| Lane runs `/done` with no PASS gate file | Phase 8 step 0 refuses (§6.4) |
+| Lane runs `/done` with no PASS gate file | §`8a` item 1 refuses (§6.4) |
 | `GATE-REQUEST` to a stopped coordinator | Stall protection escalates; lane does **not** self-clear (§2.5) |
 | Lane proposes a contract change | `ADVISE` reaches the consumer lane (§4.3) |
 
@@ -638,8 +714,18 @@ Five injections. **If any stays silent, that gate is decorative.**
 
 1. `references/coordination-protocol.md` + `rule-ownership.md` registration (§6.2, §6.3)
 2. `multi-session.md` §5.1 change + `progress.md` template (§6.3)
-3. `commands/done.md` Phase 8 step 0 — the barrier (§6.4)
+3. `commands/done.md` §`8a` item 1 — the barrier (§6.4)
 4. `check_board.py` + fixtures (§7.1–7.2)
 5. Phase 2 / Phase 3 edits (§6.3)
 6. Drift-scan additions (§7.4)
-7. **The red-team dry run (§7.5) — gate on this before real use**
+7. **The red-team dry run (§7.5) — gate on this before real use.**
+   **Status: PARTIALLY SATISFIED, NOT PASSED.** Run 2026-08-18 and recorded in
+   `journal/260818-coordinator-redteam.md`: **3 of the 5 injections observed, 2 NOT
+   RUN.** Injections 4 (stall protection, §2.5) and 5 (`ADVISE` propagation, §4.3)
+   need live coordinator and worker sessions, which the red-team session could not
+   open — they have never been observed to fire, and nothing was simulated in their
+   place. Injection 3 was observed **for its predicate only**; whether an agent
+   reading the barrier obeys it has never been tested. §7.5 says "if any stays
+   silent, that gate is decorative" — two are still unobserved, so **this build order
+   item is not complete and the protocol is not cleared for real work.** Clearing it
+   needs a human to open live sessions and run injections 4 and 5.

@@ -91,6 +91,17 @@ the receiving session has no history to continue. Each must state:
 5. **The contract, in one line:** read the plan, never write it; keep your status file and PR
    updated; run `/done` when finished; never touch another lane's worktree.
 6. **Any scope fence** — "do NOT execute X", "do NOT touch Y, lane C owns it".
+7. **The coordination protocol, inlined in full** — not a pointer to it. The receiving
+   session is fresh and loads only the skill's router, so it learns about the blocking
+   pre-PR gate only if it happens to route to the phase doc that mentions one; a worker
+   that never gets there opens an ungated PR believing it followed the plan. The block
+   to paste is given verbatim in the engineering-team skill's
+   `~/.claude/skills/engineering-team/phases/phase-2-planning.md`, Step 3.6 item 5 —
+   copy it from there rather than paraphrasing, so all lanes get the same rules. It
+   covers: message only the coordinator and only in the six types; every message
+   carries a `ref`; push the branch with **no PR** and send `GATE-REQUEST`; open the PR
+   only once every non-merged unit on the lane has `Verdict PASS`; never self-clear a
+   stalled gate; never change a frozen seam unilaterally.
 
 **The same-machine caveat.** `$RUN_DIR` is git-untracked, so this only works when the new session
 shares a filesystem with the coordinator. If it won't (a different host, a cloud session),

@@ -70,6 +70,12 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "closing-a-run": ("SKILL.md", r"Closing a run"),
     "heading-numbering": ("references/documentation-model.md", r"Heading numbering"),
     "announce-the-phase": ("SKILL.md", r"Announce phase transitions"),
+    "messages-carry-no-state": ("references/coordination-protocol.md",
+                                r"Every message carries a `ref`"),
+    "no-assign-message": ("references/coordination-protocol.md",
+                          r"No message type in the protocol can assign work"),
+    "sense-dont-act": ("references/coordination-protocol.md",
+                       r"Sense autonomously; act only on request"),
 }
 
 
@@ -85,11 +91,15 @@ class Finding:
 
 def skill_docs() -> dict[str, str]:
     """All skill prose markdown, keyed by SKILL-relative path. Excludes scripts/
-    (gate code + fixtures) — those are not rule prose."""
+    (gate code + fixtures) and design/ (design documents) — neither is rule prose.
+
+    design/ matters specifically: a design doc argues *about* the rules and quotes
+    their signature phrases verbatim, so including it would make every such doc
+    self-report as a restatement of the rule it documents."""
     out: dict[str, str] = {}
     for p in sorted(SKILL.rglob("*.md")):
         rel = p.relative_to(SKILL).as_posix()
-        if rel.startswith("scripts/"):
+        if rel.startswith(("scripts/", "design/")):
             continue
         out[rel] = p.read_text()
     return out
@@ -338,6 +348,12 @@ def selftest() -> int:
            "A: command corpus does not include the vendored commands")
     expect(not check_worktree_idiom(cmds),
            f"A: a real command copy of the idiom is flagless: {check_worktree_idiom(cmds)}")
+
+    # design/ holds design docs, not rule prose: it must not enter the corpus,
+    # or a design doc quoting a signature phrase self-reports as a restatement.
+    docs = skill_docs()
+    if any(rel.startswith("design/") for rel in docs):
+        fails.append("skill_docs() must exclude design/ (design docs are not rule prose)")
 
     # B: a citation to a missing heading must be caught; a real one must pass.
     idx_bad = '### Homed in `SKILL.md`\n| rule | §"No Such Heading Here" | x |'
