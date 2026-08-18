@@ -197,6 +197,105 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+# ---------------------------------------------------------------------------
+# The `/done` gate barrier predicate.
+#
+# This is not part of the board check. It lives here because `--selftest` is the
+# thing CI already runs, and the predicate had no committed test at all: it is the
+# branch's only enforcement of "no PR without a PASS verdict", it has broken three
+# times (twice fail-open), and every proof of it until now was a manual shell
+# demonstration that vanished with the terminal.
+#
+# The authority is `commands/done.md` §`8a` item 1 — see `references/rule-ownership.md`
+# §4, edit-together pair 4. The ERE below is a *copy* of the one that ships there, and
+# `_done_md_pass_predicate()` re-reads `done.md` and asserts the two are byte-identical,
+# so the copy cannot drift away from the original unnoticed.
+
+GATE_PASS_ERE = r"^_Requested.*·[[:space:]]*Verdict PASS[[:space:]]*·"
+GATE_HEAD_LINES = 5  # `head -5` — the header block, per coordination-protocol.md §3.6
+
+# `grep -qE '<GATE_PASS_ERE>'` — matched against each of the first GATE_HEAD_LINES lines.
+_DONE_GREP = re.compile(r"grep -qE '([^']*Verdict PASS[^']*)'")
+
+
+def _ere_to_python(ere: str) -> str:
+    """Translate the POSIX ERE `done.md` hands to `grep -E` into Python regex syntax.
+
+    Only one construct differs: the POSIX class `[[:space:]]`, which Python's `re`
+    does not know. Everything else in this predicate (`^`, `.`, `*`, a literal `·`)
+    means the same in both. Translating rather than hand-writing a lookalike is the
+    point — a hand-written equivalent is exactly how the two would drift."""
+    return ere.replace("[[:space:]]", "[ \\t\\n\\r\\f\\v]")
+
+
+def gate_clears(gate_file: pathlib.Path) -> bool:
+    """True iff this gate file clears the `/done` barrier.
+
+    Mirrors `head -5 <file> | grep -qE '<GATE_PASS_ERE>'` exactly: the search is
+    bounded to the header block, and anchored to the status line's `_Requested`
+    opener. Both bounds are load-bearing and each catches what the other misses —
+    the bound stops a `Verdict PASS` in a finding or a fenced example far down the
+    body, the anchor stops one on a prose line inside the header block."""
+    pattern = re.compile(_ere_to_python(GATE_PASS_ERE))
+    try:
+        with gate_file.open(encoding="utf-8") as fh:
+            head = [next(fh, "") for _ in range(GATE_HEAD_LINES)]
+    except OSError:
+        return False  # a missing gate file blocks, exactly as `head`'s failure does
+    return any(pattern.search(line) for line in head)
+
+
+def _done_md_pass_predicate() -> tuple[str | None, str]:
+    """The PASS predicate as it is actually written in `commands/done.md`.
+
+    Returns (ere, where). `ere` is None when `done.md` cannot be located — which
+    happens in the deployed skill (`~/.claude/skills/…` sits beside `~/.claude/commands/`
+    at a different depth than the repo does) but never in the repo, which is where CI
+    runs. A None is reported loudly, never treated as agreement."""
+    here = pathlib.Path(__file__).resolve().parent
+    candidates = [
+        here.parents[3] / "commands/done.md",  # repo:     configs/claude/{skills/engineering-team/scripts,commands}
+        here.parents[2] / "commands/done.md",  # deployed: ~/.claude/{skills/engineering-team/scripts,commands}
+    ]
+    for cand in candidates:
+        if cand.is_file():
+            m = _DONE_GREP.search(cand.read_text())
+            return (m.group(1) if m else None), str(cand)
+    return None, " or ".join(str(c) for c in candidates)
+
+
+def gate_selftest() -> list[str]:
+    """Run the barrier predicate against `fixtures_gate/`, and prove it has not
+    drifted from `done.md`. Fixture names state the expectation: `clear_*` must
+    clear the barrier, `block_*` must block it."""
+    fails: list[str] = []
+    fixtures = pathlib.Path(__file__).parent / "fixtures_gate"
+    if not fixtures.is_dir():
+        return [f"no gate fixtures at {fixtures}"]
+
+    cases = sorted(p for p in fixtures.glob("*.md") if p.name != "README.md")
+    if not cases:
+        return [f"no gate fixtures in {fixtures}"]
+    for case in cases:
+        expected = case.name.startswith("clear_")
+        actual = gate_clears(case)
+        verdict = "CLEARS" if actual else "BLOCKS"
+        print(f"  {'ok  ' if actual == expected else 'FAIL'} {case.name}: {verdict}")
+        if actual != expected:
+            fails.append(f"{case.name}: expected {'CLEARS' if expected else 'BLOCKS'}, got {verdict}")
+
+    shipped, where = _done_md_pass_predicate()
+    if shipped is None:
+        fails.append(f"cannot read the PASS predicate from done.md ({where}) — "
+                     "the drift link between this test and the barrier is broken")
+    elif shipped != GATE_PASS_ERE:
+        fails.append(f"predicate drift: done.md ships {shipped!r}, this test uses "
+                     f"{GATE_PASS_ERE!r} ({where})")
+    else:
+        print(f"  ok   predicate matches {where} byte-for-byte: {GATE_PASS_ERE}")
+    return fails
+
+
 def selftest() -> int:
     fixtures = pathlib.Path(__file__).parent / "fixtures_board"
     if not fixtures.is_dir():
@@ -221,6 +320,11 @@ def selftest() -> int:
                 fails.append(f"{name}: expected only warnings, got errors {errors}")
             if not any(code in w for w in warnings):
                 fails.append(f"{name}: expected {code}, got {warnings or 'nothing'}")
+    print("board fixtures: " + (f"{len(fails)} failure(s)" if fails else "all behave as specified"))
+
+    print("gate barrier predicate (commands/done.md §`8a` item 1):")
+    fails += gate_selftest()
+
     for f in fails:
         print(f"  - {f}")
     print("BOARD SELFTEST FAILED:" if fails else "OK: every fixture behaves as specified")

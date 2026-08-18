@@ -139,6 +139,18 @@ These are where drift actually happens — two places each stating a rule *in fu
    re-break the anchored predicate, so it must change in both files, in the same
    edit, or `/done` silently stops gating.
 
+   **Half of this pair is now mechanical.** `scripts/check_board.py --selftest`
+   (in CI) runs the barrier predicate against `scripts/fixtures_gate/` — a real
+   PASS, a `PENDING`, and three near-misses that have each broken it before
+   (`Verdict PASS` in prose, in a fenced example, and inside the header block on
+   a non-status line) — then re-reads the ERE out of `commands/done.md` and fails
+   if its own copy differs by a byte. A predicate that stops matching the format,
+   or a third copy that drifts from the shipped one, reds. Still on the reader:
+   the other direction, changing the status line in `coordination-protocol.md`
+   §3.6 without changing `done.md`. The fixtures are written in the current
+   format, so that reds too — but by breaking fixtures, not by comparing the two
+   documents.
+
 Two rules used to lack a clean owner; both are now resolved:
 
 - **The worktree idiom** (the `--path-format=absolute` resolution and detection
