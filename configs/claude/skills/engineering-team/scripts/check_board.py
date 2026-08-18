@@ -22,6 +22,12 @@ lanes), E4 (a contract names a lane not on the board), E6 (a non-empty
 contract register with no U0), E7 (the coordinator listed as a lane owner),
 and W1 (a lane with no status file yet).
 
+E4 and E6 read the register's **Interfaces** table only. The `## 3. Contract
+register` section carries a second table, Reservations, whose rows are prose
+(`| Config keys / env vars | same key, different meaning | namespaced per lane |`)
+and are not seams a U0 could land — see `_interfaces()` for the shape test and
+the false positive it exists to close.
+
 Deliberately NOT implemented: E5 (reservation-range overlap) and E8 (gate
 round ≥ 3) from the wider spec, and W2/W3/W4. E5 in particular is left out on
 purpose rather than approximated — the reservations table in
@@ -41,13 +47,26 @@ import re
 import sys
 
 ROW = re.compile(r"^\|(?P<cells>.+)\|\s*$")
+UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
+
+# An interface row in the contract register: `| C1 | producer | consumers | … | … |`.
+# The ID shape is what separates it from the *reservations* table that shares the
+# same `## 3. Contract register` section — see `_interfaces()`.
+CONTRACT_ID = re.compile(r"^C\d+$")
 
 
 def _cells(line: str) -> list[str]:
+    """Split a markdown table row into cells.
+
+    Splits on **unescaped** `|` only. A contract cell legitimately contains an
+    escaped pipe (`Account \\| None` — a union type), and splitting on it would
+    make an interface row look five-and-a-bit columns wide, which the shape test
+    below relies on being exactly five."""
     m = ROW.match(line.rstrip())
     if not m:
         return []
-    return [c.strip().strip("`") for c in m.group("cells").split("|")]
+    return [c.replace("\\|", "|").strip().strip("`")
+            for c in UNESCAPED_PIPE.split(m.group("cells"))]
 
 
 def _section(text: str, heading_re: str) -> list[str]:
@@ -78,6 +97,38 @@ def _looks_like_footprint(cell: str) -> bool:
     as prose."""
     entries = [e.strip().strip("`") for e in cell.split(",") if e.strip()]
     return bool(entries) and all(e not in ("—", "-") and " " not in e for e in entries)
+
+
+def _interfaces(text: str) -> list[list[str]]:
+    """The **Interfaces** rows of the contract register, and only those.
+
+    `## 3. Contract register` holds two tables (`coordination-protocol.md` §4.2):
+
+        Interfaces   | ID | Producer | Consumers | Contract | Frozen at |
+        Reservations | Kind | Example collision | Allocation |
+
+    Only the first declares cross-lane seams, so only it drives E4 (a contract
+    naming an off-board lane) and E6 (a non-empty register with no U0). U0 exists
+    to land seams "as stubs and types" (§4.4) — a port range or a flag-name
+    namespace is not something a stub can land, so a reservations-only register
+    needs no U0.
+
+    Selection is by **row shape, not by position**: exactly five cells and an ID
+    matching `C<digits>`. A reservations row has three cells and a prose Kind, so
+    it can never be read as a contract — which it was, when selection was
+    `startswith("C")`: `| Config keys / env vars | … | … |` parsed as contract
+    "Config keys / env vars" with lanes "same key, different meaning" and
+    "namespaced per lane", three hard errors on an entirely honest board.
+
+    Gate-design rule 1 is why the test is this strict rather than positional: a
+    board that lists the two tables in the other order, or under its own
+    sub-headings, is honest and must stay clean. The cost is a real false
+    negative — an interfaces table whose ID column is worded some other way
+    (`IF-1`, `contract-1`) is skipped, so E4/E6 go quiet on it. Silence on an
+    unrecognised shape is the correct side to fail on here; a hard error on an
+    honest board is what switches the gate off."""
+    rows = [c for line in _section(text, r"Contract register") if (c := _cells(line))]
+    return [r for r in rows if len(r) == 5 and CONTRACT_ID.match(r[0])]
 
 
 def _definite_overlap(a: str, b: str) -> bool:
@@ -134,13 +185,12 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
                         errors.append(f"ERROR E3 lanes {la}/{lb}: footprints overlap "
                                       f"({pa} vs {pb}) — any overlap means one lane")
 
-    reg = [c for line in _section(text, r"Contract register") if (c := _cells(line))]
-    entries = [r for r in reg if len(r) >= 2 and r[0].upper().startswith("C")]
+    entries = _interfaces(text)
     if entries and not any(r[0].upper() == "U0" for r in body):
         errors.append("ERROR E6 progress.md: contract register is non-empty but the "
                       "board declares no U0 (coordination-protocol.md §4)")
     for r in entries:
-        for lane in (r[1], *(x.strip() for x in r[2].split(","))) if len(r) > 2 else (r[1],):
+        for lane in (r[1], *(x.strip() for x in r[2].split(","))):
             if lane and lane not in board_lanes:
                 errors.append(f"ERROR E4 contract {r[0]}: names lane {lane!r}, not on the board")
 
