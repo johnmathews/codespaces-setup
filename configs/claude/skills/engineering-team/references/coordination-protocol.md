@@ -298,16 +298,36 @@ E5 uses it to catch two lanes reserving the same thing. Exactly three columns,
 | Config key prefix | a | `billing_` |
 | Config key prefix | b | `reporting_` |
 
-- **Kind** groups rows that compete for the same resource. Two rows only conflict
-  if their Kind matches exactly.
+- **Kind** groups rows that compete for the same resource. Two rows conflict if
+  their Kind matches once casefolded and stripped of surrounding markdown
+  emphasis and trailing punctuation — `Ports`, `**Ports**`, and `Ports:` are the
+  same Kind.
 - **Lane** is a single lane id from the status board — not a list.
-- **Reserved** is either a **numeric range** (`8080`, or `0007-0009` inclusive —
-  use a plain hyphen, not an en dash) or an **opaque token** (`billing_`). Ranges
-  overlap numerically; tokens conflict only when identical.
+- **Reserved** is one of:
+  - a **numeric range** (`8080`, or `0007-0009` inclusive — use a plain hyphen,
+    not an en dash). Ranges overlap numerically.
+  - a **backtick-escaped opaque token** — `` `billing_` ``, `` `08-2026` ``.
+    Tokens conflict only when identical. **The backticks are load-bearing, not
+    decoration:** without them, a two-part numeric identifier like a date prefix
+    (`08-2026`) or a tenant id (`01-99`) parses as a range instead of a token —
+    escape it with backticks whenever the value could be misread as one.
+  - a **placeholder meaning "this lane reserves nothing of this Kind"** — an
+    em dash `—`, a plain hyphen `-`, `none`, `n/a`, or an empty cell. Required
+    because the table is one row per lane per kind: a lane that needs nothing
+    of a Kind another lane reserves still needs a row. Silently skipped — not
+    an error, not a warning.
+  - a **placeholder meaning "not decided yet"** — `TBD` or `?`. Reported as
+    **W5**: the gate genuinely cannot check a reservation that hasn't been made.
 
-A Reserved cell that parses as neither is reported as **W5** — the gate says it
-could not check that row rather than guessing. Splitting one lane's allocation
-across several rows of the same Kind is fine.
+A Reserved cell that parses as none of the above is also reported as **W5** —
+the gate says it could not check that row rather than guessing. Splitting one
+lane's allocation across several rows of the same Kind is fine.
+
+Any contract-register row that is table-shaped but matches neither a valid
+Interfaces row nor a valid Reservations row — a fourth column added to this
+table, a Lane cell holding a list (`a, b`) — is also **W5**, naming the row.
+It is not dropped silently: a silently-dropped reservation is the exact failure
+E5 exists to prevent.
 
 
 ### 4.3 Contracts are frozen

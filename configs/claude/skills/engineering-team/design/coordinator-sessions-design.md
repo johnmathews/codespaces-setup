@@ -622,7 +622,7 @@ docstring:
 
 ### 7.2 Checks — designed, and what was actually built
 
-This section was written as a specification. **Five of its twelve checks were
+This section was written as a specification. **Four of its thirteen checks were
 deliberately not implemented**, and the shipped script says so in its docstring. The
 Built column below is the honest record; a designed-but-absent check is worse than a
 missing one if the design keeps claiming it runs.
@@ -648,6 +648,7 @@ missing one if the design keeps claiming it runs.
 | W2 | A branch named on the board that does not exist in git yet | **no — not implemented** |
 | W3 | *Possible* overlap via globs that cannot be resolved against the working tree | **no — not implemented** |
 | W4 | A plan unit assigned to no lane | **no — not implemented** |
+| W5 | A reservation row that could not be checked — an undecided (`TBD`/`?`) Reserved cell, a Reserved cell parsing as neither a range nor a token, a lane not on the board, or a contract-register row shaped like neither a valid Interfaces nor a valid Reservations row | **yes** |
 
 **How E5 became buildable.** It was originally left out, and the reason was recorded
 here: the reservations table had **no defined grammar**. Its Allocation cell was free
@@ -659,16 +660,28 @@ giving §4.2 a parseable grammar, and that this was a design change rather than 
 change.
 
 That is what happened. §4.2's table now has a fixed shape — three columns, one row per
-lane per kind, a Reserved cell holding a numeric range or an opaque token — and E5 reads
-it. A cell parsing as neither is **W5**, so the gate reports what it could not check
-instead of guessing. The cost is real: the table is less free to write than it was.
+lane per kind, a Reserved cell holding a numeric range, a backtick-escaped opaque token,
+or one of a small set of placeholders — and E5 reads it. A cell parsing as none of those
+is **W5**, so the gate reports what it could not check instead of guessing. The cost is
+real: the table is less free to write than it was.
 
-One trap is worth keeping, because it nearly reinstated the silent failure the whole
-check exists to prevent. An en-dashed range (`0007–0009`, U+2013) contains no space, so
-the opaque-token branch accepted it — and a token only ever clashes with a byte-identical
-string, so `0007–0009` against `0008–0010` passed clean. It was caught by a fixture
-written to exercise the *warning* path, not by the check's own tests. Number-separator-
-number that is not a plain hyphen is now rejected as unreadable rather than tokenised.
+Three traps were caught after the first cut shipped, each a version of the same mistake:
+treating an *absence* of information as if it were a value to compare.
+
+- An **en-dashed range** (`0007–0009`, U+2013) contains no space, so the opaque-token
+  branch accepted it — and a token only ever clashes with a byte-identical string, so
+  `0007–0009` against `0008–0010` passed clean. Caught by a fixture written to exercise
+  the *warning* path, not by the check's own tests. Number-separator-number that is not
+  a plain hyphen is rejected as unreadable rather than tokenised.
+- A **placeholder cell** (`—`, `TBD`, `n/a`) was read as an opaque token like any other,
+  so two lanes both writing `—` for a Kind neither needed hard-failed as a collision — an
+  honest board tripping the gate, gate-design rule 1's exact failure mode. Placeholders
+  meaning "nothing reserved" are now skipped silently; `TBD`/`?` meaning "not decided" are
+  **W5**.
+- A **two-part numeric identifier that is not a range** — a date prefix (`08-2026`), a
+  tenant id (`01-99`) — parsed as an interval and false-positived E5 against another
+  lane's unrelated identifier, with no way in §4.2's grammar to say "this is a token, not
+  a range." Backticks are now the escape: `` `08-2026` `` is always a token.
 
 E8, W2, W3 and W4 remain dropped as scope: E8 needs gate-file parsing the script does
 not do, W2 and W3 need the working tree and git, and W4 needs the plan as well as the

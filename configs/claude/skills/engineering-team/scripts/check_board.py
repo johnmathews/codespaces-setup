@@ -35,12 +35,14 @@ migration `0007` is a clean merge and a broken schema, and it is the case the
 whole contract register exists for.
 
 The grammar in `coordination-protocol.md` §4.2 is deliberately narrow: a
-numeric range or an opaque token, nothing else. A cell that parses as neither
-is **W5**, not an error — the gate reports that it could not check the row
-rather than guessing at an overlap. That is gate-design rule 1: this check
-previously did not exist at all because the table was free text, and an
-approximated parser would have false-positived on honest boards and been
-switched off.
+numeric range, a backtick-escaped opaque token, or one of a small fixed set of
+placeholders — `—`, `-`, `none`, `n/a`, or empty mean "this lane reserves
+nothing of this Kind" and are silently skipped; `TBD` or `?` mean "not decided
+yet" and are **W5**. A cell that parses as none of these is also **W5**, not an
+error — the gate reports that it could not check the row rather than guessing
+at an overlap. That is gate-design rule 1: this check previously did not exist
+at all because the table was free text, and an approximated parser would have
+false-positived on honest boards and been switched off.
 
 Deliberately NOT implemented: E8 (gate round ≥ 3) from the wider spec, and
 W2/W3/W4. A smaller honest gate beats a larger over-promised one.
@@ -77,6 +79,21 @@ def _cells(line: str) -> list[str]:
         return []
     return [c.replace("\\|", "|").strip().strip("`")
             for c in UNESCAPED_PIPE.split(m.group("cells"))]
+
+
+def _raw_cells(line: str) -> list[str]:
+    """Like `_cells`, but keeps backticks intact.
+
+    Every column except one treats a backtick as markdown styling to discard.
+    The Reserved column in a Reservations row is the exception: a backtick there
+    is the escape that forces token interpretation (`_parse_reserved()`,
+    coordination-protocol.md §4.2), so stripping it before parsing — which
+    `_cells()` does — throws away the one signal that distinguishes a token like
+    `` `08-2026` `` from the range `08-2026`."""
+    m = ROW.match(line.rstrip())
+    if not m:
+        return []
+    return [c.replace("\\|", "|").strip() for c in UNESCAPED_PIPE.split(m.group("cells"))]
 
 
 def _section(text: str, heading_re: str) -> list[str]:
@@ -149,33 +166,82 @@ SINGLE = re.compile(r"^(\d+)$")
 RANGEISH = re.compile(r"^\d+\s*\D{1,3}\s*\d+$")
 
 
+_HEADER_WORDS = {
+    "id", "kind", "lane", "reserved", "producer", "consumer", "consumers",
+    "contract", "frozen at",
+}
+_SEPARATOR_CELL = re.compile(r"^:?-+:?$")
+
+
+def _is_header_cells(cells: list[str]) -> bool:
+    """True iff every non-empty cell is one of the contract-register column
+    names, in either table and at either width (`| Kind | Lane | Reserved |` or
+    the full five-column Interfaces header, or its three-column-only variant
+    `| ID | Producer | Consumer |`). Order-independent and width-independent on
+    purpose: it only needs to recognise a header, not validate one."""
+    return bool(cells) and any(c.strip() for c in cells) and \
+        all(not c.strip() or c.strip().casefold() in _HEADER_WORDS for c in cells)
+
+
+def _is_separator_cells(cells: list[str]) -> bool:
+    """True iff every cell is a markdown table separator (`---`, `:--`, `--:`)."""
+    return bool(cells) and all(_SEPARATOR_CELL.match(c.strip()) for c in cells)
+
+
+def _valid_reservation_cells(cells: list[str]) -> bool:
+    """True iff cells is a genuine 3-cell Reservations row: not a header, not a
+    separator, Kind present, and Lane a single lane id (no whitespace — a list
+    like `a, b` is not one lane, and prose is not a lane id either)."""
+    if len(cells) != 3 or _is_header_cells(cells) or _is_separator_cells(cells):
+        return False
+    kind, lane = cells[0].strip(), cells[1].strip()
+    if not kind or not lane or kind.casefold() == "kind":
+        return False
+    return " " not in lane
+
+
 def _reservations(text: str) -> list[list[str]]:
     """The **Reservations** rows of the contract register, and only those.
 
     Shape is fixed by `coordination-protocol.md` §4.2 precisely so this can be
     machine-read: exactly three cells, one row per lane per kind, and a Lane cell
     holding a single lane id. The header row and the `---` separator are dropped
-    by the same test that drops prose: a Lane cell containing whitespace is not a
-    lane id.
+    by `_valid_reservation_cells()`.
 
     Selection is by shape, like `_interfaces()`. A board that words its columns
-    differently is skipped rather than hard-failed — gate-design rule 1."""
-    rows = [c for line in _section(text, r"Contract register") if (c := _cells(line))]
+    differently is skipped rather than hard-failed — gate-design rule 1. Rows
+    that are table-shaped but match neither table are not silently dropped here
+    — `check()` reports them as W5 separately, because a dropped row here is the
+    payload E5 exists to catch, not a cosmetic miss.
+
+    The Reserved cell is returned with backticks intact (`_raw_cells()`, not
+    `_cells()`) — `_parse_reserved()` needs to see them to tell a backtick-escaped
+    token from a plain numeric range."""
     out: list[list[str]] = []
-    for r in rows:
-        if len(r) != 3:
+    for line in _section(text, r"Contract register"):
+        cells = _cells(line)
+        if not _valid_reservation_cells(cells):
             continue
-        kind, lane = r[0].strip(), r[1].strip()
-        if not kind or not lane or kind.lower() == "kind":
-            continue
-        if set(kind) <= {"-"} or " " in lane:
-            continue
-        out.append([kind, lane, r[2].strip()])
+        kind, lane = cells[0].strip(), cells[1].strip()
+        raw = _raw_cells(line)
+        reserved = raw[2].strip() if len(raw) == 3 else cells[2].strip()
+        out.append([kind, lane, reserved])
     return out
 
 
 def _parse_reserved(cell: str) -> tuple[int, int] | str | None:
-    """A Reserved cell is a numeric range, an opaque token, or unreadable.
+    """A Reserved cell is a numeric range, a (possibly backtick-escaped) opaque
+    token, or unreadable. Placeholders ("nothing reserved" / "not decided") are
+    handled by the caller before this is reached — see `check()`.
+
+    **Backticks force token interpretation.** `` `08-2026` `` is always a token,
+    never a range, even though its digits-separator-digits shape would otherwise
+    match `RANGE` or `RANGEISH`. Without this escape, any two-part numeric
+    identifier — a date prefix, a tenant id like `01-99` — is indistinguishable
+    from an interval, and §4.2 offered no way to say "this is not a range."
+    Unbackticked, `08-2026` still parses as the range `(8, 2026)`: the plain
+    grammar is unchanged, only the escape is new. This is why the cell must reach
+    here with backticks intact (`_raw_cells()`, not `_cells()`).
 
     `(lo, hi)` for `8080` or `0007-0009` (inclusive; a plain hyphen). A single
     bare word is an opaque token. Anything else returns None and becomes W5: the
@@ -187,7 +253,11 @@ def _parse_reserved(cell: str) -> tuple[int, int] | str | None:
     it would then only ever clash with a byte-identical string — `0007–0009` and
     `0008–0010` would pass silently. A warning the coordinator can act on beats a
     check that quietly stops checking."""
-    c = cell.strip().strip("`")
+    c = cell.strip()
+    if len(c) >= 2 and c.startswith("`") and c.endswith("`"):
+        token = c[1:-1].strip()
+        return token if token and " " not in token else None
+    c = c.strip("`")
     if not c:
         return None
     if m := SINGLE.match(c):
@@ -202,6 +272,25 @@ def _parse_reserved(cell: str) -> tuple[int, int] | str | None:
         # identical string, so 0007–0009 vs 0008–0010 would pass silently.
         return None
     return c if " " not in c else None
+
+
+# Reserved-cell placeholders (coordination-protocol.md §4.2). Matched casefolded
+# after stripping backticks — a placeholder is never itself backtick-escaped.
+_NOTHING_RESERVED = {"—", "-", "none", "n/a", ""}   # this lane reserves nothing of this Kind
+_UNDECIDED_RESERVED = {"tbd", "?"}                   # not decided yet — W5
+
+
+def _normalize_kind(kind: str) -> str:
+    """Kind for **comparison** only — casefolded and stripped of surrounding
+    markdown emphasis and trailing punctuation, so `Ports`, `**Ports**`, and
+    `Ports:` are recognised as the same Kind (coordination-protocol.md §4.2: "Two
+    rows only conflict if their Kind matches" — matches after this normalisation,
+    not byte-for-byte). Callers keep the original, un-normalised spelling for
+    error messages."""
+    k = kind.strip()
+    k = re.sub(r"^[*_`]+|[*_`]+$", "", k).strip()
+    k = k.rstrip(":.,;").strip()
+    return k.casefold()
 
 
 def _reservations_clash(a: tuple[int, int] | str, b: tuple[int, int] | str) -> bool:
@@ -278,6 +367,22 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
             if lane and lane not in board_lanes:
                 errors.append(f"ERROR E4 contract {r[0]}: names lane {lane!r}, not on the board")
 
+    # W5 — any contract-register row that is table-shaped but reads as neither a
+    # valid Interfaces row nor a valid Reservations row. Interfaces rows (5 cells)
+    # are exempted wholesale, including ones with a non-"C<digits>" ID convention
+    # — E4/E6 already go quiet on those deliberately (see `_interfaces()`), and
+    # this pass must not contradict that. A dropped Reservations-shaped row is the
+    # failure mode E5 exists to prevent, so — unlike `_interfaces()`'s silent
+    # shape filter — it is not silent here.
+    for line in _section(text, r"Contract register"):
+        cells = _cells(line)
+        if not cells or _is_header_cells(cells) or _is_separator_cells(cells):
+            continue
+        if len(cells) == 5 or _valid_reservation_cells(cells):
+            continue
+        warnings.append("WARN  W5 contract register row could not be read as an "
+                        f"interface or a reservation: {line.strip()!r}")
+
     # E5 / W5 — reservations. Two lanes must not reserve the same migration
     # numbers, ports, keys or codes: those collide without sharing a file, so the
     # disjoint-footprint rule (E3) cannot see them at all.
@@ -287,16 +392,24 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
             warnings.append(f"WARN  W5 reservation {kind}/{lane}: lane is not on the "
                             "board, so its reservation cannot be checked")
             continue
+        plain = cell.strip().strip("`").strip()
+        if plain.casefold() in _NOTHING_RESERVED:
+            continue  # this lane reserves nothing of this Kind — not an error, not a warning
+        if plain.casefold() in _UNDECIDED_RESERVED:
+            warnings.append(f"WARN  W5 reservation {kind}/{lane}: not yet decided "
+                            f"({plain!r}) — coordination-protocol.md §4.2")
+            continue
         value = _parse_reserved(cell)
         if value is None:
             warnings.append(f"WARN  W5 reservation {kind}/{lane}: cannot read {cell!r} "
                             "as a range or a token (coordination-protocol.md §4.2)")
             continue
-        parsed.append((kind, lane, value, cell.strip().strip("`")))
+        parsed.append((kind, lane, value, plain))
 
     for i, (kind_a, lane_a, val_a, raw_a) in enumerate(parsed):
         for kind_b, lane_b, val_b, raw_b in parsed[i + 1:]:
-            if kind_a == kind_b and lane_a != lane_b and _reservations_clash(val_a, val_b):
+            if (_normalize_kind(kind_a) == _normalize_kind(kind_b) and lane_a != lane_b
+                    and _reservations_clash(val_a, val_b)):
                 errors.append(f"ERROR E5 {kind_a}: lane {lane_a} reserves {raw_a} and lane "
                               f"{lane_b} reserves {raw_b} — these collide without sharing a "
                               "file, so E3 cannot catch them")
