@@ -70,6 +70,12 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "closing-a-run": ("SKILL.md", r"Closing a run"),
     "heading-numbering": ("references/documentation-model.md", r"Heading numbering"),
     "announce-the-phase": ("SKILL.md", r"Announce phase transitions"),
+    "messages-carry-no-state": ("references/coordination-protocol.md",
+                                r"Every message carries a `ref`"),
+    "no-assign-message": ("references/coordination-protocol.md",
+                          r"No message type in the protocol can assign work"),
+    "sense-dont-act": ("references/coordination-protocol.md",
+                       r"(?i)sense autonomously; act only on request"),
 }
 
 

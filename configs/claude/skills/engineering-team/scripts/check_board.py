@@ -71,15 +71,18 @@ def _footprints(cell: str) -> list[str]:
 
 def _looks_like_footprint(cell: str) -> bool:
     """A footprint is a comma-separated list of paths. Prose has spaces inside an
-    entry ("the auth stuff"); a path does not. A separator-only test wrongly rejects
-    honest single-name footprints (README.md, docs, pyproject.toml)."""
+    entry ("the auth stuff"); a path usually does not. A separator-only test wrongly
+    rejects honest single-name footprints (README.md, docs, pyproject.toml). This is
+    a heuristic, not a guarantee: a bare word with no space (TBD, misc) passes as a
+    valid-looking footprint, and a genuine path containing a space would be rejected
+    as prose."""
     entries = [e.strip().strip("`") for e in cell.split(",") if e.strip()]
     return bool(entries) and all(e not in ("—", "-") and " " not in e for e in entries)
 
 
 def _definite_overlap(a: str, b: str) -> bool:
     """True only for unambiguous overlap: identical, or one a dir-prefix of the
-    other. Glob subtleties are deliberately left to W3."""
+    other. Glob subtleties are deliberately not attempted."""
     if a == b:
         return True
     for x, y in ((a, b), (b, a)):
