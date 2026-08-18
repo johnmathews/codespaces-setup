@@ -292,13 +292,9 @@ worktree, a branch, and a PR. If you're proposing a split, load
 `../references/multi-session.md` before writing the dashboard or any hand-off
 prompts.
 
-**Then build the contract register.** Disjoint footprints prevent merge
-conflicts, not composition failures: two lanes each adding a migration numbered
-`0007_*` is a clean merge and a broken schema. List every seam where one lane's
-output is another's input (signatures, types, wire formats, schemas) and every
-resource that collides without sharing a file (migration numbers, ports, config
-keys, flag names, error codes). Allocate ranges per lane. Full rules and the
-table shapes: `../references/coordination-protocol.md` §4.
+**Then build the contract register**, once every unit has a footprint, and
+allocate reservation ranges per lane. Full rules and the table shapes:
+`../references/coordination-protocol.md` §4.
 
 **If the register is non-empty, the plan gets a U0** that lands every seam as
 stubs and types and merges before any lane launches. If it is empty, there is
@@ -320,19 +316,19 @@ single-writer rule binds you from here (`../SKILL.md`, "Decide your role").
    a distinct name** — they all read the same plan, so a name derived from the plan
    alone collides across every lane, and the second session to start would fail on the
    branch that already exists.
-3. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
+3. **Validate the board before handing out prompts:**
+   `python3 scripts/check_board.py "$RUN_DIR"`. It catches footprint overlaps,
+   prose footprints, and a non-empty register with no U0 — all of which are
+   cheap now and expensive after three sessions have started.
+4. **Emit one hand-off prompt per lane** — `/prompt`, Step 4b. Each names the role,
    the lane, its footprint, its branch and worktree, and absolute paths to the plan,
    the dashboard, and its own `status-<lane>.md`. **If `/prompt` is not installed on
    this machine**, write the prompts inline to that same shape and say which skill
    was missing — a sibling skill's absence changes who writes the prompt, not
    whether one is written.
-4. **Hand them to the user.** They open the sessions and paste.
+5. **Hand them to the user.** They open the sessions and paste.
    **Do not run a lane yourself.** As coordinator you own the gate, and a gate
    applied to your own work is not a gate (`../references/multi-session.md` §5.1).
-5. **Validate the board before handing out prompts:**
-   `python3 scripts/check_board.py "$RUN_DIR"`. It catches footprint overlaps,
-   prose footprints, and a non-empty register with no U0 — all of which are
-   cheap now and expensive after three sessions have started.
 
 From here you own the plan, the dashboard, and memory. You do **not** write any
 lane's `status-<lane>.md`, and you do not reach into a lane's worktree.
