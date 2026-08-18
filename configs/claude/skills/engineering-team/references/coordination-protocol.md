@@ -131,6 +131,15 @@ thing the gate is being paid to prevent.
 The gate is **blocking, and it runs before the PR exists.** A worker does not open a
 PR for a unit that has not passed it.
 
+**The gate is per unit; the PR is per lane. The barrier reconciles them by
+requiring every open unit to have passed.** A lane is one branch and one PR
+(`references/multi-session.md` §5.2) but may carry several units, and pushing the
+branch ships all of them at once. So a lane may open its PR only when **every unit
+the board assigns to that lane whose Status is not already `merged`** has a `PASS`
+gate file. Units already merged — a U0 that landed before the lanes launched, say —
+are excluded: they were gated in their own round and are not on this branch to be
+cleared again. One unit's `PASS` is not a licence to ship the units beside it.
+
 ### 3.1 The handshake
 
 1. **Worker** finishes the unit, self-checks against its acceptance criteria,
@@ -227,7 +236,7 @@ Declared: <paths> / Actual: <paths> / Breach: none | <paths>
 
 The verdict word is the machine-readable part: `Verdict PENDING` is what the
 liveness Monitor greps for, and `Verdict PASS` is what `/done` requires before it
-will open a PR (`commands/done.md` Phase 8 step 0 — see §4 of
+will open a PR (`commands/done.md` §`8a` item 1 — see §4 of
 `references/rule-ownership.md`: change the file name or the verdict line in one and
 you must change it in the other in the same edit).
 

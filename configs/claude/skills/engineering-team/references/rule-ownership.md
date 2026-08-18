@@ -84,6 +84,7 @@ should point here.
 | Disjoint file footprints per lane; any overlap → same lane | §3 | phase 2 (lane derivation) |
 | The plan is append-only and coordinator-owned; W-ids never reused/renumbered | §8 | phase 2; `documentation-model.md` §7 (why IDs are stable) |
 | Never touch another lane's worktree, even when it looks idle | §9 | phase 4 / `/done` housekeeping (propose-and-confirm) |
+| A coordinator writes no code, enters no worktree, and runs no lane | §5.1 "Coordinator" | `coordination-protocol.md` §1.3 (pointer); phase 2 Step 3.6 |
 
 ### Homed in `coordination-protocol.md`
 
@@ -92,9 +93,8 @@ should point here.
 | The state plane is tiered by write semantics: overwrite surfaces (files, issue/PR bodies) take one writer; append-only surfaces (issue/PR comments) take many, safely | §1 "The three planes" | `multi-session.md` §2 (the single-writer rule this qualifies) |
 | Messages carry no state — every message names a `ref` to where the fact is written | §2 "The message protocol" | `multi-session.md` §7 (pointer); phase 3 |
 | No message type can assign work; sense autonomously, act only on request | §5 "Sensing and the autonomy boundary" | `multi-session.md` §7 (pointer); phase 3 |
-| The gate blocks before the PR exists; CHANGES for exactly four falsifiable reasons; escalate after two rounds | §3 "The gate" | `commands/done.md` Phase 8 step 0 (the **enforcement** — see §4); phase 3; `multi-session.md` §7 (pointer, item 9) |
+| The gate blocks before the PR exists; CHANGES for exactly four falsifiable reasons; escalate after two rounds | §3 "The gate" | `commands/done.md` §`8a` item 1 (the **enforcement** — see §4); phase 3; `multi-session.md` §7 (pointer, item 9) |
 | Contracts are frozen and coordinator-owned; a non-empty register requires unit zero | §4 "Interface contracts and unit zero" | phase 2 Step 3.5 |
-| A coordinator writes no code and runs no lane | `multi-session.md` §5.1 | §1 here (pointer) |
 
 ### Homed in `SKILL.md` (the router)
 
@@ -130,7 +130,7 @@ These are where drift actually happens — two places each stating a rule *in fu
    war-story pattern and can diverge; edit the general form first.
 4. **The gate rule vs its enforcement** — the rule in
    `coordination-protocol.md` §3 "The gate" ↔ the barrier in
-   `commands/done.md` Phase 8 step 0. Split by design (rule vs enforcement),
+   `commands/done.md` §`8a` item 1. Split by design (rule vs enforcement),
    exactly like the status-stamp pair above. What must stay in sync is the
    **status-line format** the barrier matches — the gate-file name and the
    `_Requested <t> · Verdict <…> · Coordinator-owned_` line's exact punctuation and
