@@ -75,7 +75,7 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "no-assign-message": ("references/coordination-protocol.md",
                           r"No message type in the protocol can assign work"),
     "sense-dont-act": ("references/coordination-protocol.md",
-                       r"(?i)sense autonomously; act only on request"),
+                       r"Sense autonomously; act only on request"),
 }
 
 
