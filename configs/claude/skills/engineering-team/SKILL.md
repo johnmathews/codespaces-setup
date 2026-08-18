@@ -382,6 +382,10 @@ Load these on demand when their topic becomes relevant:
   heading numbering, stable IDs, and the living-document status stamp.
 - `references/multi-session.md` — parallel lanes across sessions:
   single-writer, disjoint footprints, coordinator/worker roles.
+- `references/coordination-protocol.md` — how coordinator and worker sessions
+  talk: the message vocabulary, the blocking pre-PR gate, interface contracts,
+  and the sensing boundary. Load it with `multi-session.md` whenever a run has
+  lanes.
 - `references/discussion.md` — Discussion workflow details.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for

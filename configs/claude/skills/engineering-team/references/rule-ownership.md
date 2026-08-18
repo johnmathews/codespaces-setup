@@ -33,6 +33,7 @@
 | `references/documentation-model.md` | the six doc types; authority precedence; living-vs-point-in-time (split by path); heading numbering + stable IDs; the living-document **status stamp** incl. "method matches the claim" and the stamp size-budget *rule* |
 | `references/worktree.md` | worktree isolation + the **detection idiom**; "already in one → don't nest"; project-conventions-outrank-defaults; linter setup; the **documentation gates**, the **make-a-check-required laws**, and "gate the code no other gate reads" |
 | `references/multi-session.md` | single-writer / one-artifact-one-owner; disjoint file footprints; append-only coordinator-owned plan; never-touch-another-lane's-worktree; the multi-session invariant list |
+| `references/coordination-protocol.md` | the three planes (control / state / sensing); the six-type message vocabulary + the mandatory `ref`; the blocking pre-PR gate + its four CHANGES criteria + the round limit; the contract register + unit zero + the integration gate; the sense-don't-act autonomy boundary |
 | `references/team-structure.md` | the **findings contract**; dispatch mechanics + the read-the-roster rule; numbered-lists-to-the-user; clarifying-questions-first |
 | `SKILL.md` (router) | `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
@@ -84,6 +85,16 @@ should point here.
 | The plan is append-only and coordinator-owned; W-ids never reused/renumbered | §8 | phase 2; `documentation-model.md` §7 (why IDs are stable) |
 | Never touch another lane's worktree, even when it looks idle | §9 | phase 4 / `/done` housekeeping (propose-and-confirm) |
 
+### Homed in `coordination-protocol.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| Messages carry no state — every message names a `ref` to where the fact is written | §2 "The message protocol" | `multi-session.md` §7 (pointer); phase 3 |
+| No message type can assign work; sense autonomously, act only on request | §5 "Sensing and the autonomy boundary" | `multi-session.md` §7 (pointer); phase 3 |
+| The gate blocks before the PR exists; CHANGES for exactly four falsifiable reasons; escalate after two rounds | §3 "The gate" | `commands/done.md` Phase 8 step 0 (the **enforcement** — see §4); phase 3 |
+| Contracts are frozen and coordinator-owned; a non-empty register requires unit zero | §4 "Interface contracts and unit zero" | phase 2 Step 3.5 |
+| A coordinator writes no code and runs no lane | `multi-session.md` §5.1 | §1 here (pointer) |
+
 ### Homed in `SKILL.md` (the router)
 
 | Invariant | Canonical home | Also stated in |
@@ -116,6 +127,12 @@ These are where drift actually happens — two places each stating a rule *in fu
    `general-guidelines.md` rule 2 states the general principle;
    `documentation-model.md` §8 states its doc-stamp instance. They share a
    war-story pattern and can diverge; edit the general form first.
+4. **The gate rule vs its enforcement** — the rule in
+   `coordination-protocol.md` §3 "The gate" ↔ the barrier in
+   `commands/done.md` Phase 8 step 0. Split by design (rule vs enforcement),
+   exactly like the status-stamp pair above. If the gate-file name or its
+   `Verdict PASS` line changes in one, it must change in the other in the same
+   edit, or `/done` silently stops gating.
 
 Two rules used to lack a clean owner; both are now resolved:
 
