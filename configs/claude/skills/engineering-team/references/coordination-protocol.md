@@ -232,9 +232,12 @@ will open a PR (`commands/done.md` Phase 8 step 0 — see §4 of
 you must change it in the other in the same edit).
 
 The `_Requested <t> · Verdict <…> · Coordinator-owned_` status line is the **only**
-place a verdict may be declared — both readers match that line and nothing else, so
-a verdict word anywhere else in the file (a finding, a non-blocking note, quoted
-text) is prose and must never be treated as a verdict.
+place a verdict may be declared, and it must appear in the file's **header
+block** — line 2, immediately under the H1, per the template above. Both readers
+bound their search to that header region (the first few lines) and match nothing
+below it, so a verdict word anywhere in the body (a finding, a non-blocking note,
+or a quoted/fenced example showing the format) is prose and must never be treated
+as a verdict.
 
 ## 4. Interface contracts and unit zero
 
@@ -369,7 +372,8 @@ while true; do
     gh pr list --json number,headRefName,state \
       --jq '.[] | "PR \(.number) \(.headRefName) \(.state)"' 2>/dev/null || true
     ls "$RUN_DIR"/gate-*.md 2>/dev/null | while read -r g; do
-      grep -qE '^_Requested.*·[[:space:]]*Verdict PENDING[[:space:]]*·' "$g" 2>/dev/null \
+      head -5 "$g" 2>/dev/null \
+        | grep -qE '^_Requested.*·[[:space:]]*Verdict PENDING[[:space:]]*·' \
         && printf 'GATE-OPEN %s\n' "$(basename "$g")"
     done
   )
