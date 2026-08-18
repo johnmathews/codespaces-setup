@@ -362,10 +362,13 @@ Then branch on what Phase 0's governance check found:
 1. **Gate check — lanes only.** If `$RUN_DIR/progress.md` exists, this run has
    lanes and you are a worker. On a solo run (`progress.md` absent) this step
    does not apply; continue. Do **not** open a PR unless
-   `$RUN_DIR/gate-<lane>-<unit>.md` exists and contains `Verdict PASS`:
+   `$RUN_DIR/gate-<lane>-<unit>.md` exists and its status line
+   (`references/coordination-protocol.md` §3.6) reads `Verdict PASS` — match the
+   status line only, never the whole file, since a `Verdict PASS` mention in
+   prose (e.g. a `CHANGES` gate's notes) must not clear the barrier:
 
    ```bash
-   grep -l 'Verdict PASS' "$RUN_DIR/gate-$LANE-$UNIT.md" 2>/dev/null \
+   grep -qE '^_Requested.*·[[:space:]]*Verdict PASS[[:space:]]*·' "$RUN_DIR/gate-$LANE-$UNIT.md" 2>/dev/null \
      || echo "BLOCKED: no PASS verdict for $LANE/$UNIT"
    ```
 

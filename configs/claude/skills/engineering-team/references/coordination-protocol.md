@@ -231,6 +231,11 @@ will open a PR (`commands/done.md` Phase 8 step 0 — see §4 of
 `references/rule-ownership.md`: change the file name or the verdict line in one and
 you must change it in the other in the same edit).
 
+The `_Requested <t> · Verdict <…> · Coordinator-owned_` status line is the **only**
+place a verdict may be declared — both readers match that line and nothing else, so
+a verdict word anywhere else in the file (a finding, a non-blocking note, quoted
+text) is prose and must never be treated as a verdict.
+
 ## 4. Interface contracts and unit zero
 
 ### 4.1 Disjoint footprints prevent conflicts, not composition failures
@@ -364,7 +369,8 @@ while true; do
     gh pr list --json number,headRefName,state \
       --jq '.[] | "PR \(.number) \(.headRefName) \(.state)"' 2>/dev/null || true
     ls "$RUN_DIR"/gate-*.md 2>/dev/null | while read -r g; do
-      grep -l 'Verdict PENDING' "$g" 2>/dev/null && printf 'GATE-OPEN %s\n' "$(basename "$g")"
+      grep -qE '^_Requested.*·[[:space:]]*Verdict PENDING[[:space:]]*·' "$g" 2>/dev/null \
+        && printf 'GATE-OPEN %s\n' "$(basename "$g")"
     done
   )
   cur=$(printf '%s\n' "$cur" | sort)

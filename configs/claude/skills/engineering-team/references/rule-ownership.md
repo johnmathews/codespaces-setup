@@ -131,8 +131,12 @@ These are where drift actually happens — two places each stating a rule *in fu
 4. **The gate rule vs its enforcement** — the rule in
    `coordination-protocol.md` §3 "The gate" ↔ the barrier in
    `commands/done.md` Phase 8 step 0. Split by design (rule vs enforcement),
-   exactly like the status-stamp pair above. If the gate-file name or its
-   `Verdict PASS` line changes in one, it must change in the other in the same
+   exactly like the status-stamp pair above. What must stay in sync is the
+   **status-line format** the barrier matches — the gate-file name and the
+   `_Requested <t> · Verdict <…> · Coordinator-owned_` line's exact punctuation and
+   field order — not just the word `Verdict PASS`. Reformatting that status line
+   (spacing, separators, field order) is exactly the change that would silently
+   re-break the anchored predicate, so it must change in both files, in the same
    edit, or `/done` silently stops gating.
 
 Two rules used to lack a clean owner; both are now resolved:
