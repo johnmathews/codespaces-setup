@@ -13,10 +13,21 @@ Same two gate-design rules as the sibling gates:
 1. A hard failure must be unambiguous and mechanically fixable, or an honest
    board trips it and the gate gets switched off. This is why only *definite*
    overlaps are ERRORs — identical paths, or one a directory-prefix of another.
-   A glob that cannot be resolved against the working tree is a WARN (W3), not
-   a failure.
 2. Softer signals are WARNINGS: a lane with no status file yet (it may simply
-   not have started), and a board branch that does not exist in git yet.
+   not have started).
+
+What this gate implements: E1 (no status board rows), E2 (an Owns cell that
+reads as prose, not a footprint), E3 (definite footprint overlap between
+lanes), E4 (a contract names a lane not on the board), E6 (a non-empty
+contract register with no U0), E7 (the coordinator listed as a lane owner),
+and W1 (a lane with no status file yet).
+
+Deliberately NOT implemented: E5 (reservation-range overlap) and E8 (gate
+round ≥ 3) from the wider spec, and W2/W3/W4. E5 in particular is left out on
+purpose rather than approximated — the reservations table in
+`coordination-protocol.md` §4.2 has no defined grammar to parse, so any
+attempt at E5 would either miss real overlaps or false-positive on honest
+reservations. A smaller honest gate beats a larger over-promised one.
 
 Usage:
     python3 check_board.py <run_dir>     # gate a real run
@@ -30,7 +41,6 @@ import re
 import sys
 
 ROW = re.compile(r"^\|(?P<cells>.+)\|\s*$")
-PATHISH = re.compile(r"[/*]")
 
 
 def _cells(line: str) -> list[str]:
@@ -59,6 +69,14 @@ def _footprints(cell: str) -> list[str]:
     return [p.strip().strip("`") for p in cell.split(",") if p.strip()]
 
 
+def _looks_like_footprint(cell: str) -> bool:
+    """A footprint is a comma-separated list of paths. Prose has spaces inside an
+    entry ("the auth stuff"); a path does not. A separator-only test wrongly rejects
+    honest single-name footprints (README.md, docs, pyproject.toml)."""
+    entries = [e.strip().strip("`") for e in cell.split(",") if e.strip()]
+    return bool(entries) and all(e not in ("—", "-") and " " not in e for e in entries)
+
+
 def _definite_overlap(a: str, b: str) -> bool:
     """True only for unambiguous overlap: identical, or one a dir-prefix of the
     other. Glob subtleties are deliberately left to W3."""
@@ -83,25 +101,30 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
         errors.append("ERROR E1 progress.md: no status board rows found")
         return errors, warnings
 
+    board_lanes: set[str] = set()  # every lane named in a row, regardless of footprint parsing
     owns: dict[str, list[str]] = {}
     for r in body:
         unit, lane, cell = r[0], r[1], r[2]
         if lane.lower() == "coordinator":
             errors.append(f"ERROR E7 {unit}: the coordinator is listed as a lane owner "
                           "(a coordinator writes no code — multi-session.md §5.1)")
-        if not PATHISH.search(cell):
+            continue  # a coordinator row is not a lane: no board_lanes, no owns, no W1
+        board_lanes.add(lane)
+        if not _looks_like_footprint(cell):
             errors.append(f"ERROR E2 {unit}: Owns cell {cell!r} is prose, not a file footprint")
             continue
         owns.setdefault(lane, []).extend(_footprints(cell))
 
-    lanes = sorted(owns)
     # W1 is per lane, not per row: a lane with three units must not warn three times.
-    for lane in lanes:
+    # Uses board_lanes (every lane on the board), not owns (only footprint-validated
+    # lanes) — a lane whose footprint failed E2 still deserves its own W1 check.
+    for lane in sorted(board_lanes):
         if not (run_dir / f"status-{lane}.md").is_file():
             warnings.append(f"WARN  W1 lane {lane}: no status-{lane}.md yet")
 
-    for i, la in enumerate(lanes):
-        for lb in lanes[i + 1:]:
+    owned_lanes = sorted(owns)
+    for i, la in enumerate(owned_lanes):
+        for lb in owned_lanes[i + 1:]:
             for pa in owns[la]:
                 for pb in owns[lb]:
                     if _definite_overlap(pa, pb):
@@ -115,7 +138,7 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
                       "board declares no U0 (coordination-protocol.md §4)")
     for r in entries:
         for lane in (r[1], *(x.strip() for x in r[2].split(","))) if len(r) > 2 else (r[1],):
-            if lane and lane not in owns:
+            if lane and lane not in board_lanes:
                 errors.append(f"ERROR E4 contract {r[0]}: names lane {lane!r}, not on the board")
 
     return errors, warnings
@@ -130,9 +153,11 @@ def selftest() -> int:
     for case in sorted(p for p in fixtures.iterdir() if (p / "progress.md").is_file()):
         errors, warnings = check(case)
         name = case.name
-        if name == "good":
+        if name.startswith("good"):
             if errors:
                 fails.append(f"{name}: expected clean, got {errors}")
+            if warnings:
+                fails.append(f"{name}: expected clean, got warnings {warnings}")
         elif name.startswith("e"):
             code = name.split("_")[0].upper()
             if not any(code in e for e in errors):
