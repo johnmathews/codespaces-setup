@@ -590,10 +590,11 @@ design *says* rather than on what a session can actually do.
   a rule an agent follows is policy. It is a *good* policy — naming the six types makes
   a seventh conspicuous — but calling it structural was the design flattering itself.
 - *Board / register well-formed* was graded structural on the existence of
-  `check_board.py`. Five of its twelve specified checks were never built (§7.2), and
-  the checks that were built proved able to hard-fail an honest board (the Interfaces
-  vs Reservations defect). "A script exists" is not the same claim as "the property is
-  enforced".
+  `check_board.py`. Four of its thirteen specified checks are still unbuilt (§7.2),
+  and the checks that were built have repeatedly proved able to hard-fail an honest
+  board — the `PATHISH` defect, the Interfaces-vs-Reservations defect, and the
+  placeholder defect in E5's first cut, each found only after a review had passed.
+  "A script exists" is not the same claim as "the property is enforced".
 
 The two genuinely structural guards are the footprint drift check (§5.5) and the parts
 of the board gate that are built and fixture-proven. Nothing here is believed
