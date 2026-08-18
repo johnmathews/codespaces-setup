@@ -10,6 +10,14 @@
 This is additive to `references/multi-session.md`. Every invariant there still
 holds; nothing here replaces one.
 
+> **Not yet proven end to end.** Three of this protocol's five failure-injection
+> tests have been observed firing; **two have not**: stall protection (§2.5 — a
+> worker waiting on a coordinator that has gone silent) and `ADVISE` propagation
+> (§4.3 — a warning reaching the lane whose ground truth just moved). Both need
+> live sessions to exercise. On the first real multi-lane run, watch for those two
+> behaviours specifically and record what happens. See
+> `journal/260818-coordinator-redteam.md`.
+
 ## 1. The three planes
 
 ### 1.1 Three planes, strictly separated
