@@ -280,16 +280,34 @@ Fill it in at the split, **before any lane launches**. It covers two kinds of se
 | --- | --- | --- | --- | --- |
 | C1 | lane-a | lane-b | `def resolve_account(id: str) -> Account \| None` in `src/accounts/api.py` | plan approval |
 
-**Reservations** — things that collide *without sharing a file*. The coordinator
-assigns a range or a namespace per lane:
+**Reservations** — things that collide *without sharing a file*: migration
+numbers (two lanes both adding `0007_*`), ports, config keys and env var names,
+feature-flag names, enum and error-code values. The coordinator assigns each lane
+a range or a namespace.
 
-| Kind | Example collision | Allocation |
+**The table is machine-read, so its shape is fixed** — `scripts/check_board.py`
+E5 uses it to catch two lanes reserving the same thing. Exactly three columns,
+**one row per lane per kind**:
+
+| Kind | Lane | Reserved |
 | --- | --- | --- |
-| Migration numbers | two lanes both add `0007_*` | lane-a: 0007–0009, lane-b: 0010–0012 |
-| Ports | two dev servers on 8080 | lane-a: 8080, lane-b: 8081 |
-| Config keys / env vars | same key, different meaning | namespaced per lane |
-| Feature-flag names | duplicate flag | registered in advance |
-| Enum / error-code values | same numeric code | ranges per lane |
+| Migration numbers | a | 0007-0009 |
+| Migration numbers | b | 0010-0012 |
+| Ports | a | 8080 |
+| Ports | b | 8081 |
+| Config key prefix | a | `billing_` |
+| Config key prefix | b | `reporting_` |
+
+- **Kind** groups rows that compete for the same resource. Two rows only conflict
+  if their Kind matches exactly.
+- **Lane** is a single lane id from the status board — not a list.
+- **Reserved** is either a **numeric range** (`8080`, or `0007-0009` inclusive —
+  use a plain hyphen, not an en dash) or an **opaque token** (`billing_`). Ranges
+  overlap numerically; tokens conflict only when identical.
+
+A Reserved cell that parses as neither is reported as **W5** — the gate says it
+could not check that row rather than guessing. Splitting one lane's allocation
+across several rows of the same Kind is fine.
 
 
 ### 4.3 Contracts are frozen

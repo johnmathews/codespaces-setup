@@ -18,22 +18,32 @@ Same two gate-design rules as the sibling gates:
 
 What this gate implements: E1 (no status board rows), E2 (an Owns cell that
 reads as prose, not a footprint), E3 (definite footprint overlap between
-lanes), E4 (a contract names a lane not on the board), E6 (a non-empty
-contract register with no U0), E7 (the coordinator listed as a lane owner),
-and W1 (a lane with no status file yet).
+lanes), E4 (a contract names a lane not on the board), E5 (two lanes reserving
+the same range or token), E6 (a non-empty contract register with no U0), E7
+(the coordinator listed as a lane owner), W1 (a lane with no status file yet),
+and W5 (a reservation row that could not be checked).
 
-E4 and E6 read the register's **Interfaces** table only. The `## 3. Contract
-register` section carries a second table, Reservations, whose rows are prose
-(`| Config keys / env vars | same key, different meaning | namespaced per lane |`)
-and are not seams a U0 could land — see `_interfaces()` for the shape test and
-the false positive it exists to close.
+The `## 3. Contract register` section carries two tables and they are read
+separately: **Interfaces** drives E4 and E6 (`_interfaces()`), **Reservations**
+drives E5 (`_reservations()`). Each selects by row shape, so a board that lists
+them in either order, or under its own sub-headings, stays clean.
 
-Deliberately NOT implemented: E5 (reservation-range overlap) and E8 (gate
-round ≥ 3) from the wider spec, and W2/W3/W4. E5 in particular is left out on
-purpose rather than approximated — the reservations table in
-`coordination-protocol.md` §4.2 has no defined grammar to parse, so any
-attempt at E5 would either miss real overlaps or false-positive on honest
-reservations. A smaller honest gate beats a larger over-promised one.
+E5 is why the reservations table has a fixed shape. Migration numbers, ports,
+config keys and error codes collide *without sharing a file*, so E3 — which
+compares file footprints — cannot see them at all. Two lanes both claiming
+migration `0007` is a clean merge and a broken schema, and it is the case the
+whole contract register exists for.
+
+The grammar in `coordination-protocol.md` §4.2 is deliberately narrow: a
+numeric range or an opaque token, nothing else. A cell that parses as neither
+is **W5**, not an error — the gate reports that it could not check the row
+rather than guessing at an overlap. That is gate-design rule 1: this check
+previously did not exist at all because the table was free text, and an
+approximated parser would have false-positived on honest boards and been
+switched off.
+
+Deliberately NOT implemented: E8 (gate round ≥ 3) from the wider spec, and
+W2/W3/W4. A smaller honest gate beats a larger over-promised one.
 
 Usage:
     python3 check_board.py <run_dir>     # gate a real run
@@ -105,7 +115,7 @@ def _interfaces(text: str) -> list[list[str]]:
     `## 3. Contract register` holds two tables (`coordination-protocol.md` §4.2):
 
         Interfaces   | ID | Producer | Consumers | Contract | Frozen at |
-        Reservations | Kind | Example collision | Allocation |
+        Reservations | Kind | Lane | Reserved |
 
     Only the first declares cross-lane seams, so only it drives E4 (a contract
     naming an off-board lane) and E6 (a non-empty register with no U0). U0 exists
@@ -129,6 +139,80 @@ def _interfaces(text: str) -> list[list[str]]:
     honest board is what switches the gate off."""
     rows = [c for line in _section(text, r"Contract register") if (c := _cells(line))]
     return [r for r in rows if len(r) == 5 and CONTRACT_ID.match(r[0])]
+
+
+RANGE = re.compile(r"^(\d+)\s*-\s*(\d+)$")
+SINGLE = re.compile(r"^(\d+)$")
+# Looks like someone meant a range but did not use a plain hyphen — an en dash
+# (0007–0009) is the common one, and it has no space to reject it on, so without
+# this it would be silently accepted as an opaque token and never compared.
+RANGEISH = re.compile(r"^\d+\s*\D{1,3}\s*\d+$")
+
+
+def _reservations(text: str) -> list[list[str]]:
+    """The **Reservations** rows of the contract register, and only those.
+
+    Shape is fixed by `coordination-protocol.md` §4.2 precisely so this can be
+    machine-read: exactly three cells, one row per lane per kind, and a Lane cell
+    holding a single lane id. The header row and the `---` separator are dropped
+    by the same test that drops prose: a Lane cell containing whitespace is not a
+    lane id.
+
+    Selection is by shape, like `_interfaces()`. A board that words its columns
+    differently is skipped rather than hard-failed — gate-design rule 1."""
+    rows = [c for line in _section(text, r"Contract register") if (c := _cells(line))]
+    out: list[list[str]] = []
+    for r in rows:
+        if len(r) != 3:
+            continue
+        kind, lane = r[0].strip(), r[1].strip()
+        if not kind or not lane or kind.lower() == "kind":
+            continue
+        if set(kind) <= {"-"} or " " in lane:
+            continue
+        out.append([kind, lane, r[2].strip()])
+    return out
+
+
+def _parse_reserved(cell: str) -> tuple[int, int] | str | None:
+    """A Reserved cell is a numeric range, an opaque token, or unreadable.
+
+    `(lo, hi)` for `8080` or `0007-0009` (inclusive; a plain hyphen). A single
+    bare word is an opaque token. Anything else returns None and becomes W5: the
+    gate says it could not check the row rather than guessing an overlap.
+
+    An en-dashed range (`0007–0009`) is rejected rather than read as a token.
+    §4.2 asks for a plain hyphen, but the failure mode matters more than the rule:
+    an en dash contains no space, so the token branch would happily accept it, and
+    it would then only ever clash with a byte-identical string — `0007–0009` and
+    `0008–0010` would pass silently. A warning the coordinator can act on beats a
+    check that quietly stops checking."""
+    c = cell.strip().strip("`")
+    if not c:
+        return None
+    if m := SINGLE.match(c):
+        n = int(m.group(1))
+        return (n, n)
+    if m := RANGE.match(c):
+        lo, hi = int(m.group(1)), int(m.group(2))
+        return (lo, hi) if lo <= hi else None
+    if RANGEISH.match(c):
+        # number-separator-number, but not a plain hyphen. Do NOT fall through to
+        # the token branch: an en-dashed range would then only ever clash with an
+        # identical string, so 0007–0009 vs 0008–0010 would pass silently.
+        return None
+    return c if " " not in c else None
+
+
+def _reservations_clash(a: tuple[int, int] | str, b: tuple[int, int] | str) -> bool:
+    """Ranges overlap numerically; tokens clash only when identical. A range
+    against a token is not a definite clash — mixed units inside one Kind are a
+    modelling problem, not something to hard-fail on."""
+    if isinstance(a, tuple) and isinstance(b, tuple):
+        return a[0] <= b[1] and b[0] <= a[1]
+    if isinstance(a, str) and isinstance(b, str):
+        return a == b
+    return False
 
 
 def _definite_overlap(a: str, b: str) -> bool:
@@ -193,6 +277,29 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
         for lane in (r[1], *(x.strip() for x in r[2].split(","))):
             if lane and lane not in board_lanes:
                 errors.append(f"ERROR E4 contract {r[0]}: names lane {lane!r}, not on the board")
+
+    # E5 / W5 — reservations. Two lanes must not reserve the same migration
+    # numbers, ports, keys or codes: those collide without sharing a file, so the
+    # disjoint-footprint rule (E3) cannot see them at all.
+    parsed: list[tuple[str, str, tuple[int, int] | str, str]] = []
+    for kind, lane, cell in _reservations(text):
+        if lane not in board_lanes:
+            warnings.append(f"WARN  W5 reservation {kind}/{lane}: lane is not on the "
+                            "board, so its reservation cannot be checked")
+            continue
+        value = _parse_reserved(cell)
+        if value is None:
+            warnings.append(f"WARN  W5 reservation {kind}/{lane}: cannot read {cell!r} "
+                            "as a range or a token (coordination-protocol.md §4.2)")
+            continue
+        parsed.append((kind, lane, value, cell.strip().strip("`")))
+
+    for i, (kind_a, lane_a, val_a, raw_a) in enumerate(parsed):
+        for kind_b, lane_b, val_b, raw_b in parsed[i + 1:]:
+            if kind_a == kind_b and lane_a != lane_b and _reservations_clash(val_a, val_b):
+                errors.append(f"ERROR E5 {kind_a}: lane {lane_a} reserves {raw_a} and lane "
+                              f"{lane_b} reserves {raw_b} — these collide without sharing a "
+                              "file, so E3 cannot catch them")
 
     return errors, warnings
 
