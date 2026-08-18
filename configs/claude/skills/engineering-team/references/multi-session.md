@@ -170,8 +170,8 @@ Statuses: `not-started` · `in-progress` · `pr-open` · `merged` · `blocked`
 ## 3. Contract register
 <frozen cross-lane interfaces and reservations — `coordination-protocol.md` §4.
 Interfaces: ID, producer lane, consumer lanes, the contract, frozen-at.
-Reservations: migration-number / port / config-key / flag-name / error-code
-ranges, allocated per lane.>
+Reservations: a fixed three-column table — Kind | Lane | Reserved — one row per
+lane per kind, machine-read by `scripts/check_board.py` E5.>
 
 ## 4. Proposals (coordinator → human, never self-enacted)
 <plan changes, re-lanes, and new units the coordinator has sensed a need for and

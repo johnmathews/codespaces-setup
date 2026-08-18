@@ -28,13 +28,12 @@ none
 
 **Reservations** — things that collide *without sharing a file*:
 
-| Kind | Example collision | Allocation |
+| Kind | Lane | Reserved |
 | --- | --- | --- |
-| Migration numbers | two lanes both add `0007_*` | a: 0007–0009, b: 0010–0012 |
-| Ports | two dev servers on 8080 | a: 8080, b: 8081 |
-| Config keys / env vars | same key, different meaning | namespaced per lane |
-| Feature-flag names | duplicate flag | registered in advance |
-| Enum / error-code values | same numeric code | ranges per lane |
+| Migration numbers | a | 0007-0009 |
+| Migration numbers | b | 0010-0012 |
+| Ports | a | 8080 |
+| Ports | b | 8081 |
 
 ## 4. Proposals
 none

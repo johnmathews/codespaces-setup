@@ -2,12 +2,8 @@
 
 _Run: r1 · Plan: `improvement-plan.md` (same dir) · Coordinator session owns this file._
 
-A real interface seam is declared but the plan has no U0 to land it, so every
-lane codes against an assumed signature (`coordination-protocol.md` §4.4).
-Reservations are present too and must not be what triggers this.
-
 ## 1. Tracking contract
-Single-writer per artifact. Lanes record ticks in their own status file.
+Single-writer per artifact.
 
 ## 2. Status board
 
@@ -18,26 +14,11 @@ Single-writer per artifact. Lanes record ticks in their own status file.
 
 ## 3. Contract register
 
-**Interfaces**
-
-| ID | Producer | Consumers | Contract | Frozen at |
-| --- | --- | --- | --- | --- |
-| C1 | a | b | `def resolve(id: str) -> Account \| None` in `src/api/types.py` | plan approval |
-
-**Reservations**
-
 | Kind | Lane | Reserved |
 | --- | --- | --- |
 | Migration numbers | a | 0007-0009 |
 | Migration numbers | b | 0010-0012 |
 | Ports | a | 8080 |
 | Ports | b | 8081 |
-
-## 4. Proposals
-none
-
-## 5. Cross-session facts
-none
-
-## 6. Coordinator log
-- 2026-08-18 board created
+| Config key prefix | a | `billing_` |
+| Config key prefix | b | `reporting_` |
