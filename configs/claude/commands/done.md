@@ -359,24 +359,38 @@ Then branch on what Phase 0's governance check found:
 
 ### 8a — Remote exists (the normal path)
 
-1. **Check you're not on `main`.** If you are, stop and ask the user — the work needs a branch, and which one is
+1. **Gate check — lanes only.** If `$RUN_DIR/progress.md` exists, this run has
+   lanes and you are a worker. Do **not** open a PR unless
+   `$RUN_DIR/gate-<lane>-<unit>.md` exists and contains `Verdict PASS`:
+
+   ```bash
+   grep -l 'Verdict PASS' "$RUN_DIR/gate-$LANE-$UNIT.md" 2>/dev/null \
+     || echo "BLOCKED: no PASS verdict for $LANE/$UNIT"
+   ```
+
+   If it is missing or reads `PENDING`/`CHANGES`, **stop**. Send `GATE-REQUEST`
+   to the coordinator if you have not already, and wait. Never self-clear — a
+   stalled lane is recoverable, an ungated merge is what the gate is paid to
+   prevent (`~/.claude/skills/engineering-team/references/coordination-protocol.md` §3).
+   On a solo run (`progress.md` absent) this step does not apply; continue.
+2. **Check you're not on `main`.** If you are, stop and ask the user — the work needs a branch, and which one is
    their call.
-2. **Check the PR isn't already merged**, if a PR exists for this branch: `gh pr view --json state,number`. A push to
+3. **Check the PR isn't already merged**, if a PR exists for this branch: `gh pr view --json state,number`. A push to
    a **merged** PR's branch **succeeds silently**, is never merged, and runs no CI — the commits are stranded and
    nothing tells you. If the PR is `MERGED` or `CLOSED`, stop: the fix is a fresh branch off `main` with the commits
    cherry-picked, and you should say so rather than pushing into the void.
-3. **Push the branch:** `git push -u origin <branch>`.
-4. **Open the PR:** `gh pr create --fill` (respect any PR template — fill it in rather than around it). If a PR
+4. **Push the branch:** `git push -u origin <branch>`.
+5. **Open the PR:** `gh pr create --fill` (respect any PR template — fill it in rather than around it). If a PR
    already exists and is open, the push updated it; say so instead of opening a second.
-5. **Watch CI on the PR:** `gh pr checks <pr> --watch`. On failure: read the logs (`gh run view <id> --log-failed`),
+6. **Watch CI on the PR:** `gh pr checks <pr> --watch`. On failure: read the logs (`gh run view <id> --log-failed`),
    diagnose, fix **on the branch**, commit, push, re-watch. Up to 3 cycles, then report and stop.
    - A required check stuck at "Expected — Waiting for status" is almost always a path-filtered workflow that never
      started. That's a repo config bug, not something to wait out — see "Making a check required" in the
      engineering-team skill's `references/worktree.md`.
-6. **Do not merge.** Merging is a separate, explicitly-confirmed act (`/merge-push`). A green PR is a fact about the
+7. **Do not merge.** Merging is a separate, explicitly-confirmed act (`/merge-push`). A green PR is a fact about the
    PR, not permission to merge.
 
-**"Don't push" narrows this to step 1 only** — commit, and report that the branch is ready. It does not cancel the
+**"Don't push" narrows this to step 2 only** — commit, and report that the branch is ready. It does not cancel the
 phase, and it does not license skipping Phase 9.
 
 ### 8b — No remote (scratch repo)
