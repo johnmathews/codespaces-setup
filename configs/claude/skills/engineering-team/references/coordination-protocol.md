@@ -266,8 +266,6 @@ assigns a range or a namespace per lane:
 | Feature-flag names | duplicate flag | registered in advance |
 | Enum / error-code values | same numeric code | ranges per lane |
 
-An empty register is a legitimate outcome — record it as empty rather than omitting
-the section.
 
 ### 4.3 Contracts are frozen
 
@@ -311,10 +309,11 @@ resubmits after `CHANGES`. Not only once at the end.
 4. **Green** → greenlight the merges to the human, in the recorded order.
    **Red** → attribute the failure to a seam and `ADVISE` the owning lane.
 
-This respects both standing constraints: the scratch tree is not another lane's
-worktree, and stubs merged for verification are not product code written by the
-coordinator. **The integration worktree is a probe, never merged** — delete and
-rebuild it at any time, at no cost.
+This respects both standing constraints: the scratch tree is the coordinator's own,
+not another lane's worktree, and merging lane branches into it writes no code — the
+coordinator composes what the lanes already wrote and runs the checks. **The
+integration worktree is a probe, never merged** — delete and rebuild it at any time,
+at no cost.
 
 ## 5. Sensing and the autonomy boundary
 

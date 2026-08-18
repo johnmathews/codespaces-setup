@@ -89,6 +89,7 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
+| The state plane is tiered by write semantics: overwrite surfaces (files, issue/PR bodies) take one writer; append-only surfaces (issue/PR comments) take many, safely | §1 "The three planes" | `multi-session.md` §2 (the single-writer rule this qualifies) |
 | Messages carry no state — every message names a `ref` to where the fact is written | §2 "The message protocol" | `multi-session.md` §7 (pointer); phase 3 |
 | No message type can assign work; sense autonomously, act only on request | §5 "Sensing and the autonomy boundary" | `multi-session.md` §7 (pointer); phase 3 |
 | The gate blocks before the PR exists; CHANGES for exactly four falsifiable reasons; escalate after two rounds | §3 "The gate" | `commands/done.md` Phase 8 step 0 (the **enforcement** — see §4); phase 3 |
