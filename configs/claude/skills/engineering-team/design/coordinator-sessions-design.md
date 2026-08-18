@@ -304,7 +304,7 @@ Filled in at the split, before any lane launches. It covers two kinds of seam.
 **Reservations** — things that collide *without sharing a file*. The coordinator
 assigns ranges per lane:
 
-| Kind | Example collision | Allocation |
+| Kind | Lane | Reserved |
 | --- | --- | --- |
 | Migration numbers | two lanes both add `0007_*` | lane-a: 0007–0009, lane-b: 0010–0012 |
 | Ports | two dev servers on 8080 | lane-a: 8080, lane-b: 8081 |
@@ -575,7 +575,7 @@ skill's own invariants. Audited against it:
 | Coordinator cannot assign work | **Policy** — the closed vocabulary (§5.6) is a *prose* rule; `SendMessage` carries free text, so an `ADVISE` that assigns work is a well-formed message nothing rejects |
 | Gate blocks the PR | **Policy** — strongest advisory placement available: `/done` §`8a` item 1 (§6.4), not mechanical prevention |
 | Footprint drift detected | **Structural** — mechanical `comm` (§5.5) |
-| Board / register well-formed | **Partly structural** — `check_board.py` (§7) mechanically enforces E1–E4, E6, E7 and W1; E5, E8, W2–W4 are unbuilt (§7.2), and its E4/E6 selection had to be narrowed to the Interfaces table after it hard-failed an honest reservations register |
+| Board / register well-formed | **Partly structural** — `check_board.py` (§7) mechanically enforces E1–E7, W1 and W5, including the migration-collision case E3 cannot see; E8 and W2–W4 remain unbuilt (§7.2), and its E4/E6 selection had to be narrowed to the Interfaces table after it hard-failed an honest reservations register |
 | Every message carries a `ref` | **Policy** — checkable only on recorded gate files |
 | Workers never message each other | **Policy** — unenforceable |
 
@@ -635,7 +635,7 @@ missing one if the design keeps claiming it runs.
 | E2 | An `Owns` cell containing prose rather than paths ("the auth stuff" is not a footprint) | **yes** |
 | E3 | **Definite** footprint overlap — identical path, or one a directory-prefix of another | **yes** |
 | E4 | Contract register names a lane absent from the board | **yes** — Interfaces table only |
-| E5 | Reservation ranges overlap between lanes (migrations, ports, codes) | **no — not implemented** |
+| E5 | Reservation ranges overlap between lanes (migrations, ports, codes) | **yes** — needed §4.2's table to be given a fixed shape first |
 | E6 | Contract register non-empty but the plan declares no U0 (§4.4) | **yes** — Interfaces table only |
 | E7 | The board names the coordinator as a lane owner (violates §1.3) | **yes** |
 | E8 | A gate file at round ≥ 3 with no escalation note (violates §3.5) | **no — not implemented** |
@@ -649,18 +649,30 @@ missing one if the design keeps claiming it runs.
 | W3 | *Possible* overlap via globs that cannot be resolved against the working tree | **no — not implemented** |
 | W4 | A plan unit assigned to no lane | **no — not implemented** |
 
-**Why E5 is not implemented, and is not going to be.** The reservations table (§4.2)
-has **no defined grammar**. Its Allocation cell is free prose — `lane-a: 0007–0009,
-lane-b: 0010–0012`, `namespaced per lane`, `registered in advance` — with no rule
-saying which of those is a range, a namespace, or a note. Any E5 would therefore
-either miss real overlaps or hard-fail on honest reservations, and gate-design rule 1
-forbids the second. Approximating it was rejected in favour of leaving it out and
-saying so. Implementing E5 requires first giving §4.2 a parseable allocation grammar;
-that is a design change, not a script change.
+**How E5 became buildable.** It was originally left out, and the reason was recorded
+here: the reservations table had **no defined grammar**. Its Allocation cell was free
+prose — `lane-a: 0007–0009, lane-b: 0010–0012`, `namespaced per lane`, `registered in
+advance` — with no rule saying which of those was a range, a namespace, or a note. Any
+E5 would have either missed real overlaps or hard-failed honest reservations, and
+gate-design rule 1 forbids the second. The note said implementing it required first
+giving §4.2 a parseable grammar, and that this was a design change rather than a script
+change.
 
-E8, W2, W3 and W4 were dropped as scope: E8 needs gate-file parsing the script does
+That is what happened. §4.2's table now has a fixed shape — three columns, one row per
+lane per kind, a Reserved cell holding a numeric range or an opaque token — and E5 reads
+it. A cell parsing as neither is **W5**, so the gate reports what it could not check
+instead of guessing. The cost is real: the table is less free to write than it was.
+
+One trap is worth keeping, because it nearly reinstated the silent failure the whole
+check exists to prevent. An en-dashed range (`0007–0009`, U+2013) contains no space, so
+the opaque-token branch accepted it — and a token only ever clashes with a byte-identical
+string, so `0007–0009` against `0008–0010` passed clean. It was caught by a fixture
+written to exercise the *warning* path, not by the check's own tests. Number-separator-
+number that is not a plain hyphen is now rejected as unreadable rather than tokenised.
+
+E8, W2, W3 and W4 remain dropped as scope: E8 needs gate-file parsing the script does
 not do, W2 and W3 need the working tree and git, and W4 needs the plan as well as the
-board. None is blocked the way E5 is — they are simply unbuilt, and the script's
+board. None was blocked the way E5 was — they are simply unbuilt, and the script's
 docstring lists them as such.
 
 W3's original rationale still stands as a *design* note: unresolvable globs are a

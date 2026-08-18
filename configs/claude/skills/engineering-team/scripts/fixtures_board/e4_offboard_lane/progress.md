@@ -27,9 +27,12 @@ Single-writer per artifact. Lanes record ticks in their own status file.
 
 **Reservations**
 
-| Kind | Example collision | Allocation |
+| Kind | Lane | Reserved |
 | --- | --- | --- |
-| Config keys / env vars | same key, different meaning | namespaced per lane |
+| Migration numbers | a | 0007-0009 |
+| Migration numbers | b | 0010-0012 |
+| Ports | a | 8080 |
+| Ports | b | 8081 |
 
 ## 4. Proposals
 none
