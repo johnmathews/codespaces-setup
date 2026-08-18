@@ -534,13 +534,13 @@ skill's own invariants. Audited against it:
 | Rule | Enforcement |
 | --- | --- |
 | Coordinator cannot assign work | **Structural** — no such message type exists (§5.6) |
-| Gate blocks the PR | **Structural** — `/done` Phase 8 step 0 (§6.4) |
+| Gate blocks the PR | **Policy** — strongest advisory placement available: `/done` Phase 8 step 0 (§6.4), not mechanical prevention |
 | Footprint drift detected | **Structural** — mechanical `comm` (§5.5) |
 | Board / register well-formed | **Structural** — `check_board.py` (§7) |
 | Every message carries a `ref` | **Policy** — checkable only on recorded gate files |
 | Workers never message each other | **Policy** — unenforceable |
 
-Two rules remain policy. This is not believed fixable, and the scorecard is recorded
+Three rules remain policy. This is not believed fixable, and the scorecard is recorded
 rather than the design being described as fully structural.
 
 ## 7. Validation

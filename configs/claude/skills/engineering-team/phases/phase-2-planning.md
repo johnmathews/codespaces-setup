@@ -292,6 +292,18 @@ worktree, a branch, and a PR. If you're proposing a split, load
 `../references/multi-session.md` before writing the dashboard or any hand-off
 prompts.
 
+**Then build the contract register.** Disjoint footprints prevent merge
+conflicts, not composition failures: two lanes each adding a migration numbered
+`0007_*` is a clean merge and a broken schema. List every seam where one lane's
+output is another's input (signatures, types, wire formats, schemas) and every
+resource that collides without sharing a file (migration numbers, ports, config
+keys, flag names, error codes). Allocate ranges per lane. Full rules and the
+table shapes: `../references/coordination-protocol.md` §4.
+
+**If the register is non-empty, the plan gets a U0** that lands every seam as
+stubs and types and merges before any lane launches. If it is empty, there is
+no U0.
+
 ### Step 3.6: If the user agrees to split — you are now the coordinator
 
 Only after the user confirms the split at the gate below. Writing `progress.md` is
@@ -314,8 +326,13 @@ single-writer rule binds you from here (`../SKILL.md`, "Decide your role").
    this machine**, write the prompts inline to that same shape and say which skill
    was missing — a sibling skill's absence changes who writes the prompt, not
    whether one is written.
-4. **Hand them to the user.** They open the sessions and paste. Do not start a lane's
-   work yourself unless you are also running that lane.
+4. **Hand them to the user.** They open the sessions and paste.
+   **Do not run a lane yourself.** As coordinator you own the gate, and a gate
+   applied to your own work is not a gate (`../references/multi-session.md` §5.1).
+5. **Validate the board before handing out prompts:**
+   `python3 scripts/check_board.py "$RUN_DIR"`. It catches footprint overlaps,
+   prose footprints, and a non-empty register with no U0 — all of which are
+   cheap now and expensive after three sessions have started.
 
 From here you own the plan, the dashboard, and memory. You do **not** write any
 lane's `status-<lane>.md`, and you do not reach into a lane's worktree.

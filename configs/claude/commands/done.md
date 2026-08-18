@@ -360,7 +360,8 @@ Then branch on what Phase 0's governance check found:
 ### 8a — Remote exists (the normal path)
 
 1. **Gate check — lanes only.** If `$RUN_DIR/progress.md` exists, this run has
-   lanes and you are a worker. Do **not** open a PR unless
+   lanes and you are a worker. On a solo run (`progress.md` absent) this step
+   does not apply; continue. Do **not** open a PR unless
    `$RUN_DIR/gate-<lane>-<unit>.md` exists and contains `Verdict PASS`:
 
    ```bash
@@ -372,7 +373,6 @@ Then branch on what Phase 0's governance check found:
    to the coordinator if you have not already, and wait. Never self-clear — a
    stalled lane is recoverable, an ungated merge is what the gate is paid to
    prevent (`~/.claude/skills/engineering-team/references/coordination-protocol.md` §3).
-   On a solo run (`progress.md` absent) this step does not apply; continue.
 2. **Check you're not on `main`.** If you are, stop and ask the user — the work needs a branch, and which one is
    their call.
 3. **Check the PR isn't already merged**, if a PR exists for this branch: `gh pr view --json state,number`. A push to
