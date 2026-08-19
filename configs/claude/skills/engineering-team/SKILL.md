@@ -25,6 +25,47 @@ It reports progress in plain prose and asks the user directly when input is
 needed. There is no machine-readable marker contract and no external loop
 driver: a human is in the loop at every gate.
 
+## You are never the only session
+
+**Assume this repo has other engineering-team sessions working it right
+now.** Not "might" — assume it. Parallel sessions share no conversation, so
+you cannot see them, and there is no probe that settles it: `git worktree
+list` shows the trees that exist this instant and says nothing about the
+session the user opens thirty seconds from now. Absence of evidence is not
+evidence of absence, so every rule below is written for the case you cannot
+rule out.
+
+This is the premise the rest of the skill rests on, not an edge case it
+degrades into. Five things follow, and they bind on **every** run —
+including the ones that turn out to have been alone all along:
+
+1. **A worktree is required.** Not "once code changes" — from the start, on
+   every Build run, whatever its scope. "Always work in a worktree" below.
+2. **The main checkout is shared: read it, don't write it.** The one thing
+   you write there is `$RUN_DIR`, which is shared on purpose. Never `git
+   checkout`, `git stash`, `git commit`, or edit a tracked file in the main
+   checkout, and never work on `main`. **Uncommitted changes you find there
+   are someone else's** until the user says otherwise — report them, do not
+   tidy them.
+3. **Names collide, so check before you create.** Every session reads the
+   same plan, so any branch or worktree name derived from the plan alone is
+   *identical* in all of them, and the second session to start hits a name
+   that already exists. Check (`git branch --list`, `git worktree list`) and
+   disambiguate.
+4. **Touch only what you created.** Another session's worktree, branch, PR,
+   or status file is off limits — even when it looks idle, even when you
+   have been cleared to. `references/multi-session.md` §9 is the run where
+   that went wrong. Propose and confirm; never reap silently.
+5. **"Solo" is a fact about the run, not about the machine.** It means this
+   run has one lane. It never means you are the only session on the repo.
+
+One thing does **not** follow: this is not licence to invent coordination
+machinery. A run with no `progress.md` has no lanes, no dashboard and no
+coordinator, and it must not grow them speculatively — splitting has real
+overhead (`references/multi-session.md` §4). Assume concurrency for
+**isolation**; require evidence on disk before assuming it for
+**collaboration**. The first is free and the second is not.
+
 ## Project configuration
 
 Some rules below reference a repo owner and a container registry. Detect
@@ -153,8 +194,15 @@ working state, not deliverables.
 Every phase of every Build run happens inside a git worktree on a feature
 branch — not in the project's main checkout, and never on `main`. This
 holds for evaluation-only runs too, not just when code changes, for two
-reasons: it lets several sessions work at once without colliding on the
-shared main checkout, and work grows. An evaluation that turns up a
+independent reasons.
+
+The first is the premise above: **another session may be working this repo
+right now, so the main checkout is shared state and a worktree is the only
+thing that makes your run's edits private.** That reason does not weaken
+when the repo looks quiet, because "looks quiet" is not an observation you
+can make.
+
+The second stands on its own: **work grows.** An evaluation that turns up a
 one-line fix becomes a code change, and by then it is too late to be on a
 branch.
 
@@ -192,12 +240,20 @@ sides before comparing.
   this run ships.
 - **In the main checkout** → create the worktree now (`references/worktree.md`).
 
-The full discipline is in `references/worktree.md`. Two exceptions:
+The full discipline is in `references/worktree.md`. There is exactly **one**
+exception, and it is a physical one:
 
-- A **non-git project**, or a repo where the user declined `git init` —
-  work in place; wrap-up degrades to "ask whether to commit."
-- The **Discussion workflow**, which writes no code and needs no branch
-  (`references/discussion.md`).
+- A **non-git project**, or a repo where the user declined `git init` — a
+  worktree is not possible, so work in place. Wrap-up degrades to "ask
+  whether to commit." Say that you are in this mode and why; it is a
+  degraded fallback, not a choice on offer.
+
+The **Discussion workflow is not a second exception.** It needs no branch
+because it writes nothing at all — the exemption is bought by being
+read-only, and it lapses the instant that stops being true. The moment a
+discussion would edit or create a file, however small, it is a Build run:
+stop, say so, enter a worktree, *then* make the change
+(`references/discussion.md`).
 
 Either way `$RUN_DIR` resolves to the main checkout, which is why that
 resolution must not depend on where you are standing.
@@ -211,8 +267,13 @@ lanes. Read it off disk — do not guess:
    run. If the prompt that started this session names a lane you own
    (e.g. "you own lane B"), you are a **worker**; otherwise you are the
    **coordinator**.
-2. No `progress.md` → you are **solo**. This is the default and the common
-   case; nothing about single-session behaviour changes.
+2. No `progress.md` → this run has **no lanes**, so you are **solo**. The
+   default and the common case. Note what it does *not* mean: solo is a
+   fact about the run, not about the machine — other sessions may be
+   working this repo, and the worktree and main-checkout rules bind you
+   exactly as they bind a lane ("You are never the only session" above).
+   What solo drops is the coordination machinery — you write `run.yaml`
+   directly and there is no dashboard to maintain.
 
 Roles differ in what they may write, and the rule is absolute: **one
 artifact, one writer.** A worker never writes the plan or the dashboard; a

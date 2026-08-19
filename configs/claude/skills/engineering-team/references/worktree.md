@@ -51,16 +51,21 @@ Worktree isolation enables multiple engineering-team sessions to work on differe
 without interfering with each other or with the main branch.
 
 **Always work in a worktree.** Every phase, every run — including evaluation-only runs that
-change no code. There is one exception: a project that is not a git repo (and where the user
-declined `git init`), where a worktree is not possible and you work in place.
+change no code. There is one exception, and it is physical rather than discretionary: a project
+that is not a git repo (and where the user declined `git init`), where a worktree cannot exist
+and you work in place. The Discussion workflow is not a second exception — it is exempt only
+while it stays read-only, and the exemption lapses at its first edit (`discussion.md`).
 
 The rule is unconditional on purpose. "Worktree only when Phase 3 runs" sounds like a
 sensible economy, and it isn't:
 
+- **Other sessions are already running.** Not "may be" — *assume they are*. This is the
+  premise the whole rule rests on rather than one consideration among three, and it is
+  stated in full at `../SKILL.md` §"You are never the only session". The main checkout is
+  shared state; a worktree is not. You cannot check whether the repo is quiet, because the
+  session that collides with yours may not have started yet.
 - **Work grows.** An evaluation that turns up a one-line fix becomes a code change, and the
   session is now editing the main checkout with no branch to put it on.
-- **Sessions overlap.** Another session may be working while yours runs. The main checkout is
-  shared state; a worktree is not.
 - **Never work on `main`.** The main checkout usually has `main` checked out. Work that lands
   there directly has skipped review, CI, and the PR entirely.
 
@@ -102,22 +107,34 @@ half of it.
 
 **Setup (when using a worktree):**
 
-1. **Ensure main is clean.** Check `git status` — if there are uncommitted changes on the current branch,
-   ask the user how to handle them before proceeding (stash, commit, or abort).
-2. **Enter a worktree.** Use the `EnterWorktree` tool with a descriptive name based on what the user asked
-   for (e.g., `eng-security-fixes`, `eng-test-coverage`, `eng-docs-update`). When an improvement plan
-   exists, use `eng-<plan-short-name>` (the `plan:` value from the plan frontmatter) so the worktree is
-   traceable to the plan — this is the form Phase 3 specifies. Worktrees always live under
-   `<repo>/.claude/worktrees/<name>/` (this is where `EnterWorktree` places them — never use ad-hoc
-   sibling paths). Prefix the name with `eng-` so engineering-team worktrees are identifiable, and choose
-   a kebab-case name that describes the work (e.g., `eng-fitness-tier-plan`, not `eng-work-1`). The tool
-   creates a new branch and switches the session into the worktree directory.
+1. **Look at the main checkout — but do not tidy it.** `git status` tells you what is there;
+   it does not tell you *whose* it is. Under the concurrent-sessions premise, uncommitted
+   changes in the main checkout belong to another session or to the user until they say
+   otherwise, so **report what you found and ask** — never stash, commit, revert, or check
+   out on your own initiative. Most of the time the answer is "leave it and carry on": the
+   worktree branches from `HEAD`, not from the dirt, so a dirty main checkout does not block
+   you. It is a signal, not a chore.
+2. **Choose the name — and check it is free before you take it.** Prefix it with `eng-` so
+   engineering-team worktrees are identifiable, and pick a kebab-case name that describes the
+   work (e.g. `eng-security-fixes`, `eng-fitness-tier-plan` — not `eng-work-1`). When an
+   improvement plan exists, use `eng-<plan-short-name>` (the `plan:` value from the plan
+   frontmatter) so the worktree is traceable to the plan — this is the form Phase 3 specifies.
 
    **On a multi-lane run, append the lane:** `eng-<plan-short-name>-<lane>`, and use the name your
    hand-off prompt gave you. Every lane reads the same plan, so a name derived from the plan alone is
    identical across all of them and every session after the first collides on an existing branch. See the
    table in `../phases/phase-3-development.md`.
-3. **Note the branch name.** The `EnterWorktree` tool will report the branch name it created. You MUST
+
+   Then check it, **before** creating anything: `git branch --list '<name>'` and
+   `git worktree list`. The lane suffix is what makes a multi-lane name unique; a solo run has
+   no suffix, so its plan-derived name is exactly the one another session would have picked
+   too. If the name is taken, append a short discriminator — do **not** reuse or delete it. An
+   existing `eng-*` branch is someone's live work until proven otherwise.
+3. **Enter the worktree.** Use the `EnterWorktree` tool with the name you just cleared. Worktrees
+   always live under `<repo>/.claude/worktrees/<name>/` (this is where `EnterWorktree` places them
+   — never use ad-hoc sibling paths). The tool creates the branch and switches the session into the
+   worktree directory.
+4. **Note the branch name.** The `EnterWorktree` tool will report the branch name it created. You MUST
    remember this — you will need it later for the merge step.
 
 When in a worktree: all **code, docs, tests, and journal entries** are written inside the

@@ -60,6 +60,7 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "status-stamp-method-matches": ("references/documentation-model.md",
                                     r"method must match the kind of claim"),
     "single-writer": ("references/multi-session.md", r"one artifact, one writer"),
+    "concurrent-sessions": ("SKILL.md", r"never the only session"),
     "worktree-idiom": ("references/worktree.md", r"--path-format=absolute"),
     "run-dir-main-checkout": ("SKILL.md",
                               r"\$RUN_DIR.{0,40}main checkout.{0,40}never|"

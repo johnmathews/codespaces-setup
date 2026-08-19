@@ -11,6 +11,24 @@ The discussion workflow is for brainstorming, exploring options, teaching, weigh
 building shared understanding. No code is modified. No worktrees, commits, or PRs. The output is
 clarity — for the user and for future work.
 
+### The read-only exemption, and where it ends
+
+Everywhere else this skill assumes other sessions are working the repo right now and
+requires a worktree before anything is written (`../SKILL.md` §"You are never the only
+session"). Discussion is the single workflow exempt from that, for exactly one reason:
+**it writes nothing, so it has nothing to isolate.**
+
+The exemption is bought by being read-only, and it lapses the moment that stops being true.
+**The first time this workflow would edit or create a file in the project — a one-line fix, a
+scratch script, a config tweak, anything reached by "while we're here" — it is a Build run.**
+Stop, say so, enter a worktree, and only then make the change. Do not make "just this one
+small edit" from the main checkout: that is precisely the edit that lands on `main`
+underneath another session.
+
+Saving a discussion document under `$RUN_DIR/discussions/` (Step 5) is not an exception to
+this. `$RUN_DIR` lives in the main checkout by design, is gitignored, and is the one thing
+every workflow in this skill writes there.
+
 ### When to Use
 
 Reachable both ways: as the entry point for a session that opens with a design
@@ -147,9 +165,16 @@ the core of the workflow — it's interactive, not a one-shot report.
 - **Exploratory:** don't force a written artifact. The conversation was the value.
 - **Discussion leads to work:** if the user transitions to "ok, let's do it,"
   ask whether to switch to the build workflow with the discussion as context.
+  If they say yes — or if they simply start asking for changes — **enter a
+  worktree before the first edit.** Switching workflow and switching
+  directory are one action, not two, and the edit that skips it is the one
+  that lands in the main checkout.
 
 ### What This Workflow Does NOT Do
 
 No code, test, or doc changes. No worktrees, branches, test runs, lint, eval
 reports, plans, commits, merges, or pushes. If the user starts asking for
 changes mid-discussion, ask: "Switch to the build workflow, or still exploring?"
+— and if the answer is switch, the first action is entering a worktree, before
+the first edit. The no-worktree licence covers a workflow that writes nothing;
+it does not survive the workflow changing.

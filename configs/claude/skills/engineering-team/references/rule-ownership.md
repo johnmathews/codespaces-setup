@@ -35,7 +35,7 @@
 | `references/multi-session.md` | single-writer / one-artifact-one-owner; disjoint file footprints; append-only coordinator-owned plan; never-touch-another-lane's-worktree; the multi-session invariant list |
 | `references/coordination-protocol.md` | the three planes (control / state / sensing); the six-type message vocabulary + the mandatory `ref`; the blocking pre-PR gate + its four CHANGES criteria + the round limit; the contract register + unit zero + the integration gate; the sense-don't-act autonomy boundary |
 | `references/team-structure.md` | the **findings contract**; dispatch mechanics + the read-the-roster rule; numbered-lists-to-the-user; clarifying-questions-first |
-| `SKILL.md` (router) | `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
+| `SKILL.md` (router) | the **concurrent-sessions premise** (assume other sessions; main checkout read-only; touch only what you created); `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
 
@@ -71,7 +71,7 @@ should point here.
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
 | Worktree-detection idiom: compare `--git-dir` vs `--git-common-dir` with `--path-format=absolute` **on both sides** | §"Worktree Isolation" | `SKILL.md` §"Always work in a worktree" carries the same command (both needed at routing time); the drift-scan (§5) holds the two byte-identical |
-| Always work in a worktree; already in one → don't nest a second | §"Worktree Isolation" | phases 1, 3, 4; `multi-session.md` (assumed throughout) |
+| Always work in a worktree; already in one → don't nest a second. One exception (non-git); Discussion is exempt only while read-only | §"Worktree Isolation" | `SKILL.md` §"You are never the only session" (the premise it follows from) and §"Always work in a worktree"; `discussion.md` (where the exemption ends); phases 1, 3, 4; `multi-session.md` (assumed throughout) |
 | Doc freshness is change-driven (`git log` over covered paths), not a calendar | §"Documentation gates" | `documentation-model.md` §6 (points here) |
 | The laws for promoting a check to required (unfiltered triggers, aggregator name, required ≠ enabled) | §"Making a check required…" | phase 4 (points here) |
 | Project conventions outrank this skill's defaults | §"The project's own conventions outrank this skill's defaults" | phase docs (branch/journal/docs locations are defaults) |
@@ -100,6 +100,7 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
+| Assume you are one of several concurrent sessions: a worktree is required, the main checkout is read-only shared state, names are checked before being taken, and you touch only what you created | §"You are never the only session" | `worktree.md` §"Worktree Isolation" (the worktree consequence + its setup steps); `multi-session.md` §5.3 (solo is about the run, not the machine); `discussion.md` §"The read-only exemption, and where it ends"; `workflows.md` |
 | `$RUN_DIR` lives in the main checkout, never inside a worktree | §"The run directory" | `worktree.md`; `multi-session.md`; phases 1, 3, 4 |
 | `run.yaml` state rules: write-at-announce, `abandoned` needs a `why`, a missing file is not an error, phase reconciles against artifacts | §"The run directory" | phases 1–4; `multi-session.md` (coordinator-owned) |
 | No default repo owner — read the remote, ask if none | §"Project configuration" | `worktree.md` |

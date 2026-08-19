@@ -15,8 +15,12 @@ instance of the announce-every-transition rule, whose home is `../SKILL.md`
 
 Evaluation runs in a worktree too, not the main checkout — see "Always work
 in a worktree" in `../SKILL.md` and the full discipline in
-`../references/worktree.md`. An evaluation that turns up a one-line fix
-becomes a code change, and by then it is too late to be on a branch.
+`../references/worktree.md`. Two reasons, and the first is the skill's
+standing premise: **assume another session is working this repo right now**
+(`../SKILL.md` §"You are never the only session"), which makes the main
+checkout shared state you may read but not write. The second: an evaluation
+that turns up a one-line fix becomes a code change, and by then it is too
+late to be on a branch.
 
 `$RUN_DIR` is the exception and stays in the **main checkout** (below): the
 worktree holds code; the run holds artifacts that must outlive it.
