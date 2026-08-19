@@ -35,6 +35,13 @@ prompt already carries it. If your prompt did not name a branch, that is a
 defect in the hand-off: ask rather than guessing, because two lanes quietly
 sharing a branch is worse than a pause.
 
+**A solo session checks the name is free before taking it.** `git branch
+--list 'eng-<plan-short-name>*'` — solo means this run has one lane, not
+that the repo has one session (`../SKILL.md` §"You are never the only
+session"), so the plan-derived name may already belong to somebody. If it
+is taken, append a short discriminator; do not reuse or delete it. An
+existing `eng-*` branch is live work until proven otherwise.
+
 Only if `EnterWorktree` is unavailable in your environment, fall back to
 the manual equivalent (substituting the name from the table):
 

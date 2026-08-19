@@ -145,7 +145,17 @@ Owns exactly one lane: one `status-<lane>.md`, one worktree, one branch, one PR.
 
 ### 5.3 Solo
 
-The default. Nothing changes.
+The default: the run has one lane, so one session writes every artifact, there is no
+dashboard and no coordinator, and `run.yaml` is written directly rather than reconciled.
+
+**Solo is a fact about the run, not about the machine.** It does not mean you are the only
+session on the repo — see `../SKILL.md` §"You are never the only session", which is assumed
+by every rule in this file. So the *isolation* half of this model still binds a solo run in
+full: work in a worktree, treat the main checkout as read-only shared state, check that a
+branch name is free before taking it, and touch no worktree, branch or PR you did not
+create (§9). What solo drops is the *coordination* half — the dashboard, the message
+protocol, the gate — because there are no lanes to coordinate, not because the repo is
+quiet.
 
 ## 6. The artifacts
 

@@ -12,7 +12,9 @@ The engineering team supports two distinct workflows:
 1. **Build workflow** (evaluate → plan → develop → wrap-up): For doing work on the codebase.
    Proceeds through Phases 1-4, detailed in the per-phase docs in `../phases/`.
 2. **Discussion workflow**: For brainstorming, exploring options, teaching, and building shared
-   understanding. No code changes, no worktrees, no commits. See `discussion.md`.
+   understanding. No code changes, no commits — and the only workflow that needs no
+   worktree, an exemption bought by being read-only which lapses at its first edit.
+   See `discussion.md`.
 
 **Which workflow to use:**
 - If the user says "evaluate", "plan", "develop", "improve", "fix", "assess", "review", or is
@@ -22,7 +24,9 @@ The engineering team supports two distinct workflows:
   "should I use X or Y", "teach me about", "walk me through", "what are my options", "explore
   approaches", "pros and cons", or is clearly seeking understanding rather than action →
   **Discussion workflow**. This holds whether the question opens the session or comes up
-  mid-run: a Build run can pause into Discussion and resume.
+  mid-run: a Build run can pause into Discussion and resume. Crossing back the other way
+  is not symmetric — a Discussion that starts changing files is a Build run, and the
+  worktree comes **before** the first edit (`discussion.md`).
 - If ambiguous, ask the user: "Do you want to discuss and explore options, or do you want me
   to evaluate/plan/implement changes?"
 
