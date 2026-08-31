@@ -186,24 +186,29 @@ fi
 rm -rf "${WORK}"
 
 echo "== scenario 4: retry helper (scripts/lib.sh) =="
-# shellcheck source=/dev/null
-(
+# Each check runs in its own subshell (to source lib.sh with a local log()) and
+# reports via its exit code, so the outer ok()/bad() keep the PASS/FAIL tally
+# accurate.
+if (
   log() { echo "[test] $*"; }
   # shellcheck source=/dev/null
   source "${LIB}"
-
   attempts=0
   flaky() {
     attempts=$((attempts + 1))
     [[ "${attempts}" -ge 3 ]]
   }
-  if RETRY_BASE_DELAY=0 retry flaky && [[ "${attempts}" -eq 3 ]]; then
-    echo "  ok: retry succeeds once the command stops failing (3 tries)"
-  else
-    echo "  FAIL: retry did not recover a flaky command" >&2
-    exit 1
-  fi
+  RETRY_BASE_DELAY=0 retry flaky && [[ "${attempts}" -eq 3 ]]
+); then
+  ok "retry recovers a flaky command once it stops failing (3 tries)"
+else
+  bad "retry did not recover a flaky command"
+fi
 
+if (
+  log() { echo "[test] $*"; }
+  # shellcheck source=/dev/null
+  source "${LIB}"
   tries=0
   countingfalse() {
     tries=$((tries + 1))
@@ -211,13 +216,12 @@ echo "== scenario 4: retry helper (scripts/lib.sh) =="
   }
   rc=0
   RETRY_ATTEMPTS=3 RETRY_BASE_DELAY=0 retry countingfalse || rc=$?
-  if [[ "${rc}" -eq 7 && "${tries}" -eq 3 ]]; then
-    echo "  ok: retry gives up after RETRY_ATTEMPTS and returns the command's exit code"
-  else
-    echo "  FAIL: retry give-up path wrong (rc=${rc}, tries=${tries})" >&2
-    exit 1
-  fi
-) || FAIL=$((FAIL + 1))
+  [[ "${rc}" -eq 7 && "${tries}" -eq 3 ]]
+); then
+  ok "retry gives up after RETRY_ATTEMPTS and returns the command's exit code"
+else
+  bad "retry give-up path wrong (wrong exit code or attempt count)"
+fi
 
 echo ""
 echo "== results: ${PASS} passed, ${FAIL} failed =="

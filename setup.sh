@@ -106,7 +106,7 @@ die() {
 # Is this step one whose failure must abort the whole run? (See REQUIRED above.)
 is_required() {
   local candidate="$1" r
-  for r in "${REQUIRED[@]:-}"; do
+  for r in ${REQUIRED[@]+"${REQUIRED[@]}"}; do
     [[ "${candidate}" == "${r}" ]] && return 0
   done
   return 1
