@@ -6,6 +6,10 @@ set -euo pipefail
 
 log() { echo "[neovim] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 NVIM_VERSION="v0.11.5"
 INSTALL_DIR="/opt"
 BIN_DIR="/usr/local/bin"
@@ -33,7 +37,7 @@ log "Removing old apt neovim (if any)..."
 sudo apt-get remove -y neovim 2>/dev/null || true
 
 log "Downloading Neovim ${NVIM_VERSION} (${NVIM_ARCH})..."
-curl -fsSL "${APPIMAGE_URL}" -o "${APPIMAGE_TMP}"
+retry curl -fsSL "${APPIMAGE_URL}" -o "${APPIMAGE_TMP}"
 chmod +x "${APPIMAGE_TMP}"
 
 log "Extracting AppImage..."

@@ -6,7 +6,10 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_DIR="${REPO_DIR}/scripts"
+# SCRIPTS_DIR is overridable via env (SETUP_SCRIPTS_DIR) so the resilience test in
+# tests/setup-resilience/ can drive this exact runner over a throwaway set of
+# fake steps without touching the real scripts/.
+SCRIPTS_DIR="${SETUP_SCRIPTS_DIR:-${REPO_DIR}/scripts}"
 REPO_URL="https://github.com/johnmathews/codespaces-setup"
 README_URL="${REPO_URL}#readme"
 
@@ -15,8 +18,16 @@ README_URL="${REPO_URL}#readme"
 #   tail -f ~/.cache/codespaces-setup.log
 # This works even when setup.sh runs in the background, e.g. as the Codespaces
 # postCreateCommand.
-SETUP_LOG="${HOME}/.cache/codespaces-setup.log"
+SETUP_LOG="${SETUP_LOG:-${HOME}/.cache/codespaces-setup.log}"
 mkdir -p "$(dirname "${SETUP_LOG}")"
+
+# Durable failure signal. When any step fails, a human-readable summary is
+# written here and configs/.zshrc surfaces it on the next interactive shell.
+# The path that matters most is unattended — Codespaces auto-runs this script via
+# the dotfiles mechanism at creation, with nobody watching the output — so a
+# half-built environment must leave a mark a human actually trips over rather
+# than passing for a complete one. A fully successful run removes the file.
+SETUP_FAILURE_FILE="${SETUP_FAILURE_FILE:-${HOME}/.cache/codespaces-setup.failed}"
 
 # Detect whether we're attached to a real terminal *before* redirecting stdout
 # through tee — afterwards stdout is a pipe and `[[ -t 1 ]]` is always false.
@@ -49,9 +60,38 @@ STEPS=(
   "18-azure-cli.sh|Installing Azure CLI (az)"
 )
 
+# Test hook: SETUP_STEPS, if set, replaces the list above with ';'-separated
+# "script|description" entries. Lets tests/setup-resilience/ exercise the runner
+# over fake steps. Unset in every real run, so production behaviour is unchanged.
+if [[ -n "${SETUP_STEPS:-}" ]]; then
+  IFS=';' read -r -a STEPS <<<"${SETUP_STEPS}"
+fi
+
+# Steps that MUST succeed for the rest of the run to be meaningful. A required
+# step that fails aborts the run immediately (the historical behaviour) instead
+# of being recorded-and-skipped, because continuing past it would only produce a
+# cascade of derived failures.
+#
+# Only 01-apt-packages qualifies: it installs the foundational tools every later
+# step assumes are already on PATH (curl, git, unzip, tar, zsh). If it fails,
+# essentially every remaining step fails too, so aborting yields one clear,
+# actionable error instead of 16 misleading ones. Every other step installs an
+# independent tool whose failure the rest of the run can survive, so those are
+# recorded and skipped past rather than fatal.
+#
+# Overridable via env for the resilience test: SETUP_REQUIRED="" means "none".
+if [[ -n "${SETUP_REQUIRED+defined}" ]]; then
+  IFS=';' read -r -a REQUIRED <<<"${SETUP_REQUIRED}"
+else
+  REQUIRED=("01-apt-packages.sh")
+fi
+
 TOTAL_STEPS="${#STEPS[@]}"
 SETUP_START_TS="$(date +%s)"
 CURRENT_STEP=""
+# Each step that exits non-zero is recorded here as "NN|script|name"; the run
+# keeps going and reports them all at the end.
+declare -a FAILED_STEPS=()
 
 log() { echo "[setup] $*"; }
 die() {
@@ -61,6 +101,55 @@ die() {
     echo "[setup] ERROR: $*" >&2
   fi
   exit 1
+}
+
+# Is this step one whose failure must abort the whole run? (See REQUIRED above.)
+is_required() {
+  local candidate="$1" r
+  for r in ${REQUIRED[@]+"${REQUIRED[@]}"}; do
+    [[ "${candidate}" == "${r}" ]] && return 0
+  done
+  return 1
+}
+
+# Write the durable, human-readable failure signal that configs/.zshrc surfaces
+# on the next interactive shell. Overwrites any previous signal so it always
+# reflects the latest run.
+write_failure_file() {
+  local entry n s nm
+  mkdir -p "$(dirname "${SETUP_FAILURE_FILE}")"
+  {
+    echo "⚠️  codespaces-setup did NOT finish cleanly (last run: $(date))."
+    echo ""
+    echo "Failed step(s):"
+    for entry in "${FAILED_STEPS[@]}"; do
+      IFS="|" read -r n s nm <<<"${entry}"
+      printf "  ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+    done
+    echo ""
+    echo "Your environment is only partially set up. To fix it:"
+    echo "  bash ${REPO_DIR}/setup.sh      # re-run (idempotent; safe to repeat)"
+    echo "  tail -n 200 ${SETUP_LOG}       # see what went wrong"
+    echo ""
+    echo "This notice clears itself once setup completes with no failures."
+  } >"${SETUP_FAILURE_FILE}"
+}
+
+# Print the end-of-run FAILED summary banner listing every failed step.
+print_failure_summary() {
+  local entry n s nm
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║                  ❌  CODESPACES SETUP FAILED  ❌                  ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  printf "  %d of %d step(s) failed — the rest still ran:\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
+  for entry in "${FAILED_STEPS[@]}"; do
+    IFS="|" read -r n s nm <<<"${entry}"
+    printf "    ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+  done
+  printf "  📝 Full log     : %s\n" "${SETUP_LOG}"
+  printf "  🚩 Signal file  : %s (shown on next shell start)\n" "${SETUP_FAILURE_FILE}"
+  printf "  🔁 Re-run        : bash %s/setup.sh\n" "${REPO_DIR}"
 }
 
 repeat_char() {
@@ -158,7 +247,23 @@ run_step() {
       echo "----- last 20 lines of ${SETUP_LOG} (full detail there) -----"
       tail -n 20 "${SETUP_LOG}" 2>/dev/null || true
     fi
-    die "Step failed: ${name} (${script})"
+    elapsed=$(($(date +%s) - started_at))
+    FAILED_STEPS+=("${step_number}|${script}|${name}")
+
+    if is_required "${script}"; then
+      # A required step is foundational: continuing past it only produces derived
+      # failures, so abort now — but still leave the durable signal first, so even
+      # this early exit can't pass for success on an unattended run.
+      printf "✗ FAILED     : %s (%ss) — REQUIRED, aborting run\n" "${name}" "${elapsed}"
+      write_failure_file
+      print_failure_summary
+      die "Required step failed: ${name} (${script})"
+    fi
+
+    # Non-required: record it and keep going so one broken installer can't strand
+    # the remaining steps (the whole point — an unattended run must not stop dead
+    # on the first flaky download).
+    printf "✗ FAILED     : %s (%ss) — continuing with remaining steps\n" "${name}" "${elapsed}"
   fi
 }
 
@@ -172,22 +277,37 @@ for i in "${!STEPS[@]}"; do
   run_step "$((i + 1))"   "${script}" "${name}"
 done
 
-CORE_ELAPSED=$(($( date +%s) - SETUP_START_TS))
+CORE_ELAPSED=$(($(date +%s) - SETUP_START_TS))
 
 echo ""
 printf "▶ %s [BG] Starting Neovim plugin pre-load\n" "$(progress_bar "${TOTAL_STEPS}" "${TOTAL_STEPS}")"
 mkdir -p "${HOME}/.cache"
 NVIM_LOG="${HOME}/.cache/nvim-setup.log"
-bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >"${NVIM_LOG}" 2>&1 &
-NVIM_SETUP_PID=$!
-printf "✓ Started    : Neovim plugin pre-load (PID: %s)\n" "${NVIM_SETUP_PID}"
-printf "  Monitor    : tail -f %s\n" "${NVIM_LOG}"
-printf "  Wait       : wait %s\n" "${NVIM_SETUP_PID}"
+# Guard existence: SETUP_SCRIPTS_DIR may be a test fixture without this script.
+if [[ -f "${SCRIPTS_DIR}/13-nvim-plugins.sh" ]]; then
+  bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >"${NVIM_LOG}" 2>&1 &
+  NVIM_SETUP_PID=$!
+  printf "✓ Started    : Neovim plugin pre-load (PID: %s)\n" "${NVIM_SETUP_PID}"
+  printf "  Monitor    : tail -f %s\n" "${NVIM_LOG}"
+  printf "  Wait       : wait %s\n" "${NVIM_SETUP_PID}"
+else
+  printf "• Skipped    : Neovim plugin pre-load (%s not present)\n" "${SCRIPTS_DIR}/13-nvim-plugins.sh"
+fi
 
+# Choose the closing banner from the actual outcome: a partial run must never
+# print the green "COMPLETE" banner, or the whole point of tracking failures is
+# lost.
 echo ""
-echo "╔══════════════════════════════════════════════════════════════════╗"
-echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
-echo "╚══════════════════════════════════════════════════════════════════╝"
+if ((${#FAILED_STEPS[@]} == 0)); then
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+else
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║             ⚠️   CODESPACES SETUP INCOMPLETE  ⚠️                 ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  printf "  ❗ %d of %d step(s) failed — details in the summary below.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
+fi
 printf "  🕒 Core setup : completed in %ss\n" "${CORE_ELAPSED}"
 printf "  👉 Next step  : run 'exec zsh' in this terminal if you want to switch now\n"
 printf "  🐚 New shells : should open in zsh automatically\n"
@@ -256,3 +376,16 @@ echo "  📜 Aliases      : ${HOME}/.zsh_aliases"
 echo "  🔧 Git config   : ${HOME}/.gitconfig"
 echo "  🔌 Nvim plugins : tail -f ${NVIM_LOG}"
 echo ""
+
+# Final outcome. Any failed step means the run did not complete: write the
+# durable signal, print the summary that names each failure, and exit non-zero.
+# A clean run removes any stale signal from a previous failed run so a later
+# success silences the shell-start warning.
+if ((${#FAILED_STEPS[@]} > 0)); then
+  write_failure_file
+  print_failure_summary
+  echo ""
+  exit 1
+fi
+
+rm -f "${SETUP_FAILURE_FILE}"

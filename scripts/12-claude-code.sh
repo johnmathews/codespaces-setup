@@ -8,6 +8,20 @@ set -euo pipefail
 
 log() { echo "[claude-code] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+# Download and run the official installer (retryable) instead of `curl | bash`,
+# so a transient network failure retries rather than piping a truncated script.
+install_claude() {
+  local installer
+  installer="$(mktemp)"
+  retry curl -fsSL https://claude.ai/install.sh -o "${installer}"
+  bash "${installer}"
+  rm -f "${installer}"
+}
+
 if command -v claude &>/dev/null; then
   before="$(claude --version 2>/dev/null || echo 'unknown version')"
   log "Claude Code already installed (${before}); updating to latest..."
@@ -17,13 +31,13 @@ if command -v claude &>/dev/null; then
     log "Up to date: $(claude --version 2>/dev/null || echo 'unknown version') (was ${before})"
   else
     log "WARNING: 'claude update' failed; re-running official installer..."
-    curl -fsSL https://claude.ai/install.sh | bash
+    install_claude
     log "Reinstalled: $(claude --version 2>/dev/null || echo 'installed') (was ${before})"
   fi
   exit 0
 fi
 
 log "Installing Claude Code..."
-curl -fsSL https://claude.ai/install.sh | bash
+install_claude
 
 log "Installed: $(claude --version 2>/dev/null || echo 'installed')"

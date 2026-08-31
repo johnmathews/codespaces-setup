@@ -6,6 +6,10 @@ set -euo pipefail
 
 log() { echo "[apt-packages] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 PACKAGES=(
   git
   curl
@@ -39,12 +43,12 @@ log "Updating apt cache..."
 # Don't let a single broken third-party repo (e.g. an expired yarn/deadsnakes
 # GPG key) abort the whole setup. The packages we need come from the Debian/
 # Ubuntu main repos, which still update fine, so a partial failure here is OK.
-if ! sudo apt-get update -q; then
+if ! retry sudo apt-get update -q; then
   log "WARNING: 'apt-get update' reported errors (often a broken third-party repo)."
   log "Continuing — required packages come from the main repos."
 fi
 
 log "Installing packages: ${PACKAGES[*]}"
-sudo apt-get install -y -q "${PACKAGES[@]}"
+retry sudo apt-get install -y -q "${PACKAGES[@]}"
 
 log "Done."

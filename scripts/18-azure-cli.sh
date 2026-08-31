@@ -14,6 +14,10 @@ set -euo pipefail
 
 log() { echo "[azure-cli] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 AZ_VERSION="2.68.0"
 BIN_DIR="/usr/local/bin"
 
@@ -41,7 +45,7 @@ if ! command -v uv &>/dev/null; then
 fi
 
 log "Installing azure-cli ${AZ_VERSION} via uv..."
-uv tool install "azure-cli==${AZ_VERSION}"
+retry uv tool install "azure-cli==${AZ_VERSION}"
 
 AZ_SHIM="${HOME}/.local/bin/az"
 if [[ -x "${AZ_SHIM}" ]]; then

@@ -15,6 +15,10 @@ set -euo pipefail
 
 log() { echo "[dev-tools] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 BIN_DIR="/usr/local/bin"
 
 # Behind a TLS-intercepting proxy (common on corporate networks / restrictive
@@ -55,13 +59,13 @@ npm_install_global() {
   # (so it works behind a TLS-intercepting proxy) and avoids leaving root-owned
   # files in a user-writable nvm prefix. Fall back to sudo for root-owned
   # prefixes, explicitly forwarding PATH *and* the CA env (sudo strips it).
-  if npm install -g --no-fund --no-audit "$@" 2>/dev/null; then
+  if retry npm install -g --no-fund --no-audit "$@" 2>/dev/null; then
     return 0
   fi
   log "Non-root npm install failed; retrying with sudo..."
   local env_args=("PATH=${PATH}")
   [[ -f "${SYSTEM_CA}" ]] && env_args+=("NODE_EXTRA_CA_CERTS=${SYSTEM_CA}")
-  sudo env "${env_args[@]}" npm install -g --no-fund --no-audit "$@"
+  retry sudo env "${env_args[@]}" npm install -g --no-fund --no-audit "$@"
 }
 
 if command -v npm >/dev/null 2>&1; then
@@ -86,8 +90,8 @@ fi
 # ---------------------------------------------------------------------------
 if command -v uv >/dev/null 2>&1; then
   log "Installing Python tools via uv (ruff, mypy)..."
-  uv tool install --quiet ruff || log "WARNING: failed to install ruff."
-  uv tool install --quiet mypy || log "WARNING: failed to install mypy."
+  retry uv tool install --quiet ruff || log "WARNING: failed to install ruff."
+  retry uv tool install --quiet mypy || log "WARNING: failed to install mypy."
   # Expose the uv tool shims on the global PATH, matching scripts/09-uv.sh.
   for tool in ruff mypy; do
     if [[ -x "${HOME}/.local/bin/${tool}" ]]; then
@@ -111,7 +115,7 @@ install_glow() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing glow ${GLOW_VERSION}..."
-  curl -fsSL "${url}" -o "${tmp}/glow.tar.gz"
+  retry curl -fsSL "${url}" -o "${tmp}/glow.tar.gz"
   tar -xzf "${tmp}/glow.tar.gz" -C "${tmp}"
   sudo install -m 755 "$(find "${tmp}" -type f -name glow | head -1)" "${BIN_DIR}/glow"
   rm -rf "${tmp}"
@@ -126,7 +130,7 @@ install_stylua() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing stylua ${STYLUA_VERSION}..."
-  curl -fsSL "${url}" -o "${tmp}/stylua.zip"
+  retry curl -fsSL "${url}" -o "${tmp}/stylua.zip"
   unzip -q "${tmp}/stylua.zip" -d "${tmp}"
   sudo install -m 755 "${tmp}/stylua" "${BIN_DIR}/stylua"
   rm -rf "${tmp}"
@@ -141,7 +145,7 @@ install_shfmt() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing shfmt ${SHFMT_VERSION}..."
-  curl -fsSL "${url}" -o "${tmp}/shfmt"
+  retry curl -fsSL "${url}" -o "${tmp}/shfmt"
   sudo install -m 755 "${tmp}/shfmt" "${BIN_DIR}/shfmt"
   rm -rf "${tmp}"
 }

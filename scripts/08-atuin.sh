@@ -7,6 +7,10 @@ set -euo pipefail
 
 log() { echo "[atuin] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 BIN_DIR="/usr/local/bin"
 
 if command -v atuin &>/dev/null; then
@@ -16,7 +20,13 @@ fi
 
 log "Installing atuin via official installer..."
 export ATUIN_DONT_PRINT_WELCOME=1
-curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh -s -- --no-modify-path
+# Download the installer to a file first (with retries) rather than piping
+# curl straight into sh: a transient network failure mid-pipe would otherwise
+# feed a truncated script to sh with no chance to retry.
+ATUIN_INSTALLER="$(mktemp)"
+retry curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh -o "${ATUIN_INSTALLER}"
+sh "${ATUIN_INSTALLER}" --no-modify-path
+rm -f "${ATUIN_INSTALLER}"
 
 # The installer puts the binary in ~/.atuin/bin/atuin
 ATUIN_LOCAL="${HOME}/.atuin/bin/atuin"

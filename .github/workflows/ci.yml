@@ -87,3 +87,11 @@ jobs:
         run: |
           python3 tests/engineering-team-command-links/check_command_links.py --selftest
           python3 tests/engineering-team-command-links/check_command_links.py
+
+      - name: setup-resilience test
+        # Fully headless (no network/sudo/LLM): drives the real setup.sh over a
+        # throwaway set of fake steps via its SETUP_* env hooks and asserts a
+        # failing step no longer aborts the run, the summary names it, the exit
+        # code is non-zero, and a durable signal file is left behind. Also
+        # unit-tests the shared retry helper (scripts/lib.sh).
+        run: bash tests/setup-resilience/run.sh

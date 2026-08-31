@@ -12,6 +12,10 @@ set -euo pipefail
 
 log() { echo "[fonts] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 FONT_DIR="${HOME}/.local/share/fonts/MesloLGS-NF"
 BASE_URL="https://github.com/romkatv/powerlevel10k-media/raw/master"
 
@@ -44,7 +48,7 @@ for font in "${FONTS[@]}"; do
     log "  Downloading: ${font}..."
     # URL-encode the spaces
     encoded="${font// /%20}"
-    curl -fsSL "${BASE_URL}/${encoded}" -o "${dest}"
+    retry curl -fsSL "${BASE_URL}/${encoded}" -o "${dest}"
   fi
 done
 

@@ -13,12 +13,16 @@ set -euo pipefail
 
 log() { echo "[neovim-config] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 NVIM_CONFIG_DIR="${HOME}/.config/nvim"
 NVIM_REPO="https://github.com/johnmathews/neovim.git"
 
 if [[ -d "${NVIM_CONFIG_DIR}/.git" ]]; then
   log "Neovim config already cloned, resetting to latest upstream..."
-  git -C "${NVIM_CONFIG_DIR}" fetch origin
+  retry git -C "${NVIM_CONFIG_DIR}" fetch origin
   # Make sure origin/HEAD points at the remote's default branch (it may be unset
   # in older clones), then resolve which branch that is. Fall back to the current
   # branch, then main, so we reset to whatever the repo's default branch is.
@@ -39,7 +43,7 @@ else
     mv "${NVIM_CONFIG_DIR}" "${NVIM_CONFIG_DIR}.bak"
   fi
   log "Cloning ${NVIM_REPO} to ${NVIM_CONFIG_DIR}..."
-  git clone "${NVIM_REPO}" "${NVIM_CONFIG_DIR}"
+  retry git clone "${NVIM_REPO}" "${NVIM_CONFIG_DIR}"
 fi
 
 log "Neovim config ready at ${NVIM_CONFIG_DIR}"
