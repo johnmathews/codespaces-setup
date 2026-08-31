@@ -114,5 +114,16 @@ if command -v gh &>/dev/null; then
   eval "$(gh completion -s zsh 2>/dev/null)"
 fi
 
+# Surface an incomplete Codespaces setup. setup.sh writes this file whenever a
+# provisioning step fails; because the dotfiles auto-run at codespace creation is
+# unattended, this shell-start notice is where a half-built environment finally
+# becomes visible instead of quietly passing for a complete one. The file clears
+# itself the next time setup.sh completes with no failures.
+if [[ -f ~/.cache/codespaces-setup.failed ]]; then
+  print -P "%F{red}%B⚠️  Codespaces setup did not finish cleanly:%b%f"
+  cat ~/.cache/codespaces-setup.failed
+  print -P "%F{yellow}(this notice clears once setup.sh completes with no failures)%f"
+fi
+
 # Local customisations (not managed by codespaces-setup)
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local

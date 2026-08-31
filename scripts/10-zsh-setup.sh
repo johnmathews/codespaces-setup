@@ -6,6 +6,10 @@ set -euo pipefail
 
 log() { echo "[zsh-setup] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 OMZ_DIR="${HOME}/.oh-my-zsh"
 OMZ_CUSTOM="${OMZ_DIR}/custom"
 ZSH_PLUGINS_DIR="${OMZ_CUSTOM}/plugins"
@@ -17,8 +21,12 @@ log "Zsh version: $(zsh --version)"
 # Install Oh My Zsh (unattended, skip shell change - handled by 11-dotfiles.sh)
 if [[ ! -d "${OMZ_DIR}" ]]; then
   log "Installing Oh My Zsh..."
-  RUNZSH=no CHSH=no \
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  # Download the installer to a file first (retryable) rather than piping curl
+  # into sh, then run it with the same unattended flags.
+  OMZ_INSTALLER="$(mktemp)"
+  retry curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "${OMZ_INSTALLER}"
+  RUNZSH=no CHSH=no sh "${OMZ_INSTALLER}" "" --unattended
+  rm -f "${OMZ_INSTALLER}"
 else
   log "Oh My Zsh already installed, skipping."
 fi
@@ -30,7 +38,7 @@ install_plugin() {
   local dest="${ZSH_PLUGINS_DIR}/${name}"
   if [[ -d "${dest}/.git" ]]; then
     log "Plugin ${name}: updating..."
-    if ! git -C "${dest}" pull --ff-only -q; then
+    if ! retry git -C "${dest}" pull --ff-only -q; then
       log "ERROR: failed to fast-forward plugin ${name} in ${dest}."
       log "       It has local commits or has diverged from upstream."
       log "       Re-clone it:  rm -rf ${dest} && bash scripts/10-zsh-setup.sh"
@@ -38,7 +46,7 @@ install_plugin() {
     fi
   else
     log "Plugin ${name}: cloning..."
-    git clone --depth=1 "${repo}" "${dest}"
+    retry git clone --depth=1 "${repo}" "${dest}"
   fi
 }
 
@@ -54,7 +62,7 @@ install_plugin "zsh-syntax-highlighting" \
 P10K_DIR="${ZSH_THEMES_DIR}/powerlevel10k"
 if [[ -d "${P10K_DIR}/.git" ]]; then
   log "Powerlevel10k: updating..."
-  if ! git -C "${P10K_DIR}" pull --ff-only -q; then
+  if ! retry git -C "${P10K_DIR}" pull --ff-only -q; then
     log "ERROR: failed to fast-forward Powerlevel10k in ${P10K_DIR}."
     log "       It has local commits or has diverged from upstream."
     log "       Re-clone it:  rm -rf ${P10K_DIR} && bash scripts/10-zsh-setup.sh"
@@ -63,7 +71,7 @@ if [[ -d "${P10K_DIR}/.git" ]]; then
 else
   log "Powerlevel10k: cloning..."
   mkdir -p "${ZSH_THEMES_DIR}"
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${P10K_DIR}"
+  retry git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "${P10K_DIR}"
 fi
 
 # Deploy Powerlevel10k lean preset as ~/.p10k.zsh if not already present

@@ -17,6 +17,7 @@ every check can be run locally with the same commands.
 | Triggering parsers | `tests/engineering-team-triggering/run.py --selftest` | A silent bug in the triggering test's own deterministic parsers (verdict parsing, folded-description extraction) — the part that turns an LLM reply into a scored number, where a bug yields a confident wrong result. Headless; the LLM measurement itself is not in CI (the Router probes / Triggering eval rows below) |
 | Rule-ownership drift-scan | [`tests/engineering-team-drift/`](../tests/engineering-team-drift/) | The skill's rule-ownership index lying about where a rule lives (a cited home heading that no longer exists), a home that lost its canonical statement, or a worktree-idiom copy that dropped `--path-format=absolute` — the idiom check spans the skill docs **and** the vendored slash commands. Fully headless — runs the real scan in CI |
 | Command→skill link-check | [`tests/engineering-team-command-links/`](../tests/engineering-team-command-links/) | A `/done` or `/merge-push` cross-reference into the skill tree (e.g. `references/worktree.md`) left dangling by a rename or move — the commands ship separately from the skill, so the drift-scan's skill-internal scope doesn't cover them. Fully headless — runs the real check in CI |
+| Setup resilience | [`tests/setup-resilience/`](../tests/setup-resilience/) | A regression that lets one failing step abort the whole unattended run again: drives the real `setup.sh` over fake steps and asserts a non-required failure no longer stops the run, the summary names it, the exit code is non-zero, and a durable signal file is left behind — plus a unit test of the shared retry helper (`scripts/lib.sh`). Fully headless — runs the real test in CI |
 | Router probes | [`tests/engineering-team-probes/`](../tests/engineering-team-probes/) | An edit to the skill router (`SKILL.md`) that dropped a load-bearing invariant. **Manual, LLM-in-the-loop — not in CI** (see that dir's README for why and how to run it on router edits) |
 | Triggering eval | [`tests/engineering-team-triggering/`](../tests/engineering-team-triggering/) | An edit to the skill's `description:` frontmatter that makes it mis-fire — trigger on prompts it shouldn't, or miss the ones it should. **Manual, LLM-in-the-loop — not in CI** (a frozen labelled prompt set scored by `claude -p`; see that dir's README). Its parsers *are* CI-checked — the row above. |
 
@@ -44,6 +45,9 @@ python3 tests/engineering-team-triggering/run.py --selftest
 # rule-ownership drift-scan (also run in CI; fully headless)
 python3 tests/engineering-team-drift/drift_scan.py --selftest
 python3 tests/engineering-team-drift/drift_scan.py
+
+# setup resilience + retry helper (also run in CI; fully headless)
+bash tests/setup-resilience/run.sh
 ```
 
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace

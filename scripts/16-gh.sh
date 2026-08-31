@@ -17,6 +17,10 @@ set -euo pipefail
 
 log() { echo "[gh] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 GH_VERSION="v2.95.0"
 GH_VERSION_BARE="${GH_VERSION#v}"
 INSTALL_DIR="/opt"
@@ -44,7 +48,7 @@ URL="https://github.com/cli/cli/releases/download/${GH_VERSION}/${ASSET}.tar.gz"
 GH_DIR="${INSTALL_DIR}/${ASSET}"
 
 log "Downloading gh ${GH_VERSION} (${GH_ARCH})..."
-curl -fsSL "${URL}" -o "${TARBALL}"
+retry curl -fsSL "${URL}" -o "${TARBALL}"
 
 log "Extracting to ${GH_DIR}..."
 sudo rm -rf "${GH_DIR}"

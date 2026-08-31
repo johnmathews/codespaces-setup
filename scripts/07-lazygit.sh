@@ -6,6 +6,10 @@ set -euo pipefail
 
 log() { echo "[lazygit] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 LAZYGIT_VERSION="v0.60.0"
 LAZYGIT_VERSION_BARE="${LAZYGIT_VERSION#v}"
 BIN_DIR="/usr/local/bin"
@@ -31,7 +35,7 @@ TARBALL="/tmp/lazygit-${LAZYGIT_VERSION}.tar.gz"
 URL="https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION_BARE}_linux_${LAZYGIT_ARCH}.tar.gz"
 
 log "Downloading lazygit ${LAZYGIT_VERSION}..."
-curl -fsSL "${URL}" -o "${TARBALL}"
+retry curl -fsSL "${URL}" -o "${TARBALL}"
 
 EXTRACT_DIR="/tmp/lazygit-${LAZYGIT_VERSION}"
 mkdir -p "${EXTRACT_DIR}"

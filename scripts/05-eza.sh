@@ -6,6 +6,10 @@ set -euo pipefail
 
 log() { echo "[eza] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 EZA_VERSION="v0.20.14"
 INSTALL_DIR="/opt"
 BIN_DIR="/usr/local/bin"
@@ -29,7 +33,7 @@ TARBALL="/tmp/eza-${EZA_VERSION}.tar.gz"
 URL="https://github.com/eza-community/eza/releases/download/${EZA_VERSION}/eza_${EZA_ARCH}.tar.gz"
 
 log "Downloading eza ${EZA_VERSION}..."
-curl -fsSL "${URL}" -o "${TARBALL}"
+retry curl -fsSL "${URL}" -o "${TARBALL}"
 
 log "Extracting..."
 sudo mkdir -p "${EZA_DIR}"

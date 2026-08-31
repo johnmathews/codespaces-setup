@@ -6,6 +6,10 @@ set -euo pipefail
 
 log() { echo "[yazi] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 YAZI_VERSION="v0.4.2"
 INSTALL_DIR="/opt"
 BIN_DIR="/usr/local/bin"
@@ -33,7 +37,7 @@ log "Installing image preview dependency (chafa)..."
 sudo apt-get install -y -q chafa 2>/dev/null || true
 
 log "Downloading yazi ${YAZI_VERSION}..."
-curl -fsSL "${URL}" -o "${ZIP}"
+retry curl -fsSL "${URL}" -o "${ZIP}"
 
 log "Extracting..."
 # Clear any leftovers from a previous partial run: a stale extract dir would make

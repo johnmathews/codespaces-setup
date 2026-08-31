@@ -17,7 +17,8 @@ Both are self-contained and assume a Debian/Ubuntu (`apt`) base. They do not dep
 
 `setup.sh` is the orchestrator. It does **not** simply run every file in `scripts/` — it executes an explicit ordered `STEPS` array (`"NN-name.sh|Human description"`), so **adding a new script requires editing the `STEPS` array in `setup.sh`** or it won't run. The numeric filename prefixes are labels, not the source of execution order; the array order is what matters (e.g. `01` then `11` then `14` then `02`…).
 
-- All foreground steps run sequentially via `run_step` with a progress bar; any non-zero exit aborts the whole run (`die`, naming the failing step).
+- All foreground steps run sequentially via `run_step` with a progress bar. A failing step is **recorded and the run continues** (so an unattended dotfiles auto-run can't be stranded half-built by one flaky download); at the end `setup.sh` prints a FAILED summary naming each failed step, writes a durable signal file (`~/.cache/codespaces-setup.failed`, which `configs/.zshrc` surfaces on next shell start), and exits non-zero. The one exception is steps listed in the `REQUIRED` array (currently just `01-apt-packages.sh`, which installs the foundational tools every later step needs) — a required failure still aborts via `die`. The runner honours `SETUP_STEPS`/`SETUP_REQUIRED`/`SETUP_SCRIPTS_DIR` env hooks purely so `tests/setup-resilience/` can drive it over fake steps.
+- Network downloads/installs go through the shared `retry` helper in `scripts/lib.sh` (sourced by each step, EXEMPT from the STEPS lint since it is never run as a step). It retries with exponential backoff — transient network failure is the expected failure mode here, since nearly every step fetches something.
 - `13-nvim-plugins.sh` is launched **in the background** at the end (headless lazy.nvim plugin pre-load), logging separately to `~/.cache/nvim-setup.log`. It is not in `STEPS`.
 - `setup.sh` ends with a verification summary that runs `--version` on every installed tool.
 - All output is `tee`'d to `~/.cache/codespaces-setup.log` via `exec > >(tee -a ...) 2>&1`, so background runs can be followed with `tail -f`.
@@ -80,6 +81,7 @@ python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
 python3 tests/engineering-team-triggering/run.py --selftest
 python3 tests/engineering-team-drift/drift_scan.py --selftest && python3 tests/engineering-team-drift/drift_scan.py
 python3 tests/engineering-team-command-links/check_command_links.py --selftest && python3 tests/engineering-team-command-links/check_command_links.py
+bash tests/setup-resilience/run.sh          # setup.sh runs every step (records failures, keeps going) + retry helper
 ```
 
 The `engineering-team` skill ships **three** structural gates over its own

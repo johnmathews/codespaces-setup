@@ -15,6 +15,10 @@ set -euo pipefail
 
 log() { echo "[nodejs] $*"; }
 
+# shellcheck source=lib.sh
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
 NODE_VERSION="v22.14.0"
 PREFIX="/usr/local"
 
@@ -35,7 +39,7 @@ URL="https://nodejs.org/dist/${NODE_VERSION}/${TARBALL}"
 TMP="$(mktemp -d)"
 
 log "Downloading Node.js ${NODE_VERSION} (${NODE_ARCH})..."
-curl -fsSL "${URL}" -o "${TMP}/${TARBALL}"
+retry curl -fsSL "${URL}" -o "${TMP}/${TARBALL}"
 
 # Extract bin/, lib/, include/, share/ straight into /usr/local.
 log "Installing into ${PREFIX}..."
