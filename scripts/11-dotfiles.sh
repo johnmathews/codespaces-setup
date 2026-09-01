@@ -79,14 +79,38 @@ set_git_config() {
 set_git_config "user.name" "${GIT_USER_NAME}"
 set_git_config "user.email" "${GIT_USER_EMAIL}"
 
-# Change default shell to zsh if it is currently something else
-ZSH_PATH="$(command -v zsh)"
-CURRENT_SHELL="$(getent passwd "$(whoami)" | cut -d: -f7)"
-if [[ "${CURRENT_SHELL}" != "${ZSH_PATH}" ]]; then
-  log "Changing default shell to zsh (${ZSH_PATH})..."
-  sudo chsh -s "${ZSH_PATH}" "$(whoami)"
+# Change default shell to zsh if it is currently something else.
+#
+# Guarded, and deliberately non-fatal. Two things bite here:
+#
+#  1. `ZSH_PATH="$(command -v zsh)"` was unguarded under `set -e`, so on a
+#     machine without zsh this line ALONE failed the whole step — after the
+#     .zshrc had already been deployed above.
+#  2. This step runs 2nd while 10-zsh-setup.sh (oh-my-zsh) runs 12th. Since a
+#     non-required failure no longer aborts the run, switching the login shell
+#     here can hand the user a zsh whose config is not fully installed. The
+#     .zshrc now guards its oh-my-zsh source for exactly this reason, so the
+#     shell degrades rather than erroring — but there is no reason to make the
+#     switch fatal either.
+ZSH_PATH="$(command -v zsh || true)"
+if [[ -z "${ZSH_PATH}" ]]; then
+  log "WARNING: zsh not found; leaving the default shell unchanged."
+  log "         01-apt-packages.sh installs it — check whether that step failed."
 else
-  log "Default shell is already zsh."
+  CURRENT_SHELL="$(getent passwd "$(whoami)" 2>/dev/null | cut -d: -f7 || true)"
+  if [[ "${CURRENT_SHELL}" != "${ZSH_PATH}" ]]; then
+    log "Changing default shell to zsh (${ZSH_PATH})..."
+    if sudo chsh -s "${ZSH_PATH}" "$(whoami)"; then
+      log "Default shell changed to zsh."
+    else
+      # Not fatal: the bash->zsh handoff block below still gets the user into
+      # zsh for interactive shells, so a PAM-refused chsh degrades rather than
+      # failing a step that has already done its real work.
+      log "WARNING: 'chsh' failed; relying on the ~/.bashrc handoff instead."
+    fi
+  else
+    log "Default shell is already zsh."
+  fi
 fi
 
 # Put setup-status on PATH. It is the answer to "what happened during setup?"

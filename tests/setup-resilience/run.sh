@@ -120,6 +120,7 @@ run_setup() {
     RAN_MARKER="${RAN_MARKER}" \
     FLAKY_MARK="${FLAKY_MARK:-/nonexistent}" \
     SETUP_RETRY_PASS="${RETRY_PASS:-1}" \
+    SETUP_DEPS="${DEPS:-}" \
     bash "${SETUP}" >/dev/null 2>&1 || RC=$?
   # setup.sh execs stdout through `tee` (a background process); give it a beat to
   # flush the log before we read it.
@@ -397,6 +398,44 @@ INNER
 else
   echo "  (skipped: no 'script' command to allocate a pty)"
 fi
+
+echo "== scenario 8: a step whose dependency failed is SKIPPED, not failed =="
+# Before continue-on-failure this was unreachable: the run died at the
+# dependency, so the dependent never ran. Now it does, and it fails for a reason
+# that has nothing to do with itself - producing two entries in the FAILED
+# banner for one root cause, with nothing saying which is which.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_fixture "${WORK}/scripts" "09-dep:1" "18-needs-dep:0" "20-unrelated:0"
+HOME8="${WORK}/home"
+mkdir -p "${HOME8}"
+DEPS="18-needs-dep.sh:09-dep.sh" RETRY_PASS=0 run_setup "${WORK}/scripts" \
+  "09-dep.sh|Dependency;18-needs-dep.sh|Dependent;20-unrelated.sh|Unrelated" \
+  "" "${HOME8}"
+LOG="${HOME8}/.cache/codespaces-setup.log"
+
+assert_contains "the dependent is reported as skipped" "${LOG}" \
+  "Skipped    : depends on 09-dep.sh"
+assert_contains "the summary explains why it was skipped" "${LOG}" \
+  "skipped because something they depend on failed"
+if grep -qx "18-needs-dep" "${RAN_MARKER}"; then
+  bad "the dependent actually RAN despite its dependency failing"
+else
+  ok "the dependent did not run"
+fi
+if grep -qx "20-unrelated" "${RAN_MARKER}"; then
+  ok "an unrelated step still runs"
+else
+  bad "an unrelated step was wrongly skipped"
+fi
+# The root cause appears once, as a failure; the dependent does not appear as one.
+if grep -q "✗ \[2\]" "${LOG}"; then
+  bad "the dependent was listed as a FAILED step (duplicating one root cause)"
+else
+  ok "the dependent is not listed as a failed step"
+fi
+rm -rf "${WORK}"
 
 echo ""
 echo "== results: ${PASS} passed, ${FAIL} failed =="

@@ -116,6 +116,27 @@ else
   REQUIRED=("01-apt-packages.sh")
 fi
 
+# Hard dependencies between steps: "script:dependency[,dependency...]".
+#
+# These were unreachable before a non-required failure stopped aborting the run —
+# the run died at the dependency, so the dependent never ran. Now it does, and it
+# fails for a reason that has nothing to do with itself: 09-uv.sh failing produced
+# TWO entries in the FAILED banner, with nothing saying which was the cause and
+# which the consequence. Marking dependents SKIPPED keeps one root cause to one
+# line, and stops a derived failure being re-attempted by the retry pass (which
+# would just fail again, slowly).
+#
+# Overridable for tests via SETUP_DEPS; empty means "no dependencies".
+if [[ -n "${SETUP_DEPS+defined}" ]]; then
+  IFS=';' read -r -a STEP_DEPS <<<"${SETUP_DEPS}"
+else
+  STEP_DEPS=(
+    "18-azure-cli.sh:09-uv.sh"
+    "15-dev-tools.sh:02-nodejs.sh,09-uv.sh"
+    "04-neovim-config.sh:03-neovim.sh"
+  )
+fi
+
 TOTAL_STEPS="${#STEPS[@]}"
 SETUP_START_TS="$(date +%s)"
 CURRENT_STEP=""
@@ -133,6 +154,8 @@ declare -a MISSING_TOOLS=()
 # answer "which steps ran, in what order, and how long did they take".
 declare -a STEP_RECORDS=()
 # Scratch for the end-of-run retry pass.
+# Steps not run because a dependency failed, as "NN|script|name|blocker".
+declare -a SKIPPED_STEPS=()
 declare -a RETRY_TARGETS=()
 RECOVERED=0
 entry=""
@@ -149,6 +172,35 @@ die() {
     echo "[setup] ERROR: $*" >&2
   fi
   exit 1
+}
+
+# Names of steps that have already failed, for the dependency check below.
+failed_scripts() {
+  local entry n s nm
+  for entry in ${FAILED_STEPS[@]+"${FAILED_STEPS[@]}"}; do
+    IFS="|" read -r n s nm <<<"${entry}"
+    printf '%s\n' "${s}"
+  done
+}
+
+# If this step declares a dependency that already failed, name it. Prints the
+# failed dependency and returns 0; returns 1 when the step is good to run.
+blocked_by() {
+  local candidate="$1" spec dep_script deps dep failed
+  failed="$(failed_scripts)"
+  for spec in ${STEP_DEPS[@]+"${STEP_DEPS[@]}"}; do
+    dep_script="${spec%%:*}"
+    [[ "${dep_script}" == "${candidate}" ]] || continue
+    deps="${spec#*:}"
+    IFS=',' read -r -a _deps <<<"${deps}"
+    for dep in "${_deps[@]}"; do
+      if printf '%s\n' "${failed}" | grep -qx -- "${dep}"; then
+        printf '%s' "${dep}"
+        return 0
+      fi
+    done
+  done
+  return 1
 }
 
 # Is this step one whose failure must abort the whole run? (See REQUIRED above.)
@@ -248,7 +300,7 @@ write_summary() {
 # $1: "aborted" when a REQUIRED step stopped the run, so the summary does not
 # claim the remaining steps ran when they did not.
 print_failure_summary() {
-  local mode="${1:-completed}" entry n s nm t
+  local mode="${1:-completed}" entry n s nm t b
   echo ""
   echo "╔══════════════════════════════════════════════════════════════════╗"
   echo "║                  ❌  CODESPACES SETUP FAILED  ❌                  ║"
@@ -263,6 +315,13 @@ print_failure_summary() {
     for entry in "${FAILED_STEPS[@]}"; do
       IFS="|" read -r n s nm <<<"${entry}"
       printf "    ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+    done
+  fi
+  if ((${#SKIPPED_STEPS[@]} > 0)); then
+    printf "  %d step(s) were skipped because something they depend on failed:\n" "${#SKIPPED_STEPS[@]}"
+    for entry in "${SKIPPED_STEPS[@]}"; do
+      IFS="|" read -r n s nm b <<<"${entry}"
+      printf "    - [%s] %s (%s) — needs %s\n" "${n}" "${nm}" "${s}" "${b}"
     done
   fi
   if ((${#MISSING_TOOLS[@]} > 0)); then
@@ -390,7 +449,19 @@ run_step() {
   local step_number="$1"
   local script="$2"
   local name="$3"
-  local started_at elapsed rc attempts
+  local started_at elapsed rc attempts blocker
+  # A step whose dependency already failed is SKIPPED, not failed: reporting it
+  # as a failure duplicates one root cause across two lines and sends the reader
+  # to the wrong script.
+  if blocker="$(blocked_by "${script}")"; then
+    echo ""
+    printf "▶ %s [%02d/%02d] %s\n" "$(progress_bar "${step_number}" "${TOTAL_STEPS}")" \
+      "${step_number}" "${TOTAL_STEPS}" "${name}"
+    printf "• Skipped    : depends on %s, which failed\n" "${blocker}"
+    STEP_RECORDS+=("${step_number}|${script}|${name}|skipped|0|0")
+    SKIPPED_STEPS+=("${step_number}|${script}|${name}|${blocker}")
+    return 0
+  fi
   started_at="$(date +%s)"
   CURRENT_STEP="${name}"
   CURRENT_SCRIPT="${script}"

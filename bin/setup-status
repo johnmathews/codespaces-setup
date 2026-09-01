@@ -150,6 +150,14 @@ if failed:
         note = " (interrupted)" if s.get("status") == "interrupted" else ""
         print("    x [%s] %s (%s)%s" % (s.get("n"), s.get("name"), s.get("script"), note))
 
+skipped = [s for s in steps if s.get("status") == "skipped"]
+if skipped:
+    print("")
+    print("  Skipped, because something they depend on failed:")
+    for s in skipped:
+        print("    - [%s] %s (%s)" % (s.get("n"), s.get("name"), s.get("script")))
+    print("    Fixing the failure above should let these run.")
+
 if missing:
     print("")
     print("  Missing after setup (the step reported success, but these are absent):")
