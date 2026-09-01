@@ -6,6 +6,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 - [Manual steps (do these yourself)](#manual-steps-do-these-yourself)
 - [Logs](#logs)
+- [Troubleshooting: my Codespace came up half-built](#troubleshooting-my-codespace-came-up-half-built)
 - [Getting started](#getting-started)
   - [As account-wide dotfiles (any repo)](#as-account-wide-dotfiles-any-repo)
   - [As this repo's devcontainer (this repo only)](#as-this-repos-devcontainer-this-repo-only)
@@ -71,22 +72,88 @@ After that, `git push`/`pull` work against any repo (via the `gh` credential hel
 
 ## Logs
 
-`setup.sh` mirrors all of its output to `~/.cache/codespaces-setup.log` as well as the screen, so you can follow progress
-from any other shell — or after the fact — even when it runs in the background (e.g. as the Codespaces
-`postCreateCommand`):
+**Start here: `setup-status`.** It is installed on `PATH` and answers "what happened during setup?" without
+you needing to know any file paths:
 
 ```bash
-tail -f ~/.cache/codespaces-setup.log
+setup-status              # what failed, what is missing, and how to fix it
+setup-status --verbose    # every step, including the ones that passed
+setup-status --json       # the raw run record, for scripting
 ```
+
+It exits non-zero if the last run did not complete, so it is usable in a script.
+
+`setup.sh` mirrors all of its output to a per-run log **next to the script**, in `<repo>/.setup-logs/`,
+with `latest.log` always pointing at the most recent run. (It falls back to `~/.cache/` when the checkout
+is not writable.) This works even when setup runs in the background — e.g. as the Codespaces
+`postCreateCommand`, which is the path where nobody is watching the terminal:
+
+```bash
+tail -f "$(setup-status --log)"          # the last run's log, wherever it landed
+tail -f <repo>/.setup-logs/latest.log    # same thing, if you are in the repo
+```
+
+Alongside it, each run writes `summary-<run-id>.json` (and `latest.json`): a machine-readable record of
+every step with its status, duration, and how many attempts it needed. That is what `setup-status` reads.
 
 The Neovim plugin pre-load runs in the background and logs separately:
 
 ```bash
-tail -f ~/.cache/nvim-setup.log
+nvim-log                  # alias for: tail -f ~/.cache/nvim-setup.log
 ```
 
-If a step fails, the error line names the failing step and script, e.g.
-`[setup] ERROR: Step failed: ... (current step: ...)`.
+## Troubleshooting: my Codespace came up half-built
+
+**This is expected on a flaky or slow network, and it is fixable in one command.** Setup installs ~17
+tools, nearly all of them downloaded. A step that cannot reach its download does not stop the rest of the
+run — it is recorded, the run continues, and the failure is reported at the end.
+
+1. **Ask what happened.**
+
+   ```bash
+   setup-status
+   ```
+
+   It names each failed step, each tool that is missing even though its step reported success, anything
+   skipped because a dependency failed, and anything that needed retries (a sign the network was flaky
+   rather than the tool being broken).
+
+2. **You will also be told at shell start.** If a run did not finish cleanly, every new interactive shell
+   prints a notice until a later run completes cleanly. It works in both zsh and bash.
+
+3. **Re-run. This is the fix, and it is safe.**
+
+   ```bash
+   bash <repo>/setup.sh
+   ```
+
+   Every step is idempotent *and* verifies its own work: a guard checks that the installed binary actually
+   runs and is the pinned version, so a half-finished install from an interrupted run is detected and
+   repaired rather than skipped. Re-running also automatically re-attempts anything that failed.
+
+4. **Or re-run just the one step**, if you know which:
+
+   ```bash
+   bash <repo>/scripts/09-uv.sh
+   ```
+
+   `setup-status` prints the exact command for each failed step.
+
+5. **On a genuinely slow link**, give the retries more room:
+
+   ```bash
+   RETRY_ATTEMPTS=8 RETRY_BASE_DELAY=10 bash <repo>/setup.sh
+   ```
+
+   Other knobs: `RETRY_TIMEOUT` (per-attempt wall clock, default 180s), `SETUP_STEP_TIMEOUT` (per-step,
+   default 1200s), `SETUP_RETRY_PASS=0` (disable the end-of-run retry pass).
+
+6. **If Neovim opens without its plugins**, that pre-load runs in the background and finishes after setup
+   does. `setup-status` reports its state; to re-run it:
+
+   ```bash
+   nvim --headless '+Lazy! sync' +qa
+   ```
 
 ## Getting started
 
@@ -131,7 +198,9 @@ Notes:
 
 Opening a Codespace on this repository (or a repo whose `.devcontainer` symlinks here) runs the `postCreateCommand` in
 `.devcontainer/devcontainer.json`, which calls `.devcontainer/post-create.sh` → `setup.sh`. This applies **only** to this
-repo, not to others. (If you also have dotfiles enabled, `setup.sh` runs twice here — harmless, since it is idempotent.)
+repo, not to others. (If you also have dotfiles enabled, `setup.sh` runs twice here. That is safe for *installation* — every
+step is idempotent — but the two runs interleave into one log and race on the failure signal, so prefer
+`setup-status`, which reads a per-run record rather than the shared log.)
 
 ### Manual
 
@@ -200,17 +269,25 @@ scripts/
   12-claude-code.sh     # Install Claude Code CLI
   13-nvim-plugins.sh    # Pre-load Neovim plugins headlessly (run in background)
   14-fonts.sh           # Install MesloLGS NF Nerd Font (in-container; SSH use)
+  lib.sh                # SOURCED by the steps, never run as one: the shared retry /
+                        # net_curl / install-guard helpers. Deliberately absent
+                        # from STEPS and listed EXEMPT in ci/lint-steps.sh.
   15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
   16-gh.sh              # Install GitHub CLI (gh) from release tarball
   17-claude-skills.sh   # Deploy configs/claude/ skills + commands into ~/.claude
   18-azure-cli.sh       # Install Azure CLI (az) via uv, symlinked into /usr/local/bin
+bin/
+  setup-status          # Report what the last setup run did; deployed onto PATH
 ci/
   lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS
+  lint-conventions.sh   # Assert the per-script conventions (strict mode, log(), retry)
 .github/workflows/
   ci.yml                # shellcheck + shfmt + lint-steps + skill gates on push/PR
 docs/
   development.md        # CI checks, local lint commands, how to add a step
 tests/
+  setup-resilience/             # The runner's behaviour: failure accounting, timeouts,
+                                # interrupts, the retry pass (headless, in CI)
   engineering-team-probes/      # Manual, LLM-in-the-loop regression probes for the skill router
   engineering-team-triggering/  # Does the skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
   engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
@@ -246,17 +323,33 @@ deploy-engineering-team-skill.sh  # Standalone: overwrite ~/.claude engineering-
 
 ## Development
 
-There are no unit tests (the "product" is the provisioning scripts), but CI (`.github/workflows/ci.yml`) lints them on
-every push to `main` and PR, and you can run the same checks locally:
+The "product" is the provisioning scripts. The **runner** (`setup.sh`) and the **shared helpers**
+(`scripts/lib.sh`) are covered by a real behavioural test suite; the **installers themselves are not
+executed by CI at all**, so a defect in one is latent until a Codespace is created. Naming that second
+half is what makes it actionable — see [docs/development.md](docs/development.md).
+
+CI (`.github/workflows/ci.yml`) runs on every push to `main` and PR. The setup-path checks, runnable
+locally:
 
 ```bash
-shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh    # shell correctness
-shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci    # formatting (-w to auto-fix)
-bash ci/lint-steps.sh                         # every scripts/NN-*.sh is wired into STEPS
+# shell correctness and formatting
+shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
+  bin/setup-status .devcontainer/post-create.sh tests/setup-resilience/run.sh
+shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
+
+# structural gates
+bash ci/lint-steps.sh                    # every scripts/NN-*.sh is wired into STEPS
+bash ci/lint-conventions.sh              # per-script conventions (strict mode, log(), retry)
+bash ci/lint-conventions.sh --selftest   # ...and each of those rules can still go red
+zsh -n configs/.zshrc configs/.zsh_aliases
+python3 -c "import json; json.load(open('.devcontainer/devcontainer.json'))"
+
+# behaviour
+bash tests/setup-resilience/run.sh       # the runner: failure accounting, timeouts,
+                                         # interrupts, the retry pass, the verdict
 ```
 
-Full details — the formatting convention, why `-kp`, and how to add a new provisioning step — are in
-[docs/development.md](docs/development.md).
+`docs/development.md` lists the skill-related checks too; this block is the setup path only.
 
 ## GitHub CLI authentication
 

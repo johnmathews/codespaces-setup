@@ -1,5 +1,8 @@
 # Development
 
+**Status:** active. **Last updated:** 2026-09-01. **Last verified:** 2026-09-01 (every command below executed; see `tests/setup-resilience/run.sh` and `ci/lint-conventions.sh --selftest`). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `tests/setup-resilience/**`.
+
+
 This repo is a set of provisioning shell scripts — there is no application code,
 build step, or unit-test suite. "Testing" here means **linting the scripts** and
 checking that they stay wired together correctly. All of it runs in CI
