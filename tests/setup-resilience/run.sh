@@ -308,8 +308,11 @@ else
 fi
 assert_contains "INCOMPLETE banner shown when tools are missing" "${LOG}" "SETUP INCOMPLETE"
 assert_absent "COMPLETE banner NOT shown when tools are missing" "${LOG}" "SETUP COMPLETE"
+# Scenario 5 is the every-step-succeeded case, so the summary must use the
+# pointed wording. When a step HAS failed the wording is deliberately neutral,
+# because claiming the step reported success would be false.
 assert_contains "summary explains the tools-missing case" "${LOG}" \
-  "missing even though their step reported success"
+  "missing even though every step reported success"
 if [[ -f "${FAILFILE}" ]]; then
   ok "durable signal written when only tools are missing"
   assert_contains "signal file names the missing tools" "${FAILFILE}" "Missing after setup"
