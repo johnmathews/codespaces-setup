@@ -692,8 +692,26 @@ if [[ -f "${SCRIPTS_DIR}/13-nvim-plugins.sh" ]]; then
     echo ""
     echo "=== run ${RUN_ID} @ $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
   } >>"${NVIM_LOG}"
-  bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >>"${NVIM_LOG}" 2>&1 &
+  # DETACH it properly, do not merely background it.
+  #
+  # `&` reparents the job to init but leaves it in this script's process group
+  # and session. A terminal or lifecycle runner that waits on the process group
+  # therefore waits for the plugin sync — several minutes — even though the
+  # job's output is redirected to a file. Observed in a real Codespace: the
+  # prompt never came back and the user had to press Ctrl-C, which sends SIGINT
+  # to the whole foreground process group and so KILLED the plugin install they
+  # were waiting for.
+  #
+  # setsid puts it in a new session and process group; nohup detaches it from
+  # SIGHUP; </dev/null guarantees it never reads from the terminal.
+  if command -v setsid >/dev/null 2>&1; then
+    setsid nohup bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >>"${NVIM_LOG}" 2>&1 </dev/null &
+  else
+    nohup bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >>"${NVIM_LOG}" 2>&1 </dev/null &
+  fi
   NVIM_SETUP_PID=$!
+  # Drop it from the job table so this shell has no reason to wait on it.
+  disown "${NVIM_SETUP_PID}" 2>/dev/null || true
   printf "✓ Started    : Neovim plugin pre-load (PID: %s)\n" "${NVIM_SETUP_PID}"
   printf "  Monitor    : tail -f %s\n" "${NVIM_LOG}"
   printf "  Wait       : wait %s\n" "${NVIM_SETUP_PID}"
