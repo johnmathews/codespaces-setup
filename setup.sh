@@ -245,7 +245,16 @@ write_failure_file() {
       echo ""
     fi
     if ((${#MISSING_TOOLS[@]} > 0)); then
-      echo "Missing after setup (the step reported success, but these are absent):"
+      if ((${#FAILED_STEPS[@]} == 0)); then
+        # The genuinely surprising case, and the defect this check was added
+        # for: every step exited 0 and the tool still is not there.
+        echo "Missing after setup (every step reported success, but these are absent):"
+      else
+        # Some steps failed, so a missing tool is very likely just that step's
+        # tool. Saying "reported success" here would be false — and a diagnostic
+        # that lies is worse than one that says less.
+        echo "Missing after setup:"
+      fi
       for t in "${MISSING_TOOLS[@]}"; do
         printf "  ✗ %s\n" "${t}"
       done
@@ -340,7 +349,11 @@ print_failure_summary() {
     done
   fi
   if ((${#MISSING_TOOLS[@]} > 0)); then
-    printf "  %d tool(s) are missing even though their step reported success:\n" "${#MISSING_TOOLS[@]}"
+    if ((${#FAILED_STEPS[@]} == 0)); then
+      printf "  %d tool(s) are missing even though every step reported success:\n" "${#MISSING_TOOLS[@]}"
+    else
+      printf "  %d tool(s) are missing after this run:\n" "${#MISSING_TOOLS[@]}"
+    fi
     for t in "${MISSING_TOOLS[@]}"; do
       printf "    ✗ %s\n" "${t}"
     done
