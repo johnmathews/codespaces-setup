@@ -15,9 +15,9 @@ README_URL="${REPO_URL}#readme"
 
 # Mirror every line of output to a log file as well as the terminal, so the run
 # can be followed from any other shell (or after it finishes) with:
-#   tail -f ~/.cache/codespaces-setup.log
+#   tail -f <repo>/.setup-logs/latest.log
 # This works even when setup.sh runs in the background, e.g. as the Codespaces
-# postCreateCommand.
+# postCreateCommand, which is the path where nobody is watching the terminal.
 # Every run gets an id. Without one the log was a single append-only file with
 # no timestamps and no run boundary, so `tail -n 200` silently spliced two runs
 # together and there was no way to tell today's rebuild from last week's.
@@ -132,6 +132,14 @@ declare -a MISSING_TOOLS=()
 # ones that succeeded. FAILED_STEPS only ever recorded failures, so nothing could
 # answer "which steps ran, in what order, and how long did they take".
 declare -a STEP_RECORDS=()
+# Scratch for the end-of-run retry pass.
+declare -a RETRY_TARGETS=()
+RECOVERED=0
+entry=""
+rnum=""
+rscript=""
+rname=""
+before=0
 
 log() { echo "[setup] $*"; }
 die() {
@@ -460,6 +468,55 @@ for i in "${!STEPS[@]}"; do
   IFS="|" read -r script name <<<"${STEPS[$i]}"
   run_step "$((i + 1))"   "${script}" "${name}"
 done
+
+# Second pass: re-attempt the steps that failed.
+#
+# The per-download `retry` in scripts/lib.sh covers a hiccup lasting seconds. It
+# does not cover the case this pass exists for: a Codespace VM whose network is
+# not fully up when postCreateCommand fires, where the first few steps fail and
+# everything after them succeeds. By the end of a run that is minutes later, so
+# a single re-attempt converts those into a clean setup instead of a half-built
+# environment and a support question.
+#
+# Safe to do only because every step is now genuinely idempotent — the guards
+# run the artifact rather than stat-ing it (see scripts/lib.sh), so a re-run
+# repairs a broken install instead of skipping it. Before that work this pass
+# would have been useless on exactly the failures it targets.
+#
+# Set SETUP_RETRY_PASS=0 to disable.
+if [[ "${SETUP_RETRY_PASS:-1}" == "1" && ${#FAILED_STEPS[@]} -gt 0 ]]; then
+  echo ""
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║              🔁  RETRYING FAILED STEPS (one pass)  🔁             ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  printf "  %d step(s) failed on the first pass. Transient failures often clear\n" "${#FAILED_STEPS[@]}"
+  printf "  by now — re-attempting each once before reporting.\n"
+
+  RETRY_TARGETS=("${FAILED_STEPS[@]}")
+  FAILED_STEPS=()
+  RECOVERED=0
+
+  for entry in "${RETRY_TARGETS[@]}"; do
+    IFS="|" read -r rnum rscript rname <<<"${entry}"
+    # run_step appends to FAILED_STEPS on failure. Compare the count either side
+    # rather than inspecting the last element — the count is unambiguous, and a
+    # substring match on the script name would misreport for similarly-named
+    # scripts.
+    before="${#FAILED_STEPS[@]}"
+    # Keep the original name in the record — the "retrying" marker belongs in
+    # the live output, not baked into the step's identity, or setup-status
+    # reports "Flaky step (retry)" as the step's name forever.
+    printf "  ↻ Retrying   : %s\n" "${rname}"
+    run_step "${rnum}" "${rscript}" "${rname}"
+    if ((${#FAILED_STEPS[@]} == before)); then
+      RECOVERED=$((RECOVERED + 1))
+      printf "  ✅ Recovered  : %s\n" "${rname}"
+    fi
+  done
+
+  printf "  🔁 Retry pass : %d recovered, %d still failing\n" \
+    "${RECOVERED}" "${#FAILED_STEPS[@]}"
+fi
 
 CORE_ELAPSED=$(($(date +%s) - SETUP_START_TS))
 

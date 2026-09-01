@@ -19,6 +19,11 @@
 #      stale signal file.
 #   6. The retry helper retries transient failures and eventually gives up with
 #      the command's own exit code.
+#   7. A run whose steps all SUCCEED but whose tools are absent must not report
+#      success — the defect that produced "not all the tools are installed" on a
+#      run that printed the green COMPLETE banner and exited 0.
+#   8. A step that fails once and works on the end-of-run retry pass leaves the
+#      run green, and SETUP_RETRY_PASS=0 disables that pass.
 #
 # Usage: bash tests/setup-resilience/run.sh
 set -euo pipefail
@@ -49,6 +54,26 @@ assert_absent() {
   if grep -qF -- "$3" "$2"; then bad "$1 (unexpectedly found '$3' in $2)"; else
     ok "$1"
   fi
+}
+
+# make_flaky <dir> <base> — a step that fails the FIRST time it runs and succeeds
+# on any later invocation. This is the shape the end-of-run retry pass exists
+# for, and the fixture generator below cannot express it (it encodes one fixed
+# exit code).
+make_flaky() {
+  local dir="$1" base="$2"
+  mkdir -p "${dir}"
+  cat >"${dir}/${base}.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "${base}" >>"${RAN_MARKER}"
+if [[ -f "\${FLAKY_MARK}" ]]; then
+  echo "second attempt: succeeding"
+  exit 0
+fi
+touch "\${FLAKY_MARK}"
+echo "first attempt: failing" >&2
+exit 1
+EOF
 }
 
 # Build a throwaway scripts dir. Each fake step appends its own name to
@@ -93,6 +118,8 @@ run_setup() {
     SETUP_LOG="${home}/.cache/codespaces-setup.log" \
     SETUP_LOG_DIR="${home}/.cache" \
     RAN_MARKER="${RAN_MARKER}" \
+    FLAKY_MARK="${FLAKY_MARK:-/nonexistent}" \
+    SETUP_RETRY_PASS="${RETRY_PASS:-1}" \
     bash "${SETUP}" >/dev/null 2>&1 || RC=$?
   # setup.sh execs stdout through `tee` (a background process); give it a beat to
   # flush the log before we read it.
@@ -263,6 +290,50 @@ else
   bad "no durable signal written when tools are missing"
   bad "signal file does not name the missing tools"
 fi
+rm -rf "${WORK}"
+
+echo "== scenario 6: a transient failure recovers on the end-of-run retry pass =="
+# The flaky-network case the user described: a step fails early (the VM's network
+# is not up yet) and would work moments later. Before the retry pass this left a
+# permanently half-built Codespace even though nothing was actually wrong.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+FLAKY_MARK="${WORK}/flaky.mark"
+export FLAKY_MARK
+make_fixture "${WORK}/scripts" "01-a:0"
+make_flaky "${WORK}/scripts" "02-flaky"
+HOME6="${WORK}/home"
+mkdir -p "${HOME6}"
+run_setup "${WORK}/scripts" "01-a.sh|Step A;02-flaky.sh|Flaky step" "" "${HOME6}"
+LOG="${HOME6}/.cache/codespaces-setup.log"
+
+if [[ "${RC}" -eq 0 ]]; then
+  ok "a run whose only failure recovers exits 0"
+else
+  bad "run exited ${RC}; a recovered transient failure should end green"
+fi
+assert_contains "retry pass ran" "${LOG}" "RETRYING FAILED STEPS"
+assert_contains "retry pass reports the recovery" "${LOG}" "1 recovered, 0 still failing"
+assert_contains "COMPLETE banner after recovery" "${LOG}" "SETUP COMPLETE"
+if [[ -f "${HOME6}/.cache/codespaces-setup.failed" ]]; then
+  bad "signal file left behind after a full recovery"
+else
+  ok "no signal file after a full recovery"
+fi
+
+# And with the pass disabled, the same run must stay failed - proving the pass
+# is what recovers it rather than something else.
+rm -f "${FLAKY_MARK}"
+HOME6B="${WORK}/home_b"
+mkdir -p "${HOME6B}"
+RETRY_PASS=0 run_setup "${WORK}/scripts" "01-a.sh|Step A;02-flaky.sh|Flaky step" "" "${HOME6B}"
+if [[ "${RC}" -ne 0 ]]; then
+  ok "with SETUP_RETRY_PASS=0 the same run stays failed"
+else
+  bad "SETUP_RETRY_PASS=0 did not disable the retry pass"
+fi
+unset FLAKY_MARK
 rm -rf "${WORK}"
 
 echo ""

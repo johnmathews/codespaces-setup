@@ -95,8 +95,31 @@ if mode == "--log":
     sys.exit(0)
 
 outcome = d.get("outcome", "unknown")
-steps = d.get("steps", [])
+history = d.get("steps", [])
 missing = d.get("missing_tools", [])
+
+# The record keeps the full history, so a step retried at the end of the run
+# appears twice: once failed, once ok. Report the CONCLUSION per step, and
+# surface the recovery separately - "it failed and then worked" is exactly the
+# signal that says the network was flaky rather than the tool being broken.
+steps = []
+seen = {}
+for s in history:
+    key = (s.get("n"), s.get("script"))
+    if key in seen:
+        seen[key].update(s)
+    else:
+        entry = dict(s)
+        seen[key] = entry
+        steps.append(entry)
+
+recovered = []
+for s in steps:
+    key = (s.get("n"), s.get("script"))
+    attempts_in_run = [h for h in history if (h.get("n"), h.get("script")) == key]
+    if len(attempts_in_run) > 1 and s.get("status") == "ok":
+        recovered.append(s)
+
 failed = [s for s in steps if s.get("status") in ("failed", "interrupted")]
 retried = [s for s in steps if int(s.get("attempts", 1) or 1) > 1]
 
@@ -133,9 +156,16 @@ if missing:
     for m in missing:
         print("    x %s" % m)
 
+if recovered:
+    print("")
+    print("  Failed once, then succeeded on the end-of-run retry pass:")
+    for s in recovered:
+        print("    ~ %s (%s)" % (s.get("name"), s.get("script")))
+    print("    A transient network failure, not a broken tool.")
+
 if retried:
     print("")
-    print("  Needed retries (a sign of a slow or flaky network):")
+    print("  Needed in-step retries (a sign of a slow or flaky network):")
     for s in retried:
         print("    ~ %s took %s attempts" % (s.get("name"), s.get("attempts")))
 
