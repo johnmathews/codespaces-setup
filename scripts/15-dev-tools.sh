@@ -132,6 +132,15 @@ install_glow() {
 }
 
 install_stylua() {
+  # stylua's release binary does not run on glibc 2.31 (Ubuntu 20.04) — verified
+  # in CI, where its own installer reported "System glibc version (`2.31\') is
+  # too old". Unlike a whole step, this is one tool among nine here, so it
+  # declines locally rather than exiting: the other eight still install.
+  if ! glibc_at_least 2.32; then
+    log "stylua: needs glibc >= 2.32, this system has ${GLIBC_VERSION} — skipping."
+    log "        Use a base image on Ubuntu 22.04+ (see the README)."
+    return 0
+  fi
   if installed_version_is stylua "${STYLUA_VERSION}"; then
     log "stylua ${STYLUA_VERSION} already installed, skipping."
     return

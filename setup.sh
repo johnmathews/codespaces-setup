@@ -171,6 +171,9 @@ declare -a STEP_RECORDS=()
 # Scratch for the end-of-run retry pass.
 # Steps not run because a dependency failed, as "NN|script|name|blocker".
 declare -a SKIPPED_STEPS=()
+# Steps that declined to install on this platform (exit 3), as "NN|script|name".
+# Distinct from SKIPPED_STEPS: nothing failed, the platform is simply too old.
+declare -a UNSUPPORTED_STEPS=()
 declare -a RETRY_TARGETS=()
 RECOVERED=0
 entry=""
@@ -242,6 +245,15 @@ write_failure_file() {
         IFS="|" read -r n s nm <<<"${entry}"
         printf "  ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
       done
+      echo ""
+    fi
+    if ((${#UNSUPPORTED_STEPS[@]} > 0)); then
+      echo "Skipped — this base image is too old for them:"
+      for entry in "${UNSUPPORTED_STEPS[@]}"; do
+        IFS="|" read -r n s nm <<<"${entry}"
+        printf "  - [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+      done
+      echo "Re-running will not help. Use a base image on Ubuntu 22.04 or newer."
       echo ""
     fi
     if ((${#MISSING_TOOLS[@]} > 0)); then
@@ -348,8 +360,17 @@ print_failure_summary() {
       printf "    - [%s] %s (%s) — needs %s\n" "${n}" "${nm}" "${s}" "${b}"
     done
   fi
+  if ((${#UNSUPPORTED_STEPS[@]} > 0)); then
+    printf "  %d step(s) declined to install on this platform:\n" "${#UNSUPPORTED_STEPS[@]}"
+    for entry in "${UNSUPPORTED_STEPS[@]}"; do
+      IFS="|" read -r n s nm <<<"${entry}"
+      printf "    - [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+    done
+    printf "    Nothing is broken and re-running will not help — the base image is\n"
+    printf "    too old for these binaries. Use Ubuntu 22.04+ (see the README).\n"
+  fi
   if ((${#MISSING_TOOLS[@]} > 0)); then
-    if ((${#FAILED_STEPS[@]} == 0)); then
+    if ((${#FAILED_STEPS[@]} == 0 && ${#UNSUPPORTED_STEPS[@]} == 0)); then
       printf "  %d tool(s) are missing even though every step reported success:\n" "${#MISSING_TOOLS[@]}"
     else
       printf "  %d tool(s) are missing after this run:\n" "${#MISSING_TOOLS[@]}"
@@ -532,6 +553,18 @@ run_step() {
   attempts="$(cat "${RETRY_COUNT_FILE}" 2>/dev/null || echo 1)"
   [[ "${attempts}" =~ ^[0-9]+$ ]] || attempts=1
   rm -f "${RETRY_COUNT_FILE}"
+
+  # Exit code 3 is the shared "deliberately not installed here" signal (see
+  # SETUP_SKIP_RC in scripts/lib.sh) — an unsupported platform, not a broken
+  # step. Recording it as a failure would be wrong twice over: it is not a
+  # defect, and re-running would not change it.
+  if ((rc == 3)); then
+    elapsed=$(($(date +%s) - started_at))
+    STEP_RECORDS+=("${step_number}|${script}|${name}|skipped|${elapsed}|${attempts}")
+    UNSUPPORTED_STEPS+=("${step_number}|${script}|${name}")
+    printf "• Skipped    : %s — not supported on this platform (see the log above)\n" "${name}"
+    return 0
+  fi
 
   if ((rc == 0)); then
     elapsed=$(($(date +%s) - started_at))
@@ -815,8 +848,10 @@ else
   echo "╚══════════════════════════════════════════════════════════════════╝"
   ((${#FAILED_STEPS[@]} > 0)) &&
     printf "  ❗ %d of %d step(s) failed.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
+  ((${#UNSUPPORTED_STEPS[@]} > 0)) &&
+    printf "  ❗ %d step(s) skipped: this base image is too old for them.\n" "${#UNSUPPORTED_STEPS[@]}"
   if ((${#MISSING_TOOLS[@]} > 0)); then
-    if ((${#FAILED_STEPS[@]} == 0)); then
+    if ((${#FAILED_STEPS[@]} == 0 && ${#UNSUPPORTED_STEPS[@]} == 0)); then
       printf "  ❗ %d tool(s) missing even though every step reported success.\n" "${#MISSING_TOOLS[@]}"
     else
       printf "  ❗ %d tool(s) missing after this run.\n" "${#MISSING_TOOLS[@]}"

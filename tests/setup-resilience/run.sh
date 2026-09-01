@@ -588,6 +588,37 @@ else
 fi
 rm -rf "${WORK}"
 
+echo "== scenario 12: a step that declines the platform is SKIPPED, not failed =="
+# A step exiting 3 (SETUP_SKIP_RC) means "deliberately not installed here" — an
+# unsupported platform, not a defect. Recording it as a failure would be wrong
+# twice over: nothing is broken, and re-running cannot change it. Ubuntu 20.04
+# cannot run Neovim/yazi/stylua at all (glibc 2.31), which is what this is for.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_fixture "${WORK}/scripts" "01-ok:0" "02-unsupported:3" "03-broken:1"
+HOME12="${WORK}/home"
+mkdir -p "${HOME12}"
+run_setup "${WORK}/scripts" \
+  "01-ok.sh|Fine;02-unsupported.sh|Needs a newer platform;03-broken.sh|Genuinely broken" \
+  "" "${HOME12}"
+LOG="${HOME12}/.cache/codespaces-setup.log"
+
+assert_contains "the unsupported step is reported as skipped" "${LOG}" \
+  "Skipped    : Needs a newer platform"
+assert_contains "the summary says re-running will not help" "${LOG}" \
+  "declined to install on this platform"
+assert_absent "the unsupported step is NOT listed as failed" "${LOG}" \
+  "✗ FAILED     : Needs a newer platform"
+assert_contains "a genuine failure is still reported as failed" "${LOG}" \
+  "✗ FAILED     : Genuinely broken"
+if grep -q "Retrying   : Needs a newer platform" "${LOG}"; then
+  bad "the retry pass re-ran a step that declined the platform"
+else
+  ok "the retry pass leaves an unsupported step alone"
+fi
+rm -rf "${WORK}"
+
 echo ""
 if ((SKIP > 0)); then
   echo "== ${SKIP} check(s) SKIPPED — they did not run, and did not pass =="

@@ -4,6 +4,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 ## Table of contents
 
+- [Choosing a base image (read this first)](#choosing-a-base-image-read-this-first)
 - [Manual steps (do these yourself)](#manual-steps-do-these-yourself)
 - [Logs](#logs)
 - [Troubleshooting: my Codespace came up half-built](#troubleshooting-my-codespace-came-up-half-built)
@@ -18,6 +19,67 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 - [GitHub CLI authentication](#github-cli-authentication)
 - [Neovim configuration](#neovim-configuration)
 - [Related repositories](#related-repositories)
+
+## Choosing a base image (read this first)
+
+**If your Codespace comes up missing Neovim, yazi or stylua, your base image is too old.** This is the
+single most common cause of a partial setup, and it is a one-line fix.
+
+A repo's base image is set by its own `.devcontainer/devcontainer.json`. There is **no account-wide
+setting** — a repo with no devcontainer gets GitHub's default "universal" image.
+
+| Image | Base OS | glibc | Works with this kit? |
+| --- | --- | --- | --- |
+| `universal:2` | Ubuntu 20.04 (focal) | 2.31 | **No** — Neovim, yazi and stylua cannot run; `zoxide` is not packaged |
+| `universal:6` | Ubuntu 24.04 (noble) | 2.39 | Yes |
+| `python:1-3.12-bookworm` | Debian bookworm | 2.36 | Yes |
+| `base:ubuntu` | Ubuntu 24.04 (noble) | 2.39 | Yes — what this repo pins |
+
+`universal:2` is the *focal* line and is four major versions behind; everything from `universal:3`
+onward is noble. If you have `universal:2` pinned, that is almost certainly a leftover rather than a
+decision.
+
+**Which to pick**
+
+- **`universal:6`** — the everything-image: Python, Node, Java, .NET, Go, Ruby, conda, all preinstalled.
+  Choose it when you don't want to think about what a repo needs, or when moving off `universal:2` with
+  the least risk. It is large (~10 GB+), so Codespaces take noticeably longer to create.
+- **`python:1-3.12-bookworm`** — a focused Python image. Choose it for a Python project. Far smaller and
+  much faster to start. Add anything else you need as a `feature` rather than reaching for `universal`.
+
+Changing the image requires creating a **new** Codespace — rebuilding an existing one will not switch it.
+
+**Example: a Python project**
+
+```json
+{
+  "name": "my-python-project",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+
+  // Anything the image does not already provide.
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  // Runs once, when the Codespace is created. Codespaces secrets are already
+  // present as environment variables here.
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"]
+    }
+  }
+}
+```
+
+Swap the `image` line for `mcr.microsoft.com/devcontainers/universal:6` if you would rather have
+everything preinstalled and drop the `features` block.
+
+**On an older image anyway?** The setup will not fail. Steps that cannot work on that platform are
+reported as *skipped*, with the reason, and everything else still installs — see
+[Troubleshooting](#troubleshooting-my-codespace-came-up-half-built).
 
 If you need to run the script manually:
 

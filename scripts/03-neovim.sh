@@ -36,6 +36,10 @@ else
   NVIM_ARCH="${ARCH}"
 fi
 
+# Neovim's release binaries do not run on glibc 2.31 (Ubuntu 20.04) — verified
+# in CI, where the AppImage extracts and then will not execute.
+require_glibc 2.32 "Neovim ${NVIM_VERSION}"
+
 APPIMAGE_URL="https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-${NVIM_ARCH}.appimage"
 # A private staging dir, not a fixed /tmp path: a file left there by another
 # user would make `curl -o` fail outright.
