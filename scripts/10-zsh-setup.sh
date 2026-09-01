@@ -24,7 +24,7 @@ if [[ ! -d "${OMZ_DIR}" ]]; then
   # Download the installer to a file first (retryable) rather than piping curl
   # into sh, then run it with the same unattended flags.
   OMZ_INSTALLER="$(mktemp)"
-  retry curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "${OMZ_INSTALLER}"
+  retry net_curl https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "${OMZ_INSTALLER}"
   RUNZSH=no CHSH=no sh "${OMZ_INSTALLER}" "" --unattended
   rm -f "${OMZ_INSTALLER}"
 else

@@ -48,7 +48,7 @@ URL="https://github.com/cli/cli/releases/download/${GH_VERSION}/${ASSET}.tar.gz"
 GH_DIR="${INSTALL_DIR}/${ASSET}"
 
 log "Downloading gh ${GH_VERSION} (${GH_ARCH})..."
-retry curl -fsSL "${URL}" -o "${TARBALL}"
+retry net_curl "${URL}" -o "${TARBALL}"
 
 log "Extracting to ${GH_DIR}..."
 sudo rm -rf "${GH_DIR}"

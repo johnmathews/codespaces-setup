@@ -17,7 +17,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 install_claude() {
   local installer
   installer="$(mktemp)"
-  retry curl -fsSL https://claude.ai/install.sh -o "${installer}"
+  retry net_curl https://claude.ai/install.sh -o "${installer}"
   bash "${installer}"
   rm -f "${installer}"
 }

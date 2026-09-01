@@ -39,7 +39,7 @@ URL="https://nodejs.org/dist/${NODE_VERSION}/${TARBALL}"
 TMP="$(mktemp -d)"
 
 log "Downloading Node.js ${NODE_VERSION} (${NODE_ARCH})..."
-retry curl -fsSL "${URL}" -o "${TMP}/${TARBALL}"
+retry net_curl "${URL}" -o "${TMP}/${TARBALL}"
 
 # Extract bin/, lib/, include/, share/ straight into /usr/local.
 log "Installing into ${PREFIX}..."

@@ -18,36 +18,221 @@
 # the expected way a step fails, not the exception. Wrapping the download/install
 # in a few backed-off attempts turns most of those into a non-event.
 #
+# A RETRY WRAPS FAILURE, NOT SLOWNESS — hence RETRY_TIMEOUT below. `retry` can
+# only act once the command *exits*: a stalled TCP connection, a DNS lookup with
+# no answer, or a download trickling at 2 KB/s never returns, so without a wall
+# clock the whole run stops dead on one step and the platform eventually reaps it
+# with nothing written down. Every attempt therefore runs under `timeout`.
+#
 # Tunables (env, so a caller or a test can override without changing call sites):
-#   RETRY_ATTEMPTS    total attempts before giving up   (default 4)
-#   RETRY_BASE_DELAY  seconds to wait after the 1st fail (default 3), doubled
-#                     after each subsequent failure (3s, 6s, 12s, ...)
+#   RETRY_ATTEMPTS    total attempts before giving up    (default 5)
+#   RETRY_BASE_DELAY  seconds to wait after the 1st fail (default 5), doubled
+#                     after each subsequent failure and capped at RETRY_MAX_DELAY
+#   RETRY_MAX_DELAY   ceiling on the backoff             (default 60)
+#   RETRY_TIMEOUT     wall clock for ONE attempt, seconds (default 180); set to
+#                     0 to disable the bound (used by the tests that pass shell
+#                     functions, which `timeout` cannot exec)
+#
+# Budget note: these numbers multiply. RETRY_TIMEOUT bounds one attempt, so the
+# worst case for a step whose network is entirely dead is
+# RETRY_ATTEMPTS x RETRY_TIMEOUT plus backoff — about 15 minutes at the defaults.
+# That is deliberately long enough to ride out a slow link and short enough to
+# stay inside a Codespace creation window. It was previously unbounded.
+#
+# Defaults are deliberately more patient than they look: the two dominant causes
+# here are a Codespace VM whose network is not up yet when postCreateCommand
+# fires, and apt's dpkg lock held by unattended-upgrades. Both routinely outlast
+# the old 3+6+12 = 21s budget. 5 attempts at base 5 gives ~75s of backoff.
+#
+# Jitter is applied to each sleep so that many Codespaces created at once do not
+# retry in lockstep against the same CDN.
 #
 # Returns the command's own exit code from the final attempt, so callers can
 # still branch on failure (`retry curl ... || handle`). It intentionally does
 # NOT swallow failure — a step that must abort still can.
+#
+# RETRY_LAST_ATTEMPTS is set on return to the number of attempts made, so a
+# caller (setup.sh's run record) can report how much retrying a step needed.
 retry() {
   # Locals are prefixed to avoid bash's dynamic scoping clobbering a variable of
   # the same name inside the command being retried (a function passed to retry
   # would otherwise see and mutate these).
-  local _retry_attempts="${RETRY_ATTEMPTS:-4}"
-  local _retry_delay="${RETRY_BASE_DELAY:-3}"
-  local _retry_n=1 _retry_rc=0
+  local _retry_attempts="${RETRY_ATTEMPTS:-5}"
+  local _retry_delay="${RETRY_BASE_DELAY:-5}"
+  local _retry_max_delay="${RETRY_MAX_DELAY:-60}"
+  local _retry_timeout="${RETRY_TIMEOUT:-180}"
+  local _retry_n=1 _retry_rc=0 _retry_sleep
 
   while true; do
     # `cmd && return 0` (not `if cmd`) so that $? below is the command's own exit
     # code: an `if` with no else resets $? to 0 when the condition is false.
-    "$@" && return 0
+    _retry_run "${_retry_timeout}" "$@" && {
+      # shellcheck disable=SC2034  # read by setup.sh (run record), not here
+      RETRY_LAST_ATTEMPTS="${_retry_n}"
+      return 0
+    }
     _retry_rc=$?
     if ((_retry_n >= _retry_attempts)); then
+      # shellcheck disable=SC2034  # read by setup.sh (run record), not here
+      RETRY_LAST_ATTEMPTS="${_retry_n}"
       _retry_log "command failed after ${_retry_n} attempt(s) (exit ${_retry_rc}): $*"
       return "${_retry_rc}"
     fi
-    _retry_log "attempt ${_retry_n}/${_retry_attempts} failed (exit ${_retry_rc}); retrying in ${_retry_delay}s: $*"
-    sleep "${_retry_delay}"
+    # Jitter: up to +50% of the current delay, so concurrent runs desynchronise.
+    _retry_sleep=$((_retry_delay + RANDOM % (_retry_delay / 2 + 1)))
+    _retry_log "attempt ${_retry_n}/${_retry_attempts} failed (exit ${_retry_rc}); retrying in ${_retry_sleep}s: $*"
+    sleep "${_retry_sleep}"
     _retry_delay=$((_retry_delay * 2))
+    ((_retry_delay > _retry_max_delay)) && _retry_delay="${_retry_max_delay}"
     _retry_n=$((_retry_n + 1))
   done
+}
+
+# Run one attempt under a wall clock. `timeout` can only bound an external
+# command, so when the target is a shell function (or when the bound is disabled
+# with RETRY_TIMEOUT=0, or `timeout` is simply absent) fall through to running it
+# directly — a missing bound is worse than no retry, but silently failing to run
+# the command at all would be worse still.
+_retry_run() {
+  local _rr_timeout="$1"
+  shift
+  if ((_rr_timeout > 0)) && command -v timeout >/dev/null 2>&1 &&
+    ! declare -F "$1" >/dev/null 2>&1; then
+    timeout --foreground "${_rr_timeout}" "$@"
+  else
+    "$@"
+  fi
+}
+
+# net_curl — curl with the flags that make a flaky or slow network fail *fast and
+# loudly* rather than stalling. Use this instead of bare `curl` for every remote
+# fetch, and wrap it in `retry`.
+#
+#   --connect-timeout   cap the TCP/TLS handshake
+#   --max-time          cap the whole transfer
+#   --speed-limit/-time THE important pair: a transfer trickling below 1 KB/s for
+#                       30s is treated as an error, which converts a stall into an
+#                       exit code that `retry` can actually act on
+#   --retry*            curl's own transport-level retry, complementary to `retry`
+#   --remove-on-error   do not leave a partial file at the destination. Added only
+#                       when the local curl supports it (7.83+); Ubuntu 22.04
+#                       ships 7.81, so this is belt-and-braces on top of the
+#                       download-to-staging discipline, never the mechanism.
+net_curl() {
+  local _nc_opts=(
+    --fail --silent --show-error --location
+    --connect-timeout "${CURL_CONNECT_TIMEOUT:-15}"
+    --max-time "${CURL_MAX_TIME:-300}"
+    --speed-limit "${CURL_SPEED_LIMIT:-1024}"
+    --speed-time "${CURL_SPEED_TIME:-30}"
+    --retry 2 --retry-delay 2 --retry-connrefused
+  )
+  if curl --help all 2>/dev/null | grep -q -- '--remove-on-error'; then
+    _nc_opts+=(--remove-on-error)
+  fi
+  curl "${_nc_opts[@]}" "$@"
+}
+
+# installed_version_is <cmd> <want> — true only when <cmd> exists, actually RUNS,
+# and reports version <want> (with or without a leading "v").
+#
+# This is the guard that makes a broken install self-healing, and it is why an
+# existence-only check is a bug rather than a shortcut: `[[ -x path ]]` and
+# `command -v` cannot tell a working binary from a truncated download left at the
+# same path by a dropped transfer. They report "already installed" forever, so
+# the documented remedy — "re-run setup.sh, it's idempotent" — never repairs
+# anything. Running the artifact answers both questions at once: does it execute,
+# and is it the pinned version. That second half also makes a version bump take
+# effect on a machine that already has the tool.
+#
+# <cmd> may be a bare name on PATH or an absolute path (an /opt install checked
+# before its symlink exists). The version is the first dotted triple on the first
+# line of `--version` output, stderr included: one rule covers every banner in
+# this repo (eza/yazi/nvim/glow/stylua/shfmt/node/lazygit/gh/az) without a
+# per-tool regex. The found version is left in INSTALLED_VERSION so a caller can
+# log "found X, upgrading". Uses grep -oE (POSIX ERE), not -oP, so it does not
+# depend on a PCRE-enabled grep.
+#
+# Call it as a condition (`if installed_version_is ...`), never bare: under
+# `set -e` a bare call returning 1 would abort the script.
+installed_version_is() {
+  local cmd="$1" want="${2#v}"
+  INSTALLED_VERSION=""
+  command -v "${cmd}" >/dev/null 2>&1 || return 1
+  INSTALLED_VERSION="$("${cmd}" --version 2>&1 | head -1 |
+    grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)"
+  [[ -n "${INSTALLED_VERSION}" && "${INSTALLED_VERSION}" == "${want}" ]]
+}
+
+# installed_runs <cmd> — the same guard for a tool with NO pinned version (atuin,
+# uv, claude). It cannot assert which version is present, but it still asserts the
+# one thing an existence check cannot: that the artifact executes.
+installed_runs() {
+  local cmd="$1"
+  INSTALLED_VERSION=""
+  command -v "${cmd}" >/dev/null 2>&1 || return 1
+  INSTALLED_VERSION="$("${cmd}" --version 2>&1 | head -1 || true)"
+  [[ -n "${INSTALLED_VERSION}" ]]
+}
+
+# fetch_verified <url> <dest> — download to <dest> and prove the result is a
+# COMPLETE file before any caller acts on it.
+#
+# The other half of the same defect. `curl -o` writes bytes as they arrive and
+# does not unlink its output on error, so a connection that drops mid-transfer
+# leaves a real, plausible-looking file at <dest>. Callers must therefore point
+# <dest> at a STAGING path, never an install path, and must not trust the file
+# until this returns 0.
+#
+# Verification is by extension, because "did all of it arrive" is exactly what an
+# archive index can answer:
+#   *.tar.gz/*.tgz  tar -tzf   (gzip CRC + complete member table)
+#   *.zip           unzip -t   (central directory + per-entry CRC)
+#   anything else   non-empty only — the caller must verify it itself (run the
+#                   binary, check magic bytes, `sh -n` an installer script).
+#
+# The verification runs INSIDE retry, not after it: the failure this exists for is
+# a server that truncates and closes cleanly, which curl can report as success.
+# Verifying outside the retry would diagnose that once and give up.
+#
+# Every failure path removes <dest>. That is the portable equivalent of curl's
+# --remove-on-error and is strictly stronger: it also removes a file curl
+# considered a success but that failed the archive check, which is the actual
+# reproduced failure. It is also why this does not depend on that flag, which
+# Ubuntu 22.04's curl 7.81 — the default Codespaces image, and the one the
+# account-wide dotfiles path lands on — does not have.
+fetch_verified() {
+  retry _fetch_verified_once "$1" "$2"
+}
+
+_fetch_verified_once() {
+  local url="$1" dest="$2"
+  rm -f "${dest}"
+  if ! net_curl "${url}" -o "${dest}"; then
+    rm -f "${dest}"
+    return 1
+  fi
+  if [[ ! -s "${dest}" ]]; then
+    _retry_log "download produced an empty file: ${url}"
+    rm -f "${dest}"
+    return 1
+  fi
+  case "${dest}" in
+    *.tar.gz | *.tgz)
+      if ! tar -tzf "${dest}" >/dev/null 2>&1; then
+        _retry_log "downloaded archive is truncated or corrupt: ${url}"
+        rm -f "${dest}"
+        return 1
+      fi
+      ;;
+    *.zip)
+      if ! unzip -tqq "${dest}" >/dev/null 2>&1; then
+        _retry_log "downloaded archive is truncated or corrupt: ${url}"
+        rm -f "${dest}"
+        return 1
+      fi
+      ;;
+  esac
 }
 
 # Log through the sourcing script's own log() (so retry lines carry that script's

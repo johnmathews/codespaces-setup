@@ -37,7 +37,7 @@ log "Installing image preview dependency (chafa)..."
 sudo apt-get install -y -q chafa 2>/dev/null || true
 
 log "Downloading yazi ${YAZI_VERSION}..."
-retry curl -fsSL "${URL}" -o "${ZIP}"
+retry net_curl "${URL}" -o "${ZIP}"
 
 log "Extracting..."
 # Clear any leftovers from a previous partial run: a stale extract dir would make

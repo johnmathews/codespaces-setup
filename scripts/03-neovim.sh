@@ -37,7 +37,7 @@ log "Removing old apt neovim (if any)..."
 sudo apt-get remove -y neovim 2>/dev/null || true
 
 log "Downloading Neovim ${NVIM_VERSION} (${NVIM_ARCH})..."
-retry curl -fsSL "${APPIMAGE_URL}" -o "${APPIMAGE_TMP}"
+retry net_curl "${APPIMAGE_URL}" -o "${APPIMAGE_TMP}"
 chmod +x "${APPIMAGE_TMP}"
 
 log "Extracting AppImage..."

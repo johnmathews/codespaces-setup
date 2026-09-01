@@ -115,7 +115,7 @@ install_glow() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing glow ${GLOW_VERSION}..."
-  retry curl -fsSL "${url}" -o "${tmp}/glow.tar.gz"
+  retry net_curl "${url}" -o "${tmp}/glow.tar.gz"
   tar -xzf "${tmp}/glow.tar.gz" -C "${tmp}"
   sudo install -m 755 "$(find "${tmp}" -type f -name glow | head -1)" "${BIN_DIR}/glow"
   rm -rf "${tmp}"
@@ -130,7 +130,7 @@ install_stylua() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing stylua ${STYLUA_VERSION}..."
-  retry curl -fsSL "${url}" -o "${tmp}/stylua.zip"
+  retry net_curl "${url}" -o "${tmp}/stylua.zip"
   unzip -q "${tmp}/stylua.zip" -d "${tmp}"
   sudo install -m 755 "${tmp}/stylua" "${BIN_DIR}/stylua"
   rm -rf "${tmp}"
@@ -145,7 +145,7 @@ install_shfmt() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing shfmt ${SHFMT_VERSION}..."
-  retry curl -fsSL "${url}" -o "${tmp}/shfmt"
+  retry net_curl "${url}" -o "${tmp}/shfmt"
   sudo install -m 755 "${tmp}/shfmt" "${BIN_DIR}/shfmt"
   rm -rf "${tmp}"
 }

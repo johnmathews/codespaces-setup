@@ -24,7 +24,7 @@ export ATUIN_DONT_PRINT_WELCOME=1
 # curl straight into sh: a transient network failure mid-pipe would otherwise
 # feed a truncated script to sh with no chance to retry.
 ATUIN_INSTALLER="$(mktemp)"
-retry curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh -o "${ATUIN_INSTALLER}"
+retry net_curl --proto '=https' --tlsv1.2 https://setup.atuin.sh -o "${ATUIN_INSTALLER}"
 sh "${ATUIN_INSTALLER}" --no-modify-path
 rm -f "${ATUIN_INSTALLER}"
 

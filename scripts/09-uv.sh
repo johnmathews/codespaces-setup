@@ -19,7 +19,7 @@ log "Installing uv via official installer..."
 # Download then run (with retries) instead of `curl | sh`, so a transient
 # network failure can be retried rather than piping a truncated script to sh.
 UV_INSTALLER="$(mktemp)"
-retry curl -LsSf https://astral.sh/uv/install.sh -o "${UV_INSTALLER}"
+retry net_curl https://astral.sh/uv/install.sh -o "${UV_INSTALLER}"
 sh "${UV_INSTALLER}"
 rm -f "${UV_INSTALLER}"
 

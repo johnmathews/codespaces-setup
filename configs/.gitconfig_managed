@@ -78,3 +78,14 @@
 
 [help]
 	autocorrect = 1
+
+# Stall detection for git-over-HTTP. git has no default transfer timeout, so a
+# clone that trickles (or a connection the proxy black-holes) hangs forever
+# rather than failing — and a hang is the one thing the setup scripts' `retry`
+# helper cannot act on, because it never gets an exit code. Abort a transfer
+# sitting below 1 KB/s for 30s so it becomes a retryable error instead.
+# Matters for scripts/04-neovim-config.sh and scripts/10-zsh-setup.sh, which
+# clone rather than curl.
+[http]
+	lowSpeedLimit = 1024
+	lowSpeedTime = 30
