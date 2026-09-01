@@ -58,9 +58,12 @@ docker run --rm \
     cp -a /workspace /tmp/repo
     chown -R '"${CONTAINER_USER}"':'"${CONTAINER_USER}"' /tmp/repo 2>/dev/null || true
     sudo -n true 2>/dev/null || echo "[smoke] note: running without passwordless sudo"
-    su - '"${CONTAINER_USER}"' -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/setup.sh" \
-      || su - '"${CONTAINER_USER}"' -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/setup.sh; exit \$?"
-    RC=$?
+    # Run ONCE. An earlier version had a `|| su - ... setup.sh` fallback, which
+    # re-ran the entire install on failure — doubling a ~15 minute job to learn
+    # nothing new, since a genuine failure fails the same way twice. setup.sh
+    # already retries internally, both per-download and as an end-of-run pass.
+    RC=0
+    su - '"${CONTAINER_USER}"' -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/setup.sh" || RC=$?
     echo "[smoke] setup.sh exit code: ${RC}"
     echo "[smoke] ---- run record ----"
     cat /tmp/setup-logs/latest.json 2>/dev/null || echo "[smoke] NO RUN RECORD WRITTEN"

@@ -147,6 +147,9 @@ jobs:
   # created a Codespace.
   smoke:
     runs-on: ubuntu-latest
+    # Bounded, for the same reason every download in this PR is: GitHub's default
+    # job timeout is 6 hours, and a wedged install should report in minutes.
+    timeout-minutes: 30
     # Do not fail the whole workflow while this is bedding in: it depends on the
     # network and on upstream release CDNs. Promote it to required (and drop this
     # line) once it has a track record — see docs/development.md.
