@@ -122,3 +122,24 @@ jobs:
         # code is non-zero, and a durable signal file is left behind. Also
         # unit-tests the shared retry helper (scripts/lib.sh).
         run: bash tests/setup-resilience/run.sh
+
+  # A SEPARATE job, deliberately. It is slow and network-dependent, so keeping it
+  # out of `lint` keeps the fast gates fast — and gives it its own stable status
+  # context, so `lint` can be made a required check without waiting on this one.
+  #
+  # This is the only thing in CI that executes a single line of the 17 installer
+  # scripts. Everything else lints them, checks their wiring, or drives the
+  # runner over fake steps. ~2000 lines of what this repo actually ships were
+  # exercised by nothing, so every defect in them stayed latent until someone
+  # created a Codespace.
+  smoke:
+    runs-on: ubuntu-latest
+    # Do not fail the whole workflow while this is bedding in: it depends on the
+    # network and on upstream release CDNs. Promote it to required (and drop this
+    # line) once it has a track record — see docs/development.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: run setup.sh in the real base image
+        run: bash ci/smoke-container.sh
