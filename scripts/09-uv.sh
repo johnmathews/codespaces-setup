@@ -22,14 +22,19 @@ log "Installing uv via official installer..."
 UV_INSTALLER="$(mktemp)"
 trap 'rm -f "${UV_INSTALLER}"' EXIT
 retry net_curl https://astral.sh/uv/install.sh -o "${UV_INSTALLER}"
-# `sh -n` proves the download is complete before it is executed.
-if ! sh -n "${UV_INSTALLER}"; then
+# `bash -n` proves the download is complete before it is executed.
+if ! bash -n "${UV_INSTALLER}"; then
   log "ERROR: the downloaded uv installer is not valid shell (truncated download?)."
   exit 1
 fi
 # Retry the installer too: the retried curl above fetches ~10 KB of shell, while
 # the uv binary itself is fetched inside this script and is the slow, flaky hop.
-retry sh "${UV_INSTALLER}"
+#
+# bash rather than sh, as a policy for every vendor installer — see the long
+# comment in 08-atuin.sh. That one is POSIX-incompatible in a way that made it
+# fail SILENTLY under dash with no tty; this one happens to work today, and
+# there is no reason to keep taking that bet for a shell that costs nothing.
+retry bash "${UV_INSTALLER}"
 
 # The installer puts uv in ~/.local/bin; make it globally available
 UV_LOCAL="${HOME}/.local/bin/uv"

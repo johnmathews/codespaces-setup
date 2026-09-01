@@ -815,8 +815,13 @@ else
   echo "╚══════════════════════════════════════════════════════════════════╝"
   ((${#FAILED_STEPS[@]} > 0)) &&
     printf "  ❗ %d of %d step(s) failed.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
-  ((${#MISSING_TOOLS[@]} > 0)) &&
-    printf "  ❗ %d tool(s) missing after a step that reported success.\n" "${#MISSING_TOOLS[@]}"
+  if ((${#MISSING_TOOLS[@]} > 0)); then
+    if ((${#FAILED_STEPS[@]} == 0)); then
+      printf "  ❗ %d tool(s) missing even though every step reported success.\n" "${#MISSING_TOOLS[@]}"
+    else
+      printf "  ❗ %d tool(s) missing after this run.\n" "${#MISSING_TOOLS[@]}"
+    fi
+  fi
   RUN_FINALISED=1
   write_failure_file
   write_summary "incomplete"
