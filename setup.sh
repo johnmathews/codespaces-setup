@@ -92,6 +92,11 @@ CURRENT_STEP=""
 # Each step that exits non-zero is recorded here as "NN|script|name"; the run
 # keeps going and reports them all at the end.
 declare -a FAILED_STEPS=()
+# Tools the verification summary found missing. Before this existed the summary
+# printed a cross and then the run printed the green COMPLETE banner and exited
+# 0 - so a Codespace missing tools reported success, which is the single most
+# confusing thing this script did.
+declare -a MISSING_TOOLS=()
 
 log() { echo "[setup] $*"; }
 die() {
@@ -116,17 +121,26 @@ is_required() {
 # on the next interactive shell. Overwrites any previous signal so it always
 # reflects the latest run.
 write_failure_file() {
-  local entry n s nm
+  local entry n s nm t
   mkdir -p "$(dirname "${SETUP_FAILURE_FILE}")"
   {
     echo "⚠️  codespaces-setup did NOT finish cleanly (last run: $(date))."
     echo ""
-    echo "Failed step(s):"
-    for entry in "${FAILED_STEPS[@]}"; do
-      IFS="|" read -r n s nm <<<"${entry}"
-      printf "  ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
-    done
-    echo ""
+    if ((${#FAILED_STEPS[@]} > 0)); then
+      echo "Failed step(s):"
+      for entry in "${FAILED_STEPS[@]}"; do
+        IFS="|" read -r n s nm <<<"${entry}"
+        printf "  ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+      done
+      echo ""
+    fi
+    if ((${#MISSING_TOOLS[@]} > 0)); then
+      echo "Missing after setup (the step reported success, but these are absent):"
+      for t in "${MISSING_TOOLS[@]}"; do
+        printf "  ✗ %s\n" "${t}"
+      done
+      echo ""
+    fi
     echo "Your environment is only partially set up. To fix it:"
     echo "  bash ${REPO_DIR}/setup.sh      # re-run (idempotent; safe to repeat)"
     echo "  tail -n 200 ${SETUP_LOG}       # see what went wrong"
@@ -136,17 +150,32 @@ write_failure_file() {
 }
 
 # Print the end-of-run FAILED summary banner listing every failed step.
+# $1: "aborted" when a REQUIRED step stopped the run, so the summary does not
+# claim the remaining steps ran when they did not.
 print_failure_summary() {
-  local entry n s nm
+  local mode="${1:-completed}" entry n s nm t
   echo ""
   echo "╔══════════════════════════════════════════════════════════════════╗"
   echo "║                  ❌  CODESPACES SETUP FAILED  ❌                  ║"
   echo "╚══════════════════════════════════════════════════════════════════╝"
-  printf "  %d of %d step(s) failed — the rest still ran:\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
-  for entry in "${FAILED_STEPS[@]}"; do
-    IFS="|" read -r n s nm <<<"${entry}"
-    printf "    ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
-  done
+  if ((${#FAILED_STEPS[@]} > 0)); then
+    if [[ "${mode}" == "aborted" ]]; then
+      printf "  A required step failed, so the run aborted and %d later step(s) never ran:\n" \
+        "$((TOTAL_STEPS - ${#FAILED_STEPS[@]}))"
+    else
+      printf "  %d of %d step(s) failed — the rest still ran:\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
+    fi
+    for entry in "${FAILED_STEPS[@]}"; do
+      IFS="|" read -r n s nm <<<"${entry}"
+      printf "    ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+    done
+  fi
+  if ((${#MISSING_TOOLS[@]} > 0)); then
+    printf "  %d tool(s) are missing even though their step reported success:\n" "${#MISSING_TOOLS[@]}"
+    for t in "${MISSING_TOOLS[@]}"; do
+      printf "    ✗ %s\n" "${t}"
+    done
+  fi
   printf "  📝 Full log     : %s\n" "${SETUP_LOG}"
   printf "  🚩 Signal file  : %s (shown on next shell start)\n" "${SETUP_FAILURE_FILE}"
   printf "  🔁 Re-run        : bash %s/setup.sh\n" "${REPO_DIR}"
@@ -256,7 +285,7 @@ run_step() {
       # this early exit can't pass for success on an unattended run.
       printf "✗ FAILED     : %s (%ss) — REQUIRED, aborting run\n" "${name}" "${elapsed}"
       write_failure_file
-      print_failure_summary
+      print_failure_summary aborted
       die "Required step failed: ${name} (${script})"
     fi
 
@@ -298,16 +327,10 @@ fi
 # print the green "COMPLETE" banner, or the whole point of tracking failures is
 # lost.
 echo ""
-if ((${#FAILED_STEPS[@]} == 0)); then
-  echo "╔══════════════════════════════════════════════════════════════════╗"
-  echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
-  echo "╚══════════════════════════════════════════════════════════════════╝"
-else
-  echo "╔══════════════════════════════════════════════════════════════════╗"
-  echo "║             ⚠️   CODESPACES SETUP INCOMPLETE  ⚠️                 ║"
-  echo "╚══════════════════════════════════════════════════════════════════╝"
-  printf "  ❗ %d of %d step(s) failed — details in the summary below.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
-fi
+# The verdict banner is NOT printed here. It used to be, which meant the run
+# announced "COMPLETE" before the verification summary below had established
+# whether any tool actually landed - and then printed the missing ones
+# underneath the green banner. The banner now comes after verification.
 printf "  🕒 Core setup : completed in %ss\n" "${CORE_ELAPSED}"
 printf "  👉 Next step  : run 'exec zsh' in this terminal if you want to switch now\n"
 printf "  🐚 New shells : should open in zsh automatically\n"
@@ -315,57 +338,94 @@ printf "  📖 README     : %s\n" "${README_URL}"
 printf "  📝 Setup log  : %s\n" "${SETUP_LOG}"
 printf "  📋 Nvim log   : %s\n" "${NVIM_LOG}"
 
-# Print a verification summary so the user can confirm every tool landed.
 echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║          🔍  SETUP VERIFICATION SUMMARY  🔍          ║"
-echo "╚══════════════════════════════════════════════════════╝"
 
+# Decide presence with `command -v`, and capture the version separately.
+#
+# The old form was `if version_output="$("$bin" "$@" 2>/dev/null | head -1)"`,
+# which took the PIPELINE's status. That worked only because `pipefail` is set
+# 300 lines above, and it mis-reported in both directions: a tool whose
+# --version output outran head's buffer took SIGPIPE and was reported "not
+# found", while a tool printing its version to stderr showed a blank check mark.
+# Neither was visible from here, and both become load-bearing now that the
+# result decides the exit code.
 check_tool() {
   local label="$1"
   local bin="$2"
   shift 2
   local version_output
-  if version_output="$("$bin" "$@" 2>/dev/null | head -1)"; then
-    printf "  ✅  %-18s %s\n" "${label}" "${version_output}"
-  else
+  if ! command -v "${bin}" >/dev/null 2>&1; then
     printf "  ❌  %-18s not found\n" "${label}"
+    MISSING_TOOLS+=("${label}")
+    return
+  fi
+  # Prefer stdout; fall back to stderr only when stdout is empty. Taking 2>&1
+  # unconditionally would show a tool's upgrade warning in place of its version
+  # (az does this), while dropping stderr entirely would show a blank line for
+  # tools that print their version there.
+  version_output="$("${bin}" "$@" 2>/dev/null | head -1 || true)"
+  if [[ -z "${version_output}" ]]; then
+    version_output="$("${bin}" "$@" 2>&1 | head -1 || true)"
+  fi
+  printf "  ✅  %-18s %s\n" "${label}" "${version_output:-(installed)}"
+}
+
+# Same, for the things a run installs that are not binaries on PATH. setup.sh
+# used to merely *print* these paths at the end, which reads like verification
+# and is not.
+check_path() {
+  local label="$1" path="$2"
+  if [[ -e "${path}" ]]; then
+    printf "  ✅  %-18s %s\n" "${label}" "${path}"
+  else
+    printf "  ❌  %-18s missing: %s\n" "${label}" "${path}"
+    MISSING_TOOLS+=("${label}")
   fi
 }
 
-check_tool "zsh"        zsh        --version
-check_tool "node"       node       --version
-check_tool "nvim"       nvim       --version
-check_tool "eza"        eza        --version
-check_tool "yazi"       yazi       --version
-check_tool "lazygit"    lazygit    --version
-check_tool "tig"        tig        --version
-check_tool "atuin"      atuin      --version
-check_tool "uv"         uv         --version
-check_tool "claude"     claude     --version
-check_tool "gh"         gh         --version
-check_tool "az"         az         --version
-check_tool "glow"       glow       --version
-check_tool "ruff"       ruff       --version
-check_tool "stylua"     stylua     --version
-check_tool "shfmt"      shfmt      --version
-check_tool "prettierd"  prettierd  --version
-check_tool "biome"      biome      --version
-
-FONT_DIR="${HOME}/.local/share/fonts/MesloLGS-NF"
-if [[ -f "${FONT_DIR}/MesloLGS NF Regular.ttf" ]]; then
-  printf "  ✅  %-18s installed in %s\n" "MesloLGS NF" "${FONT_DIR}"
+# Test hook: SETUP_SKIP_VERIFY=1 skips the checks below. The resilience harness
+# drives this runner over FAKE steps that install nothing, so looking for real
+# tools there would be a category error - it tests the runner, not the
+# installers. Unset in every real run, and scenario 5 deliberately leaves it
+# unset so this block itself stays covered.
+if [[ "${SETUP_SKIP_VERIFY:-0}" == "1" ]]; then
+  log "SETUP_SKIP_VERIFY=1 - skipping tool verification (test hook)."
 else
-  printf "  ❌  %-18s not found\n" "MesloLGS NF"
-fi
+  check_tool "zsh"        zsh        --version
+  check_tool "node"       node       --version
+  # npm was never checked, yet 15-dev-tools.sh gates four tools on it.
+  check_tool "npm"        npm        --version
+  check_tool "nvim"       nvim       --version
+  check_tool "eza"        eza        --version
+  check_tool "yazi"       yazi       --version
+  check_tool "lazygit"    lazygit    --version
+  check_tool "tig"        tig        --version
+  check_tool "atuin"      atuin      --version
+  check_tool "uv"         uv         --version
+  check_tool "claude"     claude     --version
+  check_tool "gh"         gh         --version
+  check_tool "az"         az         --version
+  check_tool "glow"       glow       --version
+  check_tool "ruff"       ruff       --version
+  check_tool "stylua"     stylua     --version
+  check_tool "shfmt"      shfmt      --version
+  check_tool "prettierd"  prettierd  --version
+  check_tool "biome"      biome      --version
+  check_tool "mypy"       mypy       --version
 
-if [[ -f "${HOME}/.claude/skills/engineering-team/SKILL.md" &&
-     -f "${HOME}/.claude/commands/done.md" &&
-     -f "${HOME}/.claude/commands/merge-push.md" &&
-     -f "${HOME}/.claude/commands/prompt.md" ]]; then
-  printf "  ✅  %-18s engineering-team, /done, /merge-push, /prompt\n" "Claude skills"
-else
-  printf "  ❌  %-18s missing (see %s)\n" "Claude skills" "${SETUP_LOG}"
+  FONT_DIR="${HOME}/.local/share/fonts/MesloLGS-NF"
+  check_path "MesloLGS NF" "${FONT_DIR}/MesloLGS NF Regular.ttf"
+
+  check_path "Claude skill" "${HOME}/.claude/skills/engineering-team/SKILL.md"
+  check_path "/done"       "${HOME}/.claude/commands/done.md"
+  check_path "/merge-push" "${HOME}/.claude/commands/merge-push.md"
+  check_path "/prompt"     "${HOME}/.claude/commands/prompt.md"
+
+  # Config artefacts the run produces that are not binaries. setup.sh used to
+  # print these paths at the end, which reads like verification and is not.
+  check_path "zshrc"       "${HOME}/.zshrc"
+  check_path "oh-my-zsh"   "${HOME}/.oh-my-zsh/oh-my-zsh.sh"
+  check_path "nvim config" "${HOME}/.config/nvim"
 fi
 
 NVIM_LOG="${NVIM_LOG:-${HOME}/.cache/nvim-setup.log}"
@@ -377,15 +437,29 @@ echo "  🔧 Git config   : ${HOME}/.gitconfig"
 echo "  🔌 Nvim plugins : tail -f ${NVIM_LOG}"
 echo ""
 
-# Final outcome. Any failed step means the run did not complete: write the
-# durable signal, print the summary that names each failure, and exit non-zero.
-# A clean run removes any stale signal from a previous failed run so a later
-# success silences the shell-start warning.
-if ((${#FAILED_STEPS[@]} > 0)); then
+# Final outcome, decided by BOTH signals: a step that exited non-zero, and a
+# tool that is absent even though its step reported success. The second half is
+# new and is the whole point - a run used to print a cross for every missing
+# tool and then exit 0 with the green banner, so a half-built Codespace
+# reported success and the shell-start notice never fired.
+echo ""
+if ((${#FAILED_STEPS[@]} == 0 && ${#MISSING_TOOLS[@]} == 0)); then
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  # A clean run clears any stale signal from a previous failed run, so a later
+  # success silences the shell-start warning.
+  rm -f "${SETUP_FAILURE_FILE}"
+else
+  echo "╔══════════════════════════════════════════════════════════════════╗"
+  echo "║             ⚠️   CODESPACES SETUP INCOMPLETE  ⚠️                 ║"
+  echo "╚══════════════════════════════════════════════════════════════════╝"
+  ((${#FAILED_STEPS[@]} > 0)) &&
+    printf "  ❗ %d of %d step(s) failed.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
+  ((${#MISSING_TOOLS[@]} > 0)) &&
+    printf "  ❗ %d tool(s) missing after a step that reported success.\n" "${#MISSING_TOOLS[@]}"
   write_failure_file
   print_failure_summary
   echo ""
   exit 1
 fi
-
-rm -f "${SETUP_FAILURE_FILE}"

@@ -22,8 +22,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 NODE_VERSION="v22.14.0"
 PREFIX="/usr/local"
 
-if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 &&
-  [[ "$(node --version 2>/dev/null)" == "${NODE_VERSION}" ]]; then
+# node was already checked functionally; npm was not — `command -v npm` passes
+# for a corrupt npm, and the $(npm --version) below sits in a log argument where
+# a failing substitution never trips `set -e`. Run both.
+if installed_version_is node "${NODE_VERSION}" && npm --version >/dev/null 2>&1; then
   log "Node.js ${NODE_VERSION} and npm $(npm --version) already installed, skipping."
   exit 0
 fi
@@ -37,20 +39,31 @@ esac
 TARBALL="node-${NODE_VERSION}-linux-${NODE_ARCH}.tar.gz"
 URL="https://nodejs.org/dist/${NODE_VERSION}/${TARBALL}"
 TMP="$(mktemp -d)"
+# The happy-path `rm -rf` below cannot run if the download fails under `set -e`.
+trap 'rm -rf "${TMP}"' EXIT
 
 log "Downloading Node.js ${NODE_VERSION} (${NODE_ARCH})..."
-retry net_curl "${URL}" -o "${TMP}/${TARBALL}"
+# fetch_verified runs `tar -tzf` over the whole archive BEFORE anything is
+# unpacked. That matters more here than anywhere else: the extract below targets
+# a live /usr/local, so a truncated tarball would half-clobber a working
+# toolchain that 12-claude-code.sh and 15-dev-tools.sh depend on in this same run.
+fetch_verified "${URL}" "${TMP}/${TARBALL}"
 
 # Extract bin/, lib/, include/, share/ straight into /usr/local.
 log "Installing into ${PREFIX}..."
 sudo tar -xzf "${TMP}/${TARBALL}" -C "${PREFIX}" --strip-components=1 \
   --exclude='*/CHANGELOG.md' --exclude='*/LICENSE' --exclude='*/README.md'
 
-rm -rf "${TMP}"
 hash -r 2>/dev/null || true
 
-if ! command -v npm >/dev/null 2>&1; then
-  log "ERROR: npm not found after install."
+# Verify by RUNNING both, not by looking them up: a half-extracted /usr/local
+# leaves files at the right paths that do not execute.
+if ! node --version >/dev/null 2>&1; then
+  log "ERROR: node does not run after install."
+  exit 1
+fi
+if ! npm --version >/dev/null 2>&1; then
+  log "ERROR: npm does not run after install."
   exit 1
 fi
 

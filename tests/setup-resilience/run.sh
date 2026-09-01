@@ -74,8 +74,13 @@ EOF
 
 # run_setup <scripts_dir> <steps> <required> <home> — returns setup.sh exit code
 # in RC, and leaves its log at ${home}/.cache/codespaces-setup.log.
+# SKIP_VERIFY defaults to 1: these scenarios drive the runner over FAKE steps
+# that install nothing, so the end-of-run tool verification would (correctly)
+# report every tool missing, which is not what they are measuring. Scenario 5
+# sets it to 0 to cover that block itself.
 run_setup() {
   local scripts_dir="$1" steps="$2" required="$3" home="$4"
+  local skip_verify="${SKIP_VERIFY:-1}"
   mkdir -p "${home}/.cache"
   RC=0
   env -i \
@@ -84,6 +89,7 @@ run_setup() {
     SETUP_SCRIPTS_DIR="${scripts_dir}" \
     SETUP_STEPS="${steps}" \
     SETUP_REQUIRED="${required}" \
+    SETUP_SKIP_VERIFY="${skip_verify}" \
     RAN_MARKER="${RAN_MARKER}" \
     bash "${SETUP}" >/dev/null 2>&1 || RC=$?
   # setup.sh execs stdout through `tee` (a background process); give it a beat to
@@ -222,6 +228,40 @@ if (
 else
   bad "retry give-up path wrong (wrong exit code or attempt count)"
 fi
+
+echo "== scenario 5: every step succeeds but the tools are missing =="
+# The regression test for the defect that motivated this work. setup.sh used to
+# print a cross for each missing tool, then print the green COMPLETE banner,
+# delete the failure signal and exit 0 - so a half-built Codespace reported
+# success and the shell-start notice never fired. HOME is a fresh temp dir, so
+# none of the config artefacts the verification looks for exist.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_fixture "${WORK}/scripts" "01-noop:0"
+HOME5="${WORK}/home"
+mkdir -p "${HOME5}"
+SKIP_VERIFY=0 run_setup "${WORK}/scripts" "01-noop.sh|Installs nothing" "" "${HOME5}"
+LOG="${HOME5}/.cache/codespaces-setup.log"
+FAILFILE="${HOME5}/.cache/codespaces-setup.failed"
+
+if [[ "${RC}" -ne 0 ]]; then
+  ok "run with missing tools exits non-zero (${RC})"
+else
+  bad "run with missing tools exited 0 — the defect this work exists to fix"
+fi
+assert_contains "INCOMPLETE banner shown when tools are missing" "${LOG}" "SETUP INCOMPLETE"
+assert_absent "COMPLETE banner NOT shown when tools are missing" "${LOG}" "SETUP COMPLETE"
+assert_contains "summary explains the tools-missing case" "${LOG}" \
+  "missing even though their step reported success"
+if [[ -f "${FAILFILE}" ]]; then
+  ok "durable signal written when only tools are missing"
+  assert_contains "signal file names the missing tools" "${FAILFILE}" "Missing after setup"
+else
+  bad "no durable signal written when tools are missing"
+  bad "signal file does not name the missing tools"
+fi
+rm -rf "${WORK}"
 
 echo ""
 echo "== results: ${PASS} passed, ${FAIL} failed =="

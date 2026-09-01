@@ -18,7 +18,15 @@ install_claude() {
   local installer
   installer="$(mktemp)"
   retry net_curl https://claude.ai/install.sh -o "${installer}"
-  bash "${installer}"
+  # `bash -n` proves the download is complete before it is executed.
+  if ! bash -n "${installer}"; then
+    log "ERROR: the downloaded Claude Code installer is not valid shell (truncated download?)."
+    rm -f "${installer}"
+    return 1
+  fi
+  # Retry the installer itself, not only its download: the retried curl fetches a
+  # small shell script, while the multi-megabyte bundle is fetched inside it.
+  retry bash "${installer}"
   rm -f "${installer}"
 }
 
