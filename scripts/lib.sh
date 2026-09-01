@@ -251,6 +251,64 @@ _fetch_verified_once() {
   esac
 }
 
+# Exit code a step uses to say "deliberately not installed here" — as opposed to
+# 0 (installed) or anything else (failed). setup.sh records these as SKIPPED with
+# a reason, so an unsupported platform is not reported as a broken step.
+SETUP_SKIP_RC=3
+
+# glibc_at_least <major.minor> — true when the system glibc is at least <version>.
+#
+# Prebuilt binaries are compiled against a glibc and simply will not run on an
+# older one. Ubuntu 20.04 (focal) ships glibc 2.31, and Neovim, yazi and stylua
+# all fail there — observed in CI: the binaries download and extract fine and
+# then do not execute, with stylua's installer saying outright
+# "System glibc version (`2.31') is too old".
+#
+# The install guards already catch this (they run the artifact before installing
+# it, so a non-working binary is never installed) but only AFTER paying for the
+# download and extraction, and the result reads as a failure rather than as
+# "this platform is too old". Checking first makes it fast and honest.
+#
+# Returns 0 (do not block) when the version cannot be determined: a missing or
+# unparseable `ldd` is not evidence that the platform is unsupported, and
+# refusing to install on no evidence would be worse than trying.
+glibc_at_least() {
+  local want="$1" have want_maj want_min have_maj have_min
+  GLIBC_VERSION=""
+  have="$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | tail -1)"
+  [[ -n "${have}" ]] || return 0
+  GLIBC_VERSION="${have}"
+  want_maj="${want%%.*}"
+  want_min="${want##*.}"
+  have_maj="${have%%.*}"
+  have_min="${have##*.}"
+  ((have_maj > want_maj)) && return 0
+  ((have_maj < want_maj)) && return 1
+  ((have_min >= want_min))
+}
+
+# require_glibc <version> <what> — skip this step, with a clear reason, when the
+# system glibc is too old for the binary it installs.
+#
+# The floor is set to "newer than focal" rather than a per-tool number, because
+# what is established is that 2.31 fails and 2.39 works; the exact per-tool floor
+# is not. Conservative in the right direction — and overridable with
+# SETUP_SKIP_GLIBC_CHECK=1 for anyone who knows their platform is fine.
+require_glibc() {
+  local want="$1" what="$2"
+  [[ "${SETUP_SKIP_GLIBC_CHECK:-0}" == "1" ]] && return 0
+  glibc_at_least "${want}" && return 0
+  log "SKIPPING ${what}: it needs glibc >= ${want}, and this system has ${GLIBC_VERSION}."
+  log "  That is Ubuntu 20.04 (focal) or older. The binary would download and then"
+  log "  refuse to run, so there is nothing to gain by trying."
+  log "  Fix: use a base image on Ubuntu 22.04 or newer — e.g."
+  log "    mcr.microsoft.com/devcontainers/universal:6        (was universal:2)"
+  log "    mcr.microsoft.com/devcontainers/python:1-3.12-bookworm"
+  log "  See the README's 'Choosing a base image' section."
+  log "  Override with SETUP_SKIP_GLIBC_CHECK=1 if you know better."
+  exit "${SETUP_SKIP_RC}"
+}
+
 # Log through the sourcing script's own log() (so retry lines carry that script's
 # [prefix]) when one exists, and fall back to a self-contained prefix otherwise —
 # keeping lib.sh usable even from a script that has not defined log() yet.

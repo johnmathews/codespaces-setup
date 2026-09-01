@@ -153,21 +153,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Two images, because a real failure showed that one is not enough.
+        # Two images, because a real failure showed that one is not enough: a
+        # smoke test on this repo's own pinned base:ubuntu was green while a
+        # user's Codespace could not finish setup at all.
         #
-        # This repo's devcontainer pins base:ubuntu (currently noble), and a
-        # smoke test on that alone was green while a user's Codespace on
-        # universal:2 could not finish setup AT ALL: universal:2 is Ubuntu 20.04
-        # focal, `zoxide` does not exist in focal's archives, and one unknown
-        # package name fails the entire apt transaction — which, on the only
-        # REQUIRED step, aborted the whole run.
+        # The second leg is the "universal" image — what GitHub gives a repo
+        # with no devcontainer.json, and therefore what the account-wide
+        # dotfiles path most often lands on. It is very large and allowed to be
+        # slow; what matters is that it is a DIFFERENT image from the one this
+        # repo pins.
         #
-        # universal:2 is very large, so it is allowed to be slow; what matters
-        # is that the package list is exercised against an OLDER release than
-        # the one this repo happens to pin.
+        # Deliberately universal:6 (Ubuntu 24.04 noble) rather than :2. The :2
+        # tag is the focal (Ubuntu 20.04) line and is four major versions
+        # behind; its glibc 2.31 cannot run Neovim, yazi or stylua at all, so
+        # that leg could only ever be red. A permanently-red check is one people
+        # learn to ignore, which is worse than not having it. The kit now
+        # detects that case and skips those tools with an explanation
+        # (require_glibc in scripts/lib.sh) rather than failing.
         image:
           - mcr.microsoft.com/devcontainers/base:ubuntu
-          - mcr.microsoft.com/devcontainers/universal:2
+          - mcr.microsoft.com/devcontainers/universal:6
     # Do not fail the whole workflow while this is bedding in: it depends on the
     # network and on upstream release CDNs. Promote it to required (and drop this
     # line) once it has a track record — see docs/development.md.

@@ -34,6 +34,10 @@ else
   YAZI_ARCH="x86_64-unknown-linux-gnu"
 fi
 
+# yazi's release binaries do not run on glibc 2.31 (Ubuntu 20.04) — verified in
+# CI, where the zip extracts and then will not execute.
+require_glibc 2.32 "yazi ${YAZI_VERSION}"
+
 # Stage the zip in a private temp dir. The UNZIP target deliberately stays in
 # ${INSTALL_DIR} so the `mv` below is a same-filesystem rename and therefore
 # atomic; staging the extract in /tmp would silently turn it into a
