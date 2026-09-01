@@ -239,12 +239,12 @@ echo "== scenario 4: retry helper (scripts/lib.sh) =="
 # reports via its exit code, so the outer ok()/bad() keep the PASS/FAIL tally
 # accurate.
 if (
-  # shellcheck disable=SC2329  # invoked indirectly, via retry
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via retry
   log() { echo "[test] $*"; }
   # shellcheck source=/dev/null
   source "${LIB}"
   attempts=0
-  # shellcheck disable=SC2329  # invoked indirectly, via retry
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via retry
   flaky() {
     attempts=$((attempts + 1))
     [[ "${attempts}" -ge 3 ]]
@@ -257,12 +257,12 @@ else
 fi
 
 if (
-  # shellcheck disable=SC2329  # invoked indirectly, via retry
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via retry
   log() { echo "[test] $*"; }
   # shellcheck source=/dev/null
   source "${LIB}"
   tries=0
-  # shellcheck disable=SC2329  # invoked indirectly, via retry
+  # shellcheck disable=SC2317,SC2329  # invoked indirectly, via retry
   countingfalse() {
     tries=$((tries + 1))
     return 7
