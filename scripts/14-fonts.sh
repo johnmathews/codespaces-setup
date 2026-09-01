@@ -26,10 +26,22 @@ declare -a FONTS=(
   "MesloLGS NF Bold Italic.ttf"
 )
 
-# Check if all four variants are already present
+# A font file counts as installed only if it is a real sfnt — not a truncated
+# transfer and not a proxy error page. This URL is a github.com raw redirect, and
+# behind a TLS-intercepting proxy a failure arrives as HTML with a 200, which
+# `curl -o` used to write straight to the final path where `[[ -f ]]` accepted it
+# forever and fc-cache then indexed it. The first four bytes are the sfnt tag.
+font_ok() {
+  local f="$1" magic
+  [[ -s "${f}" ]] || return 1
+  magic="$(head -c 4 "${f}" | od -An -tx1 | tr -d ' \n')"
+  [[ "${magic}" == "00010000" || "${magic}" == "74727565" || "${magic}" == "4f54544f" ]]
+}
+
+# Check if all four variants are already present AND valid
 all_present=true
 for font in "${FONTS[@]}"; do
-  [[ -f "${FONT_DIR}/${font}" ]] || all_present=false
+  font_ok "${FONT_DIR}/${font}" || all_present=false
 done
 
 if [[ "${all_present}" == "true" ]]; then
@@ -40,15 +52,27 @@ fi
 log "Creating font directory ${FONT_DIR}..."
 mkdir -p "${FONT_DIR}"
 
+# Stage inside FONT_DIR so the final `mv` is a same-filesystem rename and each
+# font appears atomically. The dot prefix keeps the staging dir out of the way of
+# fc-cache, and the trap removes it before the cache is refreshed.
+TMP="$(mktemp -d "${FONT_DIR}/.staging.XXXXXX")"
+trap 'rm -rf "${TMP}"' EXIT
+
 for font in "${FONTS[@]}"; do
   dest="${FONT_DIR}/${font}"
-  if [[ -f "${dest}" ]]; then
+  if font_ok "${dest}"; then
     log "  ${font}: already present, skipping."
   else
+    [[ -e "${dest}" ]] && log "  ${font}: present but not a valid font; re-downloading."
     log "  Downloading: ${font}..."
     # URL-encode the spaces
     encoded="${font// /%20}"
-    retry curl -fsSL "${BASE_URL}/${encoded}" -o "${dest}"
+    fetch_verified "${BASE_URL}/${encoded}" "${TMP}/${font}"
+    if ! font_ok "${TMP}/${font}"; then
+      log "  ERROR: downloaded ${font} is not a valid font file (truncated, or a proxy error page)."
+      exit 1
+    fi
+    mv "${TMP}/${font}" "${dest}"
   fi
 done
 

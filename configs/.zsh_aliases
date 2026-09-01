@@ -65,8 +65,13 @@ alias grep='grep --color=auto'
 alias egrep='egrep --color=auto'
 alias fgrep='fgrep --color=auto'
 
-# Codespace setup monitoring
-alias setup-log='tail -f ~/.cache/nvim-setup.log'
+# Codespace setup monitoring.
+# `setup-log` used to tail the *nvim* log — under this exact comment — so the one
+# discoverable handle for "what did setup do?" opened the wrong file and then
+# hung on `tail -f` of a finished background job.
+alias setup-log='tail -f "$(setup-status --log 2>/dev/null || echo ~/.cache/codespaces-setup.log)"'
+alias nvim-log='tail -f ~/.cache/nvim-setup.log'
+alias setup-failed='setup-status'
 
 # Utility
 alias cl='clear'

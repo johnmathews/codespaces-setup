@@ -18,17 +18,42 @@ ZSH_THEMES_DIR="${OMZ_CUSTOM}/themes"
 # Zsh is already installed by 01-apt-packages.sh
 log "Zsh version: $(zsh --version)"
 
+# "Installed" means the file zsh actually sources exists, not that the directory
+# does. A killed installer leaves ~/.oh-my-zsh behind, and a directory test then
+# reports it installed forever — while configs/.zshrc:31 sources
+# ${OMZ_DIR}/oh-my-zsh.sh and errors on every shell start.
+omz_installed() {
+  [[ -r "${OMZ_DIR}/oh-my-zsh.sh" && -d "${OMZ_DIR}/lib" && -d "${OMZ_DIR}/plugins" ]]
+}
+
 # Install Oh My Zsh (unattended, skip shell change - handled by 11-dotfiles.sh)
-if [[ ! -d "${OMZ_DIR}" ]]; then
+if omz_installed; then
+  log "Oh My Zsh already installed, skipping."
+else
+  if [[ -d "${OMZ_DIR}" ]]; then
+    # The upstream installer refuses to run into an existing directory, so an
+    # incomplete one has to go or every future run fails here. custom/plugins and
+    # custom/themes are re-cloned further down this same script.
+    log "Found an incomplete ${OMZ_DIR} (no oh-my-zsh.sh); removing it and reinstalling..."
+    rm -rf "${OMZ_DIR}"
+  fi
   log "Installing Oh My Zsh..."
   # Download the installer to a file first (retryable) rather than piping curl
   # into sh, then run it with the same unattended flags.
   OMZ_INSTALLER="$(mktemp)"
-  retry curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "${OMZ_INSTALLER}"
-  RUNZSH=no CHSH=no sh "${OMZ_INSTALLER}" "" --unattended
-  rm -f "${OMZ_INSTALLER}"
-else
-  log "Oh My Zsh already installed, skipping."
+  trap 'rm -f "${OMZ_INSTALLER}"' EXIT
+  retry net_curl https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "${OMZ_INSTALLER}"
+  if ! sh -n "${OMZ_INSTALLER}"; then
+    log "ERROR: the downloaded Oh My Zsh installer is not valid shell (truncated download?)."
+    exit 1
+  fi
+  # Retry the installer: it git-clones the whole oh-my-zsh repo internally, which
+  # is the slow hop, and the retried curl above only covered the wrapper script.
+  RUNZSH=no CHSH=no retry sh "${OMZ_INSTALLER}" "" --unattended
+  if ! omz_installed; then
+    log "ERROR: the Oh My Zsh installer did not produce ${OMZ_DIR}/oh-my-zsh.sh."
+    exit 1
+  fi
 fi
 
 # Install third-party plugins

@@ -28,7 +28,18 @@ plugins=(
   zsh-syntax-highlighting
 )
 
-source $ZSH/oh-my-zsh.sh
+# Guarded, because this file is deployed by 11-dotfiles.sh (step 2) while
+# oh-my-zsh is installed by 10-zsh-setup.sh (step 12). Since a non-required step
+# no longer aborts the run, a failed step 12 leaves this .zshrc in place with no
+# oh-my-zsh to source — and an unguarded `source` here errors on every shell
+# start AND takes the setup-failure notice at the bottom of this file down with
+# it, hiding the very message that would explain the problem.
+if [[ -r $ZSH/oh-my-zsh.sh ]]; then
+  source $ZSH/oh-my-zsh.sh
+else
+  print -P "%F{yellow}⚠️  oh-my-zsh is not installed; shell running without it.%f"
+  print -P "%F{yellow}   Re-run setup.sh, or: bash <repo>/scripts/10-zsh-setup.sh%f"
+fi
 
 # Autosuggestions style
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
@@ -122,6 +133,9 @@ fi
 if [[ -f ~/.cache/codespaces-setup.failed ]]; then
   print -P "%F{red}%B⚠️  Codespaces setup did not finish cleanly:%b%f"
   cat ~/.cache/codespaces-setup.failed
+  if command -v setup-status >/dev/null 2>&1; then
+    print -P "%F{yellow}Run 'setup-status' for the full per-step detail.%f"
+  fi
   print -P "%F{yellow}(this notice clears once setup.sh completes with no failures)%f"
 fi
 

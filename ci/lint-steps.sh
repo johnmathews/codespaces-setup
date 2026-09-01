@@ -66,6 +66,18 @@ fi
 
 errors=0
 
+# 0. No duplicate STEPS entries. A duplicate is harmless in effect (the steps are
+#    idempotent) but it inflates TOTAL_STEPS, so the [NN/TT] counter and the
+#    progress bar lie, and it doubles that step's network cost on every run.
+dupes="$(printf '%s\n' "${step_scripts[@]}" | sort | uniq -d || true)"
+if [[ -n "${dupes}" ]]; then
+  while IFS= read -r d; do
+    [[ -n "${d}" ]] || continue
+    log "ERROR: '${d}' appears more than once in the STEPS array"
+    errors=$((errors + 1))
+  done <<<"${dupes}"
+fi
+
 # 1. Every STEPS entry must point at a real script.
 for s in "${step_scripts[@]}"; do
   if [[ ! -f "${SCRIPTS_DIR}/${s}" ]]; then
@@ -81,7 +93,30 @@ for path in "${SCRIPTS_DIR}"/*.sh; do
     continue
   fi
   if is_exempt "${name}"; then
-    log "ok (exempt): ${name}"
+    # An EXEMPT entry asserts "this runs some other way". Check that claim,
+    # rather than taking it on trust: this linter exists to catch "a script that
+    # would silently never run", and for the ONE script launched outside STEPS
+    # that guarantee was previously a comment. Deleting the 13-nvim-plugins.sh
+    # launch block from setup.sh left this gate green — defeating its whole
+    # stated purpose at exactly the point it was supposed to apply.
+    #
+    # lib.sh is the exception to the exception: it is SOURCED by the steps, so it
+    # is referenced from scripts/, not from setup.sh.
+    if [[ "${name}" == "lib.sh" ]]; then
+      if grep -qE 'lib\.sh' "${SCRIPTS_DIR}"/*.sh; then
+        log "ok (exempt, sourced by steps): ${name}"
+      else
+        log "ERROR: ${name} is EXEMPT as 'sourced by the other scripts', but nothing in scripts/ sources it."
+        errors=$((errors + 1))
+      fi
+    elif grep -qF "${name}" "${SETUP}"; then
+      log "ok (exempt, referenced by setup.sh): ${name}"
+    else
+      log "ERROR: ${name} is EXEMPT (runs outside STEPS), but setup.sh does not mention it."
+      log "       Either its launch site was deleted — in which case it now never runs —"
+      log "       or the EXEMPT entry is stale. Both are the failure this linter exists to catch."
+      errors=$((errors + 1))
+    fi
     continue
   fi
   log "ERROR: scripts/${name} is not in the STEPS array and not EXEMPT — it will never run."

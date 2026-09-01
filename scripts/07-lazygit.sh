@@ -35,7 +35,7 @@ TARBALL="/tmp/lazygit-${LAZYGIT_VERSION}.tar.gz"
 URL="https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION_BARE}_linux_${LAZYGIT_ARCH}.tar.gz"
 
 log "Downloading lazygit ${LAZYGIT_VERSION}..."
-retry curl -fsSL "${URL}" -o "${TARBALL}"
+retry net_curl "${URL}" -o "${TARBALL}"
 
 EXTRACT_DIR="/tmp/lazygit-${LAZYGIT_VERSION}"
 mkdir -p "${EXTRACT_DIR}"

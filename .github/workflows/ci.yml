@@ -41,10 +41,24 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: shellcheck
+        # PINNED, like shfmt below. `apt-get install shellcheck` floats with the
+        # runner image, and the versions disagree about which check number to
+        # emit: 0.11 reports a function invoked only through `retry` as SC2329,
+        # while the version on the runner reported the same situation as SC2317
+        # on the function's body lines. A file that was clean locally therefore
+        # failed in CI for a reason no local run could reproduce. Bump this in
+        # lockstep with docs/development.md.
+        env:
+          SHELLCHECK_VERSION: v0.11.0
         run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
-          shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh
+          curl -fsSL --retry 3 --connect-timeout 15 --max-time 120 \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            -o /tmp/shellcheck.tar.xz
+          tar -xJf /tmp/shellcheck.tar.xz -C /tmp
+          sudo install -m 755 "/tmp/shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
+          shellcheck --version
+          shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
+            bin/setup-status .devcontainer/post-create.sh tests/setup-resilience/run.sh
 
       - name: shfmt
         # Pinned to match the local shfmt convention; bump in lockstep with docs.
@@ -52,10 +66,36 @@ jobs:
         with:
           # Keep these flags in sync with docs/development.md and the local
           # convention: 2-space indent, indent switch cases, keep alignment.
-          args: -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci
+          args: -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
 
       - name: steps-array wiring
         run: bash ci/lint-steps.sh
+
+      - name: per-script conventions
+        # CLAUDE.md's per-script conventions had zero enforcement: a script with
+        # no `set -euo pipefail`, no log() prefix, an unretried `curl | bash` and
+        # a .bak written into the SCANNED ~/.claude/skills/ directory passed
+        # every gate green. --selftest proves each rule can still go red.
+        run: |
+          bash ci/lint-conventions.sh --selftest
+          bash ci/lint-conventions.sh
+
+      - name: shell config syntax
+        # configs/.zshrc has the largest blast radius in the repo - it deploys
+        # via the account-wide dotfiles route into EVERY Codespace on every repo,
+        # and a syntax error there breaks every new shell *and* silences the
+        # setup-failure notice it hosts. Nothing checked it.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zsh
+          zsh -n configs/.zshrc
+          zsh -n configs/.zsh_aliases
+
+      - name: devcontainer manifest
+        # Never parsed by anything. A trailing comma here breaks container
+        # creation for this repo and surfaces only when someone creates a
+        # Codespace.
+        run: python3 -c "import json,sys; json.load(open('.devcontainer/devcontainer.json'))"
 
       - name: engineering-team gates (fixtures)
         run: |
@@ -95,3 +135,27 @@ jobs:
         # code is non-zero, and a durable signal file is left behind. Also
         # unit-tests the shared retry helper (scripts/lib.sh).
         run: bash tests/setup-resilience/run.sh
+
+  # A SEPARATE job, deliberately. It is slow and network-dependent, so keeping it
+  # out of `lint` keeps the fast gates fast — and gives it its own stable status
+  # context, so `lint` can be made a required check without waiting on this one.
+  #
+  # This is the only thing in CI that executes a single line of the 17 installer
+  # scripts. Everything else lints them, checks their wiring, or drives the
+  # runner over fake steps. ~2000 lines of what this repo actually ships were
+  # exercised by nothing, so every defect in them stayed latent until someone
+  # created a Codespace.
+  smoke:
+    runs-on: ubuntu-latest
+    # Bounded, for the same reason every download in this PR is: GitHub's default
+    # job timeout is 6 hours, and a wedged install should report in minutes.
+    timeout-minutes: 30
+    # Do not fail the whole workflow while this is bedding in: it depends on the
+    # network and on upstream release CDNs. Promote it to required (and drop this
+    # line) once it has a track record — see docs/development.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: run setup.sh in the real base image
+        run: bash ci/smoke-container.sh

@@ -16,10 +16,16 @@ BIN_DIR="/usr/local/bin"
 NVIM_DIR="${INSTALL_DIR}/nvim-${NVIM_VERSION}"
 NVIM_BIN="${NVIM_DIR}/usr/bin/nvim"
 
-if [[ -x "${NVIM_BIN}" ]]; then
+# Guard on the binary RUNNING, not merely existing — see scripts/lib.sh. The
+# symlink re-creation is load-bearing: it repairs /usr/local/bin/nvim when a
+# later step clobbered it.
+if installed_version_is "${NVIM_BIN}" "${NVIM_VERSION}"; then
   log "Neovim ${NVIM_VERSION} already installed at ${NVIM_BIN}, skipping."
   sudo ln -sf "${NVIM_BIN}" "${BIN_DIR}/nvim"
   exit 0
+fi
+if [[ -e "${NVIM_BIN}" ]]; then
+  log "Found a broken or wrong Neovim at ${NVIM_BIN} (${INSTALLED_VERSION:-does not run}); reinstalling ${NVIM_VERSION}..."
 fi
 
 # Detect architecture
@@ -31,18 +37,24 @@ else
 fi
 
 APPIMAGE_URL="https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-${NVIM_ARCH}.appimage"
-APPIMAGE_TMP="/tmp/nvim-${NVIM_VERSION}.appimage"
+# A private staging dir, not a fixed /tmp path: a file left there by another
+# user would make `curl -o` fail outright.
+TMP="$(mktemp -d)"
+trap 'rm -rf "${TMP}"' EXIT
+APPIMAGE_TMP="${TMP}/nvim.appimage"
 
 log "Removing old apt neovim (if any)..."
 sudo apt-get remove -y neovim 2>/dev/null || true
 
 log "Downloading Neovim ${NVIM_VERSION} (${NVIM_ARCH})..."
-retry curl -fsSL "${APPIMAGE_URL}" -o "${APPIMAGE_TMP}"
+# An AppImage is neither tar.gz nor zip, so fetch_verified only asserts
+# non-empty here; the extraction below is the real completeness check.
+fetch_verified "${APPIMAGE_URL}" "${APPIMAGE_TMP}"
 chmod +x "${APPIMAGE_TMP}"
 
 log "Extracting AppImage..."
 # Extract into a version-specific tmp dir to avoid /tmp/squashfs-root conflicts
-EXTRACT_TMP="/tmp/nvim-extract-${NVIM_VERSION}-$$"
+EXTRACT_TMP="${TMP}/extract"
 mkdir -p "${EXTRACT_TMP}"
 cd "${EXTRACT_TMP}"
 "${APPIMAGE_TMP}" --appimage-extract >/dev/null 2>&1
@@ -52,15 +64,19 @@ if [[ ! -d "${EXTRACT_TMP}/squashfs-root" ]]; then
   exit 1
 fi
 
+# Prove the extracted binary runs before it replaces a working install. The
+# mv below crosses filesystems (/tmp -> /opt) so it is a copy, not an atomic
+# rename; the functional guard above is what makes a half-copy survivable.
+if ! "${EXTRACT_TMP}/squashfs-root/usr/bin/nvim" --version >/dev/null 2>&1; then
+  log "ERROR: the extracted nvim does not run; refusing to install it."
+  exit 1
+fi
+
 log "Moving to ${NVIM_DIR}..."
 sudo rm -rf "${NVIM_DIR}"
 sudo mv "${EXTRACT_TMP}/squashfs-root" "${NVIM_DIR}"
 
 log "Creating symlink ${BIN_DIR}/nvim..."
 sudo ln -sf "${NVIM_BIN}" "${BIN_DIR}/nvim"
-
-log "Cleaning up..."
-rm -f "${APPIMAGE_TMP}"
-rm -rf "${EXTRACT_TMP}"
 
 log "Installed: $(nvim --version | head -1)"

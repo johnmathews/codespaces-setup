@@ -106,8 +106,8 @@ fi
 # Release-binary tools: glow, stylua, shfmt
 # ---------------------------------------------------------------------------
 install_glow() {
-  if command -v glow >/dev/null 2>&1; then
-    log "glow already installed, skipping."
+  if installed_version_is glow "${GLOW_VERSION}"; then
+    log "glow ${GLOW_VERSION} already installed, skipping."
     return
   fi
   local ver="${GLOW_VERSION#v}"
@@ -115,52 +115,96 @@ install_glow() {
   local tmp
   tmp="$(mktemp -d)"
   log "Installing glow ${GLOW_VERSION}..."
-  retry curl -fsSL "${url}" -o "${tmp}/glow.tar.gz"
+  if ! fetch_verified "${url}" "${tmp}/glow.tar.gz"; then
+    rm -rf "${tmp}"
+    return 1
+  fi
   tar -xzf "${tmp}/glow.tar.gz" -C "${tmp}"
-  sudo install -m 755 "$(find "${tmp}" -type f -name glow | head -1)" "${BIN_DIR}/glow"
+  local bin
+  bin="$(find "${tmp}" -type f -name glow | head -1)"
+  if [[ -z "${bin}" ]] || ! "${bin}" --version >/dev/null 2>&1; then
+    log "ERROR: the downloaded glow does not run; refusing to install it."
+    rm -rf "${tmp}"
+    return 1
+  fi
+  sudo install -m 755 "${bin}" "${BIN_DIR}/glow"
   rm -rf "${tmp}"
 }
 
 install_stylua() {
-  if command -v stylua >/dev/null 2>&1; then
-    log "stylua already installed, skipping."
+  if installed_version_is stylua "${STYLUA_VERSION}"; then
+    log "stylua ${STYLUA_VERSION} already installed, skipping."
     return
   fi
   local url="https://github.com/JohnnyMorganz/StyLua/releases/download/${STYLUA_VERSION}/stylua-linux-${STYLUA_ARCH}.zip"
   local tmp
   tmp="$(mktemp -d)"
   log "Installing stylua ${STYLUA_VERSION}..."
-  retry curl -fsSL "${url}" -o "${tmp}/stylua.zip"
+  if ! fetch_verified "${url}" "${tmp}/stylua.zip"; then
+    rm -rf "${tmp}"
+    return 1
+  fi
   unzip -q "${tmp}/stylua.zip" -d "${tmp}"
+  if ! "${tmp}/stylua" --version >/dev/null 2>&1; then
+    log "ERROR: the downloaded stylua does not run; refusing to install it."
+    rm -rf "${tmp}"
+    return 1
+  fi
   sudo install -m 755 "${tmp}/stylua" "${BIN_DIR}/stylua"
   rm -rf "${tmp}"
 }
 
 install_shfmt() {
-  if command -v shfmt >/dev/null 2>&1; then
-    log "shfmt already installed, skipping."
+  if installed_version_is shfmt "${SHFMT_VERSION}"; then
+    log "shfmt ${SHFMT_VERSION} already installed, skipping."
     return
   fi
   local url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_${SHFMT_ARCH}"
   local tmp
   tmp="$(mktemp -d)"
   log "Installing shfmt ${SHFMT_VERSION}..."
-  retry curl -fsSL "${url}" -o "${tmp}/shfmt"
+  if ! fetch_verified "${url}" "${tmp}/shfmt"; then
+    rm -rf "${tmp}"
+    return 1
+  fi
+  # A bare binary, so fetch_verified only proved it is non-empty. Run it.
+  chmod +x "${tmp}/shfmt"
+  if ! "${tmp}/shfmt" --version >/dev/null 2>&1; then
+    log "ERROR: the downloaded shfmt does not run; refusing to install it."
+    rm -rf "${tmp}"
+    return 1
+  fi
   sudo install -m 755 "${tmp}/shfmt" "${BIN_DIR}/shfmt"
   rm -rf "${tmp}"
 }
 
-install_glow
-install_stylua
-install_shfmt
+# Warn and continue, matching the npm/uv policy above. Called bare under
+# `set -e`, a glow failure would abort the step and stylua/shfmt would never
+# install at all.
+install_glow || log "WARNING: failed to install glow."
+install_stylua || log "WARNING: failed to install stylua."
+install_shfmt || log "WARNING: failed to install shfmt."
 
+# This loop already computed the right answer and then threw it away: the script
+# exited 0 with tools missing, so setup.sh recorded the step as successful and
+# printed the green COMPLETE banner. Per-tool failures still only warn (Mason can
+# install them inside Neovim), but the STEP now reports the truth.
 log "Verification:"
+MISSING_TOOLS=()
 for tool in prettierd biome eslint_d markdownlint ruff mypy glow stylua shfmt; do
   if command -v "${tool}" >/dev/null 2>&1; then
     printf "  ✅ %s\n" "${tool}"
   else
     printf "  ❌ %s (not found)\n" "${tool}"
+    MISSING_TOOLS+=("${tool}")
   fi
 done
+
+if ((${#MISSING_TOOLS[@]} > 0)); then
+  log "ERROR: ${#MISSING_TOOLS[@]} tool(s) did not install: ${MISSING_TOOLS[*]}"
+  log "       Neovim's Mason can install them as a fallback, but this step did"
+  log "       not do what it claims, so it reports failure."
+  exit 1
+fi
 
 log "Done."
