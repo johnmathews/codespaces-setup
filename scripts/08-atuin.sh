@@ -28,16 +28,37 @@ export ATUIN_DONT_PRINT_WELCOME=1
 ATUIN_INSTALLER="$(mktemp)"
 trap 'rm -f "${ATUIN_INSTALLER}"' EXIT
 retry net_curl --proto '=https' --tlsv1.2 https://setup.atuin.sh -o "${ATUIN_INSTALLER}"
-# `sh -n` is the script-shaped equivalent of `tar -tzf`: it proves the download
+# `bash -n` is the script-shaped equivalent of `tar -tzf`: it proves the download
 # is complete before it is executed.
-if ! sh -n "${ATUIN_INSTALLER}"; then
+if ! bash -n "${ATUIN_INSTALLER}"; then
   log "ERROR: the downloaded atuin installer is not valid shell (truncated download?)."
   exit 1
 fi
-# Retry the INSTALLER too, not just its download. The retried curl above fetches
-# a few KB of shell; the multi-megabyte binary is fetched inside this script, and
-# that is the transfer likely to fail on a flaky network.
-retry sh "${ATUIN_INSTALLER}" --no-modify-path
+
+# RUN IT WITH BASH, NOT SH. This is not a style preference — under `sh` this
+# installer cannot work at all in an unattended Codespace.
+#
+# Its first real statement probes for a controlling terminal:
+#
+#     if { exec 3</dev/tty; } 2>/dev/null; then
+#
+# `exec` is a POSIX *special builtin*, and a redirection failure on a special
+# builtin terminates a non-interactive POSIX shell immediately — even inside an
+# `if` condition, where `set -e` does not apply. /bin/sh is dash on
+# Debian/Ubuntu, which does exactly that. With no tty (the Codespaces
+# postCreateCommand and dotfiles paths both have none) the installer therefore
+# died with exit 2 before printing even its own banner, and the `2>/dev/null`
+# swallowed the message — so the failure was completely silent. Ten retries
+# across two passes produced 190 seconds of nothing.
+#
+# Verified in a container: the installer's exact `if { exec 3</dev/tty; }` shape
+# exits 2 under dash with no tty, and reaches the next line under bash.
+# It works when a human runs it in a terminal, which is presumably how it is
+# tested upstream.
+#
+# `--non-interactive` is the flag this installer actually parses; the
+# `--no-modify-path` we used to pass is silently ignored by its `*) ;;` case.
+retry bash "${ATUIN_INSTALLER}" --non-interactive
 
 # The installer puts the binary in ~/.atuin/bin/atuin
 ATUIN_LOCAL="${HOME}/.atuin/bin/atuin"

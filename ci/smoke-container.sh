@@ -42,7 +42,14 @@ log "Base image: ${IMAGE}"
 # The container runs as a non-root user with passwordless sudo, matching a real
 # Codespace — running as root would skip every sudo path and prove nothing about
 # the environment the scripts actually meet.
-CONTAINER_USER="${CONTAINER_USER:-vscode}"
+#
+# The user differs per image: base:ubuntu ships `vscode`, universal:2 ships
+# `codespace`. Resolved INSIDE the container below, because an earlier version
+# interpolated the name into the container command from out here and then had a
+# `|| CONTAINER_USER=root` fallback that could never fire — so on universal:2 it
+# ran `su - vscode`, which does not exist, and setup.sh never started at all.
+# The job failed with no run record and no output, which looked like a setup
+# failure and was a bug in this script.
 
 log "Running setup.sh end to end (this takes several minutes)..."
 set +e
@@ -53,17 +60,26 @@ docker run --rm \
   "${IMAGE}" \
   bash -lc '
     set -uo pipefail
-    id -u '"${CONTAINER_USER}"' >/dev/null 2>&1 || CONTAINER_USER=root
+    # Resolve the unprivileged user that this image actually has.
+    for u in ${CONTAINER_USER:-} vscode codespace ubuntu; do
+      if [ -n "${u}" ] && id -u "${u}" >/dev/null 2>&1; then
+        RUN_AS="${u}"
+        break
+      fi
+    done
+    RUN_AS="${RUN_AS:-root}"
+    echo "[smoke] running as: ${RUN_AS}"
     # The mount is read-only so the run cannot mutate the checkout; copy it out.
     cp -a /workspace /tmp/repo
-    chown -R '"${CONTAINER_USER}"':'"${CONTAINER_USER}"' /tmp/repo 2>/dev/null || true
-    sudo -n true 2>/dev/null || echo "[smoke] note: running without passwordless sudo"
+    chown -R "${RUN_AS}":"${RUN_AS}" /tmp/repo 2>/dev/null || true
+    su - "${RUN_AS}" -c "sudo -n true" 2>/dev/null ||
+      echo "[smoke] note: ${RUN_AS} does not have passwordless sudo"
     # Run ONCE. An earlier version had a `|| su - ... setup.sh` fallback, which
     # re-ran the entire install on failure — doubling a ~15 minute job to learn
     # nothing new, since a genuine failure fails the same way twice. setup.sh
     # already retries internally, both per-download and as an end-of-run pass.
     RC=0
-    su - '"${CONTAINER_USER}"' -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/setup.sh" || RC=$?
+    su - "${RUN_AS}" -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/setup.sh" || RC=$?
     echo "[smoke] setup.sh exit code: ${RC}"
     echo "[smoke] ---- run record ----"
     cat /tmp/setup-logs/latest.json 2>/dev/null || echo "[smoke] NO RUN RECORD WRITTEN"

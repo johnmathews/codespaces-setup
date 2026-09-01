@@ -48,4 +48,20 @@ fi
 log "Installing Claude Code..."
 install_claude
 
-log "Installed: $(claude --version 2>/dev/null || echo 'installed')"
+# The installer puts claude in ~/.local/bin, which is NOT on the PATH of a
+# non-login shell — so the end-of-run verification reported `claude` missing even
+# though the step had just succeeded, and the step's own version line printed a
+# useless "installed". Symlink it globally, exactly as 09-uv.sh does for uv.
+CLAUDE_LOCAL="${HOME}/.local/bin/claude"
+if [[ -x "${CLAUDE_LOCAL}" ]]; then
+  sudo ln -sf "${CLAUDE_LOCAL}" /usr/local/bin/claude
+fi
+
+hash -r 2>/dev/null || true
+
+if ! command -v claude >/dev/null 2>&1; then
+  log "ERROR: claude is not on PATH after install (looked for ${CLAUDE_LOCAL})."
+  exit 1
+fi
+
+log "Installed: $(claude --version 2>/dev/null || echo 'unknown version')"

@@ -43,13 +43,14 @@ else
   OMZ_INSTALLER="$(mktemp)"
   trap 'rm -f "${OMZ_INSTALLER}"' EXIT
   retry net_curl https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "${OMZ_INSTALLER}"
-  if ! sh -n "${OMZ_INSTALLER}"; then
+  if ! bash -n "${OMZ_INSTALLER}"; then
     log "ERROR: the downloaded Oh My Zsh installer is not valid shell (truncated download?)."
     exit 1
   fi
   # Retry the installer: it git-clones the whole oh-my-zsh repo internally, which
   # is the slow hop, and the retried curl above only covered the wrapper script.
-  RUNZSH=no CHSH=no retry sh "${OMZ_INSTALLER}" "" --unattended
+  # bash rather than sh for every vendor installer — see 08-atuin.sh.
+  RUNZSH=no CHSH=no retry bash "${OMZ_INSTALLER}" "" --unattended
   if ! omz_installed; then
     log "ERROR: the Oh My Zsh installer did not produce ${OMZ_DIR}/oh-my-zsh.sh."
     exit 1
