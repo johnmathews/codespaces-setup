@@ -150,6 +150,24 @@ jobs:
     # Bounded, for the same reason every download in this PR is: GitHub's default
     # job timeout is 6 hours, and a wedged install should report in minutes.
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two images, because a real failure showed that one is not enough.
+        #
+        # This repo's devcontainer pins base:ubuntu (currently noble), and a
+        # smoke test on that alone was green while a user's Codespace on
+        # universal:2 could not finish setup AT ALL: universal:2 is Ubuntu 20.04
+        # focal, `zoxide` does not exist in focal's archives, and one unknown
+        # package name fails the entire apt transaction — which, on the only
+        # REQUIRED step, aborted the whole run.
+        #
+        # universal:2 is very large, so it is allowed to be slow; what matters
+        # is that the package list is exercised against an OLDER release than
+        # the one this repo happens to pin.
+        image:
+          - mcr.microsoft.com/devcontainers/base:ubuntu
+          - mcr.microsoft.com/devcontainers/universal:2
     # Do not fail the whole workflow while this is bedding in: it depends on the
     # network and on upstream release CDNs. Promote it to required (and drop this
     # line) once it has a track record — see docs/development.md.
@@ -157,5 +175,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: run setup.sh in the real base image
+      - name: run setup.sh in ${{ matrix.image }}
+        env:
+          IMAGE: ${{ matrix.image }}
         run: bash ci/smoke-container.sh
