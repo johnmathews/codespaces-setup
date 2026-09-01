@@ -137,6 +137,21 @@ else
   )
 fi
 
+# A wall clock for an entire step, as a backstop behind the per-operation bound
+# inside `retry` (scripts/lib.sh).
+#
+# The retry-level timeout covers a stalled download, which is the common case.
+# It does NOT cover a step that hangs for any other reason — a debconf prompt
+# with no tty to answer it, a sudo password prompt, apt blocking on the dpkg
+# lock, a compile that never finishes. Without a bound here, one such step stops
+# the whole run dead and the platform eventually reaps the process tree, which
+# is the outcome that leaves the least evidence.
+#
+# Generous by design: 20 minutes is far longer than any real step (the slowest,
+# Node, is a ~45 MB download) and short enough that a wedged run still reports
+# rather than being killed from outside. 0 disables it.
+SETUP_STEP_TIMEOUT="${SETUP_STEP_TIMEOUT:-1200}"
+
 TOTAL_STEPS="${#STEPS[@]}"
 SETUP_START_TS="$(date +%s)"
 CURRENT_STEP=""
@@ -445,6 +460,18 @@ print_header() {
   echo ""
 }
 
+# Invoke one step, under a wall clock when `timeout` is available. Exit code 124
+# is timeout(1)'s "the command ran out of time", which run_step reports as a
+# failure like any other — the point is that it REPORTS, rather than hanging.
+run_one() {
+  local script="$1"
+  if ((SETUP_STEP_TIMEOUT > 0)) && command -v timeout >/dev/null 2>&1; then
+    timeout --foreground "${SETUP_STEP_TIMEOUT}" bash "${SCRIPTS_DIR}/${script}"
+  else
+    bash "${SCRIPTS_DIR}/${script}"
+  fi
+}
+
 run_step() {
   local step_number="$1"
   local script="$2"
@@ -480,13 +507,13 @@ run_step() {
   if ((HAS_TTY)); then
     # Interactive: keep the step's verbose output out of the terminal (it still
     # streams to the log) and show a live spinner + progress bar instead.
-    bash "${SCRIPTS_DIR}/${script}" >>"${SETUP_LOG}" 2>&1 &
+    run_one "${script}" >>"${SETUP_LOG}" 2>&1 &
     local pid=$!
     spin "${pid}" "${step_number}" "${name}"
     wait "${pid}" || rc=$?
   else
     # Non-interactive: stream everything through tee, exactly as before.
-    bash "${SCRIPTS_DIR}/${script}" || rc=$?
+    run_one "${script}" || rc=$?
   fi
 
   attempts="$(cat "${RETRY_COUNT_FILE}" 2>/dev/null || echo 1)"
@@ -534,6 +561,10 @@ run_step() {
     # Non-required: record it and keep going so one broken installer can't strand
     # the remaining steps (the whole point — an unattended run must not stop dead
     # on the first flaky download).
+    if ((rc == 124)); then
+      printf "✗ TIMED OUT  : %s (%ss) — exceeded SETUP_STEP_TIMEOUT=%ss\n" \
+        "${name}" "${elapsed}" "${SETUP_STEP_TIMEOUT}"
+    fi
     printf "✗ FAILED     : %s (%ss) — continuing with remaining steps\n" "${name}" "${elapsed}"
   fi
 }

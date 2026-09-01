@@ -76,6 +76,19 @@ exit 1
 EOF
 }
 
+# make_hanging <dir> <base> <seconds> — a step that STALLS rather than failing.
+# This is the slow-network failure mode: `retry` cannot act on it, because a
+# stalled command never exits to be retried. Only a wall clock catches it.
+make_hanging() {
+  local dir="$1" base="$2" secs="$3"
+  mkdir -p "${dir}"
+  cat >"${dir}/${base}.sh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "${base}" >>"${RAN_MARKER}"
+sleep ${secs}
+EOF
+}
+
 # Build a throwaway scripts dir. Each fake step appends its own name to
 # ${RAN_MARKER} (proving it ran) and exits with the code encoded in its name:
 # *-ok.sh exit 0, *-fail.sh exit 1.
@@ -121,6 +134,7 @@ run_setup() {
     FLAKY_MARK="${FLAKY_MARK:-/nonexistent}" \
     SETUP_RETRY_PASS="${RETRY_PASS:-1}" \
     SETUP_DEPS="${DEPS:-}" \
+    SETUP_STEP_TIMEOUT="${STEP_TIMEOUT:-1200}" \
     bash "${SETUP}" >/dev/null 2>&1 || RC=$?
   # setup.sh execs stdout through `tee` (a background process); give it a beat to
   # flush the log before we read it.
@@ -437,6 +451,110 @@ if grep -q "✗ \[2\]" "${LOG}"; then
   bad "the dependent was listed as a FAILED step (duplicating one root cause)"
 else
   ok "the dependent is not listed as a failed step"
+fi
+rm -rf "${WORK}"
+
+echo "== scenario 9: a hanging step is bounded, not waited on forever =="
+# The user asked for resilience to "flaky OR SLOW networks". The retry helper
+# only ever addressed the first: it cannot act until the command EXITS, so a
+# stalled TCP connection or a download trickling at 2 KB/s hung the whole run
+# indefinitely on one step. Verified before the fix: a 25s hanging step ran to
+# completion uninterrupted and the run still exited 0.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_hanging "${WORK}/scripts" "01-hang" 60
+make_fixture "${WORK}/scripts" "02-after:0"
+HOME9="${WORK}/home"
+mkdir -p "${HOME9}"
+
+START="$(date +%s)"
+STEP_TIMEOUT=3 RETRY_PASS=0 run_setup "${WORK}/scripts" \
+  "01-hang.sh|A stalled download;02-after.sh|After" "" "${HOME9}"
+ELAPSED=$(($(date +%s) - START))
+
+if ((ELAPSED < 45)); then
+  ok "a 60s hanging step was bounded (run took ${ELAPSED}s)"
+else
+  bad "the run waited ${ELAPSED}s on a hanging step — it is not bounded"
+fi
+if grep -qx "02-after" "${RAN_MARKER}"; then
+  ok "the run continued past the stalled step"
+else
+  bad "the run did not reach the step after the stalled one"
+fi
+rm -rf "${WORK}"
+
+echo "== scenario 10: two runs over the same HOME stay distinguishable =="
+# `tee -a` appends forever with no timestamps and no run boundary, so
+# `tail -n 200` - the command the failure file itself recommends - silently
+# spliced two runs together and there was no way to tell today's rebuild from
+# last week's.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_fixture "${WORK}/scripts" "01-a:0"
+HOME10="${WORK}/home"
+mkdir -p "${HOME10}"
+run_setup "${WORK}/scripts" "01-a.sh|Step A" "" "${HOME10}"
+FIRST_ID="$(python3 -c "import json;print(json.load(open('${HOME10}/.cache/latest.json'))['run_id'])" 2>/dev/null || echo "")"
+sleep 1
+run_setup "${WORK}/scripts" "01-a.sh|Step A" "" "${HOME10}"
+SECOND_ID="$(python3 -c "import json;print(json.load(open('${HOME10}/.cache/latest.json'))['run_id'])" 2>/dev/null || echo "")"
+
+if [[ -n "${FIRST_ID}" && -n "${SECOND_ID}" && "${FIRST_ID}" != "${SECOND_ID}" ]]; then
+  ok "each run has a distinct id (${FIRST_ID} then ${SECOND_ID})"
+else
+  bad "run ids are missing or identical ('${FIRST_ID}' vs '${SECOND_ID}')"
+fi
+if [[ -f "${HOME10}/.cache/latest.json" ]]; then
+  ok "latest.json points at the most recent run"
+else
+  bad "no latest.json written"
+fi
+rm -rf "${WORK}"
+
+echo "== scenario 11: an interrupted run leaves a durable signal =="
+# The failure mode that used to leave NOTHING. write_failure_file was reachable
+# from two in-flow paths only, so a SIGTERM - which is what the Codespaces
+# creation-time budget does to postCreateCommand - exited with no signal, no
+# banner and no record, indistinguishable from a clean run to every later shell.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_hanging "${WORK}/scripts" "01-slow" 30
+HOME11="${WORK}/home"
+mkdir -p "${HOME11}/.cache"
+env -i HOME="${HOME11}" PATH="${PATH}" \
+  SETUP_SCRIPTS_DIR="${WORK}/scripts" \
+  SETUP_STEPS="01-slow.sh|A stalled download" \
+  SETUP_REQUIRED="" SETUP_SKIP_VERIFY=1 SETUP_RETRY_PASS=0 \
+  SETUP_LOG="${HOME11}/.cache/codespaces-setup.log" \
+  SETUP_LOG_DIR="${HOME11}/.cache" \
+  RAN_MARKER="${RAN_MARKER}" \
+  bash "${SETUP}" >/dev/null 2>&1 &
+SETUP_PID=$!
+sleep 3
+kill -TERM "${SETUP_PID}" 2>/dev/null || true
+wait "${SETUP_PID}" 2>/dev/null || true
+sleep 1
+
+FAILFILE="${HOME11}/.cache/codespaces-setup.failed"
+if [[ -f "${FAILFILE}" ]]; then
+  ok "a durable signal exists after SIGTERM"
+  assert_contains "the signal names the interruption" "${FAILFILE}" "interrupted by TERM"
+else
+  bad "no durable signal after SIGTERM — an interrupted run left no trace"
+  bad "the signal does not name the interruption (no file)"
+fi
+if [[ -f "${HOME11}/.cache/latest.json" ]]; then
+  if grep -q '"outcome": "interrupted"' "${HOME11}/.cache/latest.json"; then
+    ok "the run record says the run was interrupted"
+  else
+    bad "the run record does not record an interruption"
+  fi
+else
+  bad "no run record written on interrupt"
 fi
 rm -rf "${WORK}"
 
