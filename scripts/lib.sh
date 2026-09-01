@@ -4,8 +4,8 @@
 # This file is SOURCED, never executed as a step: it holds nothing to run on its
 # own, only functions the numbered scripts pull in. It is therefore deliberately
 # absent from setup.sh's STEPS array and listed as EXEMPT in ci/lint-steps.sh.
-# (It still lives in scripts/ so `chmod +x scripts/*.sh` keeps its mode stable,
-# which is why it is committed 100755 like every other file here.)
+# (It is committed 100755 like every other file in scripts/, which ci/lint-steps.sh
+# checks — the mode is uniform for the directory, not because anything execs it.)
 #
 # Source it from a step with:
 #   # shellcheck source=scripts/lib.sh
@@ -67,14 +67,16 @@ retry() {
     # `cmd && return 0` (not `if cmd`) so that $? below is the command's own exit
     # code: an `if` with no else resets $? to 0 when the condition is false.
     _retry_run "${_retry_timeout}" "$@" && {
-      # shellcheck disable=SC2034  # read by setup.sh (run record), not here
+      # shellcheck disable=SC2034  # for a same-process caller; steps use _retry_report
       RETRY_LAST_ATTEMPTS="${_retry_n}"
+      _retry_report "${_retry_n}"
       return 0
     }
     _retry_rc=$?
     if ((_retry_n >= _retry_attempts)); then
-      # shellcheck disable=SC2034  # read by setup.sh (run record), not here
+      # shellcheck disable=SC2034  # for a same-process caller; steps use _retry_report
       RETRY_LAST_ATTEMPTS="${_retry_n}"
+      _retry_report "${_retry_n}"
       _retry_log "command failed after ${_retry_n} attempt(s) (exit ${_retry_rc}): $*"
       return "${_retry_rc}"
     fi
@@ -86,6 +88,20 @@ retry() {
     ((_retry_delay > _retry_max_delay)) && _retry_delay="${_retry_max_delay}"
     _retry_n=$((_retry_n + 1))
   done
+}
+
+# Report the attempt count to the parent. Each step runs as its own `bash`
+# process, so a shell variable cannot travel back to setup.sh — it writes the
+# high-water mark to the file named by RETRY_COUNT_FILE, which setup.sh creates
+# per step and reads after the step exits. Silent no-op when unset, so a step run
+# by hand (`bash scripts/05-eza.sh`) behaves exactly as before.
+_retry_report() {
+  local n="$1" prev=0
+  [[ -n "${RETRY_COUNT_FILE:-}" ]] || return 0
+  prev="$(cat "${RETRY_COUNT_FILE}" 2>/dev/null || echo 0)"
+  [[ "${prev}" =~ ^[0-9]+$ ]] || prev=0
+  ((n > prev)) && printf '%s' "${n}" >"${RETRY_COUNT_FILE}" 2>/dev/null
+  return 0
 }
 
 # Run one attempt under a wall clock. `timeout` can only bound an external

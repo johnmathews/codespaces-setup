@@ -18,8 +18,37 @@ README_URL="${REPO_URL}#readme"
 #   tail -f ~/.cache/codespaces-setup.log
 # This works even when setup.sh runs in the background, e.g. as the Codespaces
 # postCreateCommand.
-SETUP_LOG="${SETUP_LOG:-${HOME}/.cache/codespaces-setup.log}"
+# Every run gets an id. Without one the log was a single append-only file with
+# no timestamps and no run boundary, so `tail -n 200` silently spliced two runs
+# together and there was no way to tell today's rebuild from last week's.
+RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+RUN_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Logs go NEXT TO THE SCRIPT by default, because that is where someone standing
+# in a broken Codespace already is. ~/.cache is a fine place for a file you know
+# the name of and a poor place to discover one. Fall back to ~/.cache when the
+# repo directory is not writable (the dotfiles path can land read-only).
+if [[ -z "${SETUP_LOG_DIR:-}" ]]; then
+  if mkdir -p "${REPO_DIR}/.setup-logs" 2>/dev/null && [[ -w "${REPO_DIR}/.setup-logs" ]]; then
+    SETUP_LOG_DIR="${REPO_DIR}/.setup-logs"
+  else
+    SETUP_LOG_DIR="${HOME}/.cache"
+  fi
+fi
+mkdir -p "${SETUP_LOG_DIR}"
+
+SETUP_LOG="${SETUP_LOG:-${SETUP_LOG_DIR}/setup-${RUN_ID}.log}"
 mkdir -p "$(dirname "${SETUP_LOG}")"
+
+# A stable name that always points at the most recent run, so the documented
+# `tail -f` command keeps working and does not need the run id.
+SETUP_LATEST_LOG="${SETUP_LOG_DIR}/latest.log"
+
+# The machine-readable record. Everything a diagnosis needs was already being
+# computed - per-step status, duration, retry attempts, tool presence - and then
+# thrown away, leaving only prose banners nothing could parse.
+SETUP_SUMMARY="${SETUP_SUMMARY:-${SETUP_LOG_DIR}/summary-${RUN_ID}.json}"
+SETUP_LATEST_SUMMARY="${SETUP_LOG_DIR}/latest.json"
 
 # Durable failure signal. When any step fails, a human-readable summary is
 # written here and configs/.zshrc surfaces it on the next interactive shell.
@@ -39,6 +68,7 @@ HAS_TTY=0
 [[ -t 1 ]] && HAS_TTY=1
 
 exec > >(tee -a "${SETUP_LOG}") 2>&1
+ln -sf "${SETUP_LOG}" "${SETUP_LATEST_LOG}" 2>/dev/null || true
 
 STEPS=(
   "01-apt-packages.sh|Installing apt packages and CLI tools"
@@ -89,6 +119,7 @@ fi
 TOTAL_STEPS="${#STEPS[@]}"
 SETUP_START_TS="$(date +%s)"
 CURRENT_STEP=""
+CURRENT_SCRIPT=""
 # Each step that exits non-zero is recorded here as "NN|script|name"; the run
 # keeps going and reports them all at the end.
 declare -a FAILED_STEPS=()
@@ -97,6 +128,10 @@ declare -a FAILED_STEPS=()
 # 0 - so a Codespace missing tools reported success, which is the single most
 # confusing thing this script did.
 declare -a MISSING_TOOLS=()
+# Every step's outcome as "NN|script|name|status|seconds|attempts", including the
+# ones that succeeded. FAILED_STEPS only ever recorded failures, so nothing could
+# answer "which steps ran, in what order, and how long did they take".
+declare -a STEP_RECORDS=()
 
 log() { echo "[setup] $*"; }
 die() {
@@ -147,6 +182,58 @@ write_failure_file() {
     echo ""
     echo "This notice clears itself once setup completes with no failures."
   } >"${SETUP_FAILURE_FILE}"
+}
+
+# Write the machine-readable run record. This is what `setup-status` reads and
+# what makes "which steps ran, and what did they cost" answerable after the fact.
+# Hand-rolled JSON: this runs on a bare Codespace before any step has installed
+# jq or python, so it cannot depend on either. Only the fields below are
+# interpolated and they are all controlled by this script, so escaping is limited
+# to backslashes and quotes in the free-text fields.
+json_escape() {
+  local str="$1"
+  str="${str//\\/\\\\}"
+  str="${str//\"/\\\"}"
+  printf '%s' "${str}"
+}
+
+write_summary() {
+  local outcome="$1"
+  local entry n s nm st sec att first t
+  mkdir -p "$(dirname "${SETUP_SUMMARY}")"
+  {
+    printf '{\n'
+    printf '  "schema": 1,\n'
+    printf '  "run_id": "%s",\n' "$(json_escape "${RUN_ID}")"
+    printf '  "started_at": "%s",\n' "${RUN_STARTED_AT}"
+    printf '  "ended_at": "%s",\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf '  "outcome": "%s",\n' "${outcome}"
+    printf '  "elapsed_seconds": %s,\n' "$(($(date +%s) - SETUP_START_TS))"
+    printf '  "interactive": %s,\n' "$( ((HAS_TTY)) && echo true || echo false)"
+    printf '  "log": "%s",\n' "$(json_escape "${SETUP_LOG}")"
+    printf '  "repo_dir": "%s",\n' "$(json_escape "${REPO_DIR}")"
+    printf '  "total_steps": %s,\n' "${TOTAL_STEPS}"
+    printf '  "steps": [\n'
+    first=1
+    for entry in ${STEP_RECORDS[@]+"${STEP_RECORDS[@]}"}; do
+      IFS="|" read -r n s nm st sec att <<<"${entry}"
+      ((first)) || printf ',\n'
+      first=0
+      printf '    {"n": %s, "script": "%s", "name": "%s", "status": "%s", "seconds": %s, "attempts": %s}' \
+        "${n}" "$(json_escape "${s}")" "$(json_escape "${nm}")" "${st}" "${sec}" "${att}"
+    done
+    printf '\n  ],\n'
+    printf '  "missing_tools": ['
+    first=1
+    for t in ${MISSING_TOOLS[@]+"${MISSING_TOOLS[@]}"}; do
+      ((first)) || printf ', '
+      first=0
+      printf '"%s"' "$(json_escape "${t}")"
+    done
+    printf ']\n'
+    printf '}\n'
+  } >"${SETUP_SUMMARY}"
+  ln -sf "${SETUP_SUMMARY}" "${SETUP_LATEST_SUMMARY}" 2>/dev/null || true
 }
 
 # Print the end-of-run FAILED summary banner listing every failed step.
@@ -208,7 +295,53 @@ restore_tty() {
   ((HAS_TTY)) || return 0
   printf '\r\033[K\033[?25h' >/dev/tty 2>/dev/null || true
 }
-trap restore_tty EXIT
+
+# Set once the run has printed its own verdict, so the EXIT trap knows the
+# outcome was already reported and does not overwrite it.
+RUN_FINALISED=0
+
+# An interrupted run must leave a mark. This is the failure mode that used to
+# leave NOTHING: Codespaces enforces a creation-time budget and reaps
+# postCreateCommand, and with no timeout anywhere (before W1) a stalled download
+# made reaping the expected outcome, not an edge case. write_failure_file was
+# only ever called from two in-flow paths, so a SIGTERM, an OOM kill, or `set -e`
+# firing anywhere outside run_step exited with no signal, no banner, and no
+# record — indistinguishable from a clean run to every later shell.
+on_interrupt() {
+  local sig="$1"
+  restore_tty
+  ((RUN_FINALISED)) && exit 0
+  RUN_FINALISED=1
+  echo ""
+  echo "[setup] INTERRUPTED by ${sig}${CURRENT_STEP:+ during: ${CURRENT_STEP}}"
+  if [[ -n "${CURRENT_STEP}" ]]; then
+    FAILED_STEPS+=("--|${CURRENT_SCRIPT:-unknown}|${CURRENT_STEP} (interrupted by ${sig})")
+    # Record it as a step too, so the run record shows WHICH step was in flight
+    # rather than an empty list. This is the whole question someone asks after a
+    # Codespace creation is reaped.
+    STEP_RECORDS+=("${#STEP_RECORDS[@]}|${CURRENT_SCRIPT:-unknown}|${CURRENT_STEP}|interrupted|$(($(date +%s) - SETUP_START_TS))|1")
+  fi
+  write_failure_file
+  write_summary "interrupted"
+  exit 130
+}
+
+on_exit() {
+  local rc=$?
+  restore_tty
+  ((RUN_FINALISED)) && return
+  # A non-zero exit that never reached the verdict block: `set -e` fired
+  # somewhere outside a step. Record it rather than vanishing.
+  if ((rc != 0)); then
+    RUN_FINALISED=1
+    write_failure_file
+    write_summary "aborted"
+  fi
+}
+
+trap 'on_interrupt INT' INT
+trap 'on_interrupt TERM' TERM
+trap on_exit EXIT
 
 # Animate a spinner + overall progress bar on the real terminal while a step
 # runs in the background. Writes only to /dev/tty, so nothing reaches the log.
@@ -237,7 +370,11 @@ print_header() {
   printf "  👤 User       : %s\n" "$(whoami)"
   printf "  🏠 Home       : %s\n" "${HOME}"
   printf "  🔢 Steps      : %d foreground steps + Neovim preload in background\n" "${TOTAL_STEPS}"
-  printf "  📝 Log        : %s  (follow from any shell: tail -f %s)\n" "${SETUP_LOG}" "${SETUP_LOG}"
+  printf "  🆔 Run id     : %s\n" "${RUN_ID}"
+  printf "  🕐 Started    : %s\n" "${RUN_STARTED_AT}"
+  printf "  📝 Log        : %s\n" "${SETUP_LOG}"
+  printf "                  (follow from any shell: tail -f %s)\n" "${SETUP_LATEST_LOG}"
+  printf "  📊 Summary    : %s\n" "${SETUP_SUMMARY}"
   echo ""
 }
 
@@ -245,12 +382,19 @@ run_step() {
   local step_number="$1"
   local script="$2"
   local name="$3"
-  local started_at elapsed rc
+  local started_at elapsed rc attempts
   started_at="$(date +%s)"
   CURRENT_STEP="${name}"
+  CURRENT_SCRIPT="${script}"
+  # Steps run as separate `bash` processes, so RETRY_LAST_ATTEMPTS (set inside
+  # lib.sh in the CHILD) cannot propagate back. A step reports its own retry
+  # count by writing it here; absent means "did not retry".
+  RETRY_COUNT_FILE="$(mktemp)"
+  export RETRY_COUNT_FILE
 
   echo ""
-  printf "▶ %s [%02d/%02d] %s\n" "$(progress_bar "${step_number}" "${TOTAL_STEPS}")" "${step_number}" "${TOTAL_STEPS}" "${name}"
+  printf "▶ %s [%02d/%02d] %s  (%s)\n" "$(progress_bar "${step_number}" "${TOTAL_STEPS}")" \
+    "${step_number}" "${TOTAL_STEPS}" "${name}" "$(date -u +%H:%M:%SZ)"
   printf "  Script     : %s\n" "${script}"
 
   rc=0
@@ -266,8 +410,13 @@ run_step() {
     bash "${SCRIPTS_DIR}/${script}" || rc=$?
   fi
 
+  attempts="$(cat "${RETRY_COUNT_FILE}" 2>/dev/null || echo 1)"
+  [[ "${attempts}" =~ ^[0-9]+$ ]] || attempts=1
+  rm -f "${RETRY_COUNT_FILE}"
+
   if ((rc == 0)); then
     elapsed=$(($(date +%s) - started_at))
+    STEP_RECORDS+=("${step_number}|${script}|${name}|ok|${elapsed}|${attempts}")
     printf "✓ Completed  : %s (%ss)\n" "${name}" "${elapsed}"
   else
     if ((HAS_TTY)); then
@@ -277,6 +426,7 @@ run_step() {
       tail -n 20 "${SETUP_LOG}" 2>/dev/null || true
     fi
     elapsed=$(($(date +%s) - started_at))
+    STEP_RECORDS+=("${step_number}|${script}|${name}|failed|${elapsed}|${attempts}")
     FAILED_STEPS+=("${step_number}|${script}|${name}")
 
     if is_required "${script}"; then
@@ -284,7 +434,9 @@ run_step() {
       # failures, so abort now — but still leave the durable signal first, so even
       # this early exit can't pass for success on an unattended run.
       printf "✗ FAILED     : %s (%ss) — REQUIRED, aborting run\n" "${name}" "${elapsed}"
+      RUN_FINALISED=1
       write_failure_file
+      write_summary "aborted"
       print_failure_summary aborted
       die "Required step failed: ${name} (${script})"
     fi
@@ -298,8 +450,11 @@ run_step() {
 
 print_header
 
-log "Ensuring setup scripts are executable..."
-chmod +x "${SCRIPTS_DIR}"/*.sh
+# NOTE: there is deliberately no `chmod +x` here. Every step is invoked as
+# `bash "${SCRIPTS_DIR}/${script}"` (see run_step), so the execute bit is never
+# consulted. The chmod that used to live here could only ever *cause* a failure —
+# unguarded under `set -e`, on a read-only checkout it aborted the whole run
+# before a single step ran, and left no signal because it was outside run_step.
 
 for i in "${!STEPS[@]}"; do
   IFS="|" read -r script name <<<"${STEPS[$i]}"
@@ -450,6 +605,8 @@ if ((${#FAILED_STEPS[@]} == 0 && ${#MISSING_TOOLS[@]} == 0)); then
   # A clean run clears any stale signal from a previous failed run, so a later
   # success silences the shell-start warning.
   rm -f "${SETUP_FAILURE_FILE}"
+  RUN_FINALISED=1
+  write_summary "complete"
 else
   echo "╔══════════════════════════════════════════════════════════════════╗"
   echo "║             ⚠️   CODESPACES SETUP INCOMPLETE  ⚠️                 ║"
@@ -458,8 +615,12 @@ else
     printf "  ❗ %d of %d step(s) failed.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
   ((${#MISSING_TOOLS[@]} > 0)) &&
     printf "  ❗ %d tool(s) missing after a step that reported success.\n" "${#MISSING_TOOLS[@]}"
+  RUN_FINALISED=1
   write_failure_file
+  write_summary "incomplete"
   print_failure_summary
+  printf "  📊 Run record   : %s\n" "${SETUP_SUMMARY}"
+  printf "  🔎 Status       : setup-status\n"
   echo ""
   exit 1
 fi

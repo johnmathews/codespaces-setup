@@ -90,6 +90,8 @@ run_setup() {
     SETUP_STEPS="${steps}" \
     SETUP_REQUIRED="${required}" \
     SETUP_SKIP_VERIFY="${skip_verify}" \
+    SETUP_LOG="${home}/.cache/codespaces-setup.log" \
+    SETUP_LOG_DIR="${home}/.cache" \
     RAN_MARKER="${RAN_MARKER}" \
     bash "${SETUP}" >/dev/null 2>&1 || RC=$?
   # setup.sh execs stdout through `tee` (a background process); give it a beat to

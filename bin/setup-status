@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# setup-status — what happened during the last codespaces-setup run?
+#
+# This exists because the answer used to be unavailable from inside the VM. The
+# run computed everything worth knowing — which steps ran, in what order, how
+# long each took, how much retrying it needed, which tools actually landed — and
+# then discarded all of it, leaving two prose files whose paths you had to
+# already know. The durable failure signal had exactly one reader in the whole
+# repo (configs/.zshrc), so in bash, over SSH, or on a machine where the dotfiles
+# step itself failed, a half-built environment was silent.
+#
+# Reads the machine-readable record written by setup.sh (summary-<run>.json, with
+# latest.json pointing at the most recent). Exits non-zero when the last run did
+# not complete, so it is usable in a script or a prompt.
+#
+# Usage:
+#   setup-status              # summary of the last run
+#   setup-status --verbose    # every step, including the ones that succeeded
+#   setup-status --json       # the raw record, for piping
+#   setup-status --log        # print the path of the last run's log
+
+set -uo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Look for the run record in the same places setup.sh writes it: next to the
+# script first (the default), then ~/.cache (the fallback when the repo checkout
+# is read-only). SETUP_LOG_DIR overrides both, matching setup.sh.
+CANDIDATES=()
+[[ -n "${SETUP_LOG_DIR:-}" ]] && CANDIDATES+=("${SETUP_LOG_DIR}")
+CANDIDATES+=(
+  "$(cd "${SELF_DIR}/.." 2>/dev/null && pwd)/.setup-logs"
+  "${HOME}/codespaces-setup/.setup-logs"
+  "/workspaces/.codespaces/.persistedshare/dotfiles/.setup-logs"
+  "${HOME}/.cache"
+)
+
+SUMMARY=""
+for d in "${CANDIDATES[@]}"; do
+  if [[ -n "${d}" && -f "${d}/latest.json" ]]; then
+    SUMMARY="${d}/latest.json"
+    break
+  fi
+done
+
+MODE="${1:-}"
+
+if [[ -z "${SUMMARY}" ]]; then
+  echo "setup-status: no run record found."
+  echo ""
+  echo "Looked in:"
+  for d in "${CANDIDATES[@]}"; do
+    [[ -n "${d}" ]] && echo "  ${d}/latest.json"
+  done
+  echo ""
+  echo "Either setup.sh has not run on this machine, or it ran a version that"
+  echo "predates the run record. Re-run it to produce one:"
+  echo "  bash <repo>/setup.sh"
+  exit 2
+fi
+
+if [[ "${MODE}" == "--json" ]]; then
+  cat "${SUMMARY}"
+  exit 0
+fi
+
+# Parse with python3 when available (present on every Codespace base image, and
+# installed by 01-apt-packages.sh in any case). Fall back to grep so this still
+# says something useful on a machine where the python step failed — which is
+# exactly the kind of machine someone runs this on.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "setup-status: python3 not available; showing the raw record."
+  echo "  ${SUMMARY}"
+  echo ""
+  grep -oE '"(run_id|outcome|ended_at)": *"[^"]*"' "${SUMMARY}" || cat "${SUMMARY}"
+  grep -q '"outcome": *"complete"' "${SUMMARY}" && exit 0
+  exit 1
+fi
+
+python3 - "${SUMMARY}" "${MODE}" <<'PY'
+import json
+import sys
+
+path, mode = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else "")
+
+try:
+    with open(path) as fh:
+        d = json.load(fh)
+except Exception as exc:  # noqa: BLE001 - any parse problem is reportable
+    print("setup-status: could not read the run record at %s (%s)" % (path, exc))
+    sys.exit(2)
+
+if mode == "--log":
+    print(d.get("log", ""))
+    sys.exit(0)
+
+outcome = d.get("outcome", "unknown")
+steps = d.get("steps", [])
+missing = d.get("missing_tools", [])
+failed = [s for s in steps if s.get("status") in ("failed", "interrupted")]
+retried = [s for s in steps if int(s.get("attempts", 1) or 1) > 1]
+
+ICON = {
+    "complete": "OK",
+    "incomplete": "INCOMPLETE",
+    "interrupted": "INTERRUPTED",
+    "aborted": "ABORTED",
+}.get(outcome, outcome.upper())
+
+print("codespaces-setup: %s" % ICON)
+print("  run     : %s" % d.get("run_id", "?"))
+print("  finished: %s  (%ss)" % (d.get("ended_at", "?"), d.get("elapsed_seconds", "?")))
+print("  steps   : %d of %d recorded, %d failed"
+      % (len(steps), d.get("total_steps", len(steps)), len(failed)))
+print("  log     : %s" % d.get("log", "?"))
+
+if outcome == "interrupted":
+    print("")
+    print("  This run was INTERRUPTED, so the steps after the one below never ran.")
+    print("  On a Codespace this usually means the creation budget expired while a")
+    print("  download was stalled. Re-running is safe and picks up where it stopped.")
+
+if failed:
+    print("")
+    print("  Did not complete:")
+    for s in failed:
+        note = " (interrupted)" if s.get("status") == "interrupted" else ""
+        print("    x [%s] %s (%s)%s" % (s.get("n"), s.get("name"), s.get("script"), note))
+
+if missing:
+    print("")
+    print("  Missing after setup (the step reported success, but these are absent):")
+    for m in missing:
+        print("    x %s" % m)
+
+if retried:
+    print("")
+    print("  Needed retries (a sign of a slow or flaky network):")
+    for s in retried:
+        print("    ~ %s took %s attempts" % (s.get("name"), s.get("attempts")))
+
+if mode in ("--verbose", "-v"):
+    print("")
+    print("  All steps:")
+    for s in steps:
+        mark = {"ok": "+", "failed": "x", "skipped": "-"}.get(s.get("status"), "?")
+        print("    %s [%s] %-46s %4ss  attempts=%s"
+              % (mark, s.get("n"), s.get("name"), s.get("seconds"), s.get("attempts")))
+
+if outcome == "complete":
+    print("")
+    print("  Nothing to do.")
+    sys.exit(0)
+
+print("")
+print("  To fix:")
+print("    bash <repo>/setup.sh          # re-run; idempotent, repairs what is broken")
+for s in failed:
+    print("    bash <repo>/scripts/%-22s # just this step" % s.get("script"))
+print("    setup-status --verbose        # every step, including the ones that passed")
+sys.exit(1)
+PY

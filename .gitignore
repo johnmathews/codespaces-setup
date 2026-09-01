@@ -21,3 +21,6 @@ vault_password
 # copied into it on every deploy.
 __pycache__/
 *.pyc
+
+# Per-run setup logs and run records (working state, not deliverables).
+.setup-logs/
