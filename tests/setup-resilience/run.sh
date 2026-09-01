@@ -125,8 +125,7 @@ run_setup() {
   # setup.sh execs stdout through `tee` (a background process); give it a beat to
   # flush the log before we read it.
   local log="${home}/.cache/codespaces-setup.log"
-  local i
-  for i in 1 2 3 4 5 6 7 8 9 10; do
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
     grep -q "CODESPACES SETUP" "${log}" 2>/dev/null && break
     sleep 0.2
   done
@@ -226,10 +225,12 @@ echo "== scenario 4: retry helper (scripts/lib.sh) =="
 # reports via its exit code, so the outer ok()/bad() keep the PASS/FAIL tally
 # accurate.
 if (
+  # shellcheck disable=SC2329  # invoked indirectly, via retry
   log() { echo "[test] $*"; }
   # shellcheck source=/dev/null
   source "${LIB}"
   attempts=0
+  # shellcheck disable=SC2329  # invoked indirectly, via retry
   flaky() {
     attempts=$((attempts + 1))
     [[ "${attempts}" -ge 3 ]]
@@ -242,10 +243,12 @@ else
 fi
 
 if (
+  # shellcheck disable=SC2329  # invoked indirectly, via retry
   log() { echo "[test] $*"; }
   # shellcheck source=/dev/null
   source "${LIB}"
   tries=0
+  # shellcheck disable=SC2329  # invoked indirectly, via retry
   countingfalse() {
     tries=$((tries + 1))
     return 7

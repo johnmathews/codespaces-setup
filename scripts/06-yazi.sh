@@ -44,7 +44,7 @@ ZIP="${TMP}/yazi.zip"
 URL="https://github.com/sxyazi/yazi/releases/download/${YAZI_VERSION}/yazi-${YAZI_ARCH}.zip"
 
 log "Installing image preview dependency (chafa)..."
-sudo apt-get install -y -q chafa 2>/dev/null || true
+retry sudo apt-get -o DPkg::Lock::Timeout=300 install -y -q chafa 2>/dev/null || true
 
 log "Downloading yazi ${YAZI_VERSION}..."
 fetch_verified "${URL}" "${ZIP}"
