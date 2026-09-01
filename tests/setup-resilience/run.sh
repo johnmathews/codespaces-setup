@@ -336,6 +336,68 @@ fi
 unset FLAKY_MARK
 rm -rf "${WORK}"
 
+echo "== scenario 7: an interactive (TTY) run does not corrupt its own log =="
+# The HAS_TTY branch of run_step was never exercised by this harness, which is
+# how the following survived: on failure it echoed `tail -n 20` of the log to
+# stdout, and stdout is redirected into `tee -a` on that SAME log. Each failure
+# appended 20 lines of the log to itself and the next failure re-read the
+# injected copy, so the log showed steps completing twice, out of order, with
+# duplicated run headers - on precisely the run someone is reading.
+if command -v script >/dev/null 2>&1; then
+  WORK="$(mktemp -d)"
+  RAN_MARKER="${WORK}/ran.txt"
+  : >"${RAN_MARKER}"
+  make_fixture "${WORK}/scripts" "01-a:0" "02-b:1" "03-c:0" "04-d:1"
+  HOME7="${WORK}/home"
+  mkdir -p "${HOME7}/.cache"
+  LOG="${HOME7}/.cache/codespaces-setup.log"
+
+  # `script` gives the child a real pty, so setup.sh takes HAS_TTY=1.
+  cat >"${WORK}/inner.sh" <<INNER
+#!/usr/bin/env bash
+export HOME="${HOME7}"
+export SETUP_SCRIPTS_DIR="${WORK}/scripts"
+export SETUP_STEPS="01-a.sh|Step A;02-b.sh|Step B;03-c.sh|Step C;04-d.sh|Step D"
+export SETUP_REQUIRED=""
+export SETUP_SKIP_VERIFY=1
+export SETUP_RETRY_PASS=0
+export SETUP_LOG="${LOG}"
+export SETUP_LOG_DIR="${HOME7}/.cache"
+export RAN_MARKER="${RAN_MARKER}"
+exec bash "${SETUP}"
+INNER
+  chmod +x "${WORK}/inner.sh"
+  # BSD and GNU `script` take different arguments; try both.
+  script -q /dev/null "${WORK}/inner.sh" >/dev/null 2>&1 \
+    || script -q -c "${WORK}/inner.sh" /dev/null >/dev/null 2>&1 \
+    || true
+  sleep 1
+
+  if [[ -f "${LOG}" ]]; then
+    HDRS="$(grep -c "CODESPACES SETUP START" "${LOG}" || true)"
+    STEPA="$(grep -c "Completed  : Step A" "${LOG}" || true)"
+    if [[ "${HDRS}" == "1" ]]; then
+      ok "TTY run: the start banner appears exactly once (log not fed back into itself)"
+    else
+      bad "TTY run: start banner appears ${HDRS} times — the log is duplicating itself"
+    fi
+    if [[ "${STEPA}" == "1" ]]; then
+      ok "TTY run: each completed step is recorded exactly once"
+    else
+      bad "TTY run: 'Completed : Step A' appears ${STEPA} times — log corrupted"
+    fi
+    assert_absent "TTY run: the tail-context block never reaches the log" \
+      "${LOG}" "----- last 20 lines of"
+  else
+    bad "TTY run: no log produced"
+    bad "TTY run: no log produced (second assertion skipped)"
+    bad "TTY run: no log produced (third assertion skipped)"
+  fi
+  rm -rf "${WORK}"
+else
+  echo "  (skipped: no 'script' command to allocate a pty)"
+fi
+
 echo ""
 echo "== results: ${PASS} passed, ${FAIL} failed =="
 if [[ "${FAIL}" -ne 0 ]]; then

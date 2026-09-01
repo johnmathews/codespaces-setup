@@ -429,9 +429,20 @@ run_step() {
   else
     if ((HAS_TTY)); then
       # The output was hidden behind the spinner; surface recent log context.
-      printf '\r\033[K' >/dev/tty 2>/dev/null || true
-      echo "----- last 20 lines of ${SETUP_LOG} (full detail there) -----"
-      tail -n 20 "${SETUP_LOG}" 2>/dev/null || true
+      #
+      # Written to /dev/tty, NOT to stdout — stdout is redirected into
+      # `tee -a "${SETUP_LOG}"`, so echoing a tail of the log to stdout appended
+      # 20 lines of the log back INTO the log, and the next failure's tail then
+      # re-read the injected copy. Five failing steps turned 25 real lines into
+      # 220, complete with duplicated run headers and steps appearing to complete
+      # twice out of order. The log became a false record on exactly the run
+      # where someone is reading it, and only interactively — which is the mode a
+      # user enters when following the "re-run to fix it" advice.
+      {
+        printf '\r\033[K'
+        printf -- '----- last 20 lines of %s (full detail there) -----\n' "${SETUP_LOG}"
+        tail -n 20 "${SETUP_LOG}" 2>/dev/null || true
+      } >/dev/tty 2>/dev/null || true
     fi
     elapsed=$(($(date +%s) - started_at))
     STEP_RECORDS+=("${step_number}|${script}|${name}|failed|${elapsed}|${attempts}")
@@ -526,7 +537,14 @@ mkdir -p "${HOME}/.cache"
 NVIM_LOG="${HOME}/.cache/nvim-setup.log"
 # Guard existence: SETUP_SCRIPTS_DIR may be a test fixture without this script.
 if [[ -f "${SCRIPTS_DIR}/13-nvim-plugins.sh" ]]; then
-  bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >"${NVIM_LOG}" 2>&1 &
+  # Append, not truncate: `>` destroyed the previous run's evidence, so
+  # re-running setup.sh to investigate a broken Neovim erased the log that
+  # would have explained it.
+  {
+    echo ""
+    echo "=== run ${RUN_ID} @ $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  } >>"${NVIM_LOG}"
+  bash "${SCRIPTS_DIR}/13-nvim-plugins.sh" >>"${NVIM_LOG}" 2>&1 &
   NVIM_SETUP_PID=$!
   printf "✓ Started    : Neovim plugin pre-load (PID: %s)\n" "${NVIM_SETUP_PID}"
   printf "  Monitor    : tail -f %s\n" "${NVIM_LOG}"
@@ -638,6 +656,18 @@ else
   check_path "zshrc"       "${HOME}/.zshrc"
   check_path "oh-my-zsh"   "${HOME}/.oh-my-zsh/oh-my-zsh.sh"
   check_path "nvim config" "${HOME}/.config/nvim"
+
+  # The background plugin pre-load writes its own status, since setup.sh does not
+  # wait for it. Reported, but NOT counted as a missing tool: it is still running
+  # when this summary prints, and a missing plugin should not fail a Codespace.
+  NVIM_STATUS_FILE="${HOME}/.cache/nvim-setup.status"
+  if [[ -f "${NVIM_STATUS_FILE}" ]]; then
+    case "$(head -1 "${NVIM_STATUS_FILE}")" in
+      ok) printf "  ✅  %-18s plugins and parsers ready\n" "nvim plugins" ;;
+      running) printf "  ⏳  %-18s still installing (tail -f %s)\n" "nvim plugins" "${NVIM_LOG}" ;;
+      *) printf "  ⚠️   %-18s incomplete — see %s\n" "nvim plugins" "${NVIM_LOG}" ;;
+    esac
+  fi
 fi
 
 NVIM_LOG="${NVIM_LOG:-${HOME}/.cache/nvim-setup.log}"
