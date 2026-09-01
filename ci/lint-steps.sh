@@ -23,6 +23,12 @@
 #
 #    Scope is deliberately narrow. setup.sh and .devcontainer/post-create.sh are
 #    committed 644 and that is fine — nothing chmods them, so they never drift.
+#
+#    THAT REASONING WAS WRONG for the repo-root entry points, and it cost a
+#    real user a broken `git pull`. GitHub's dotfiles mechanism chmods the
+#    install script before running it, so setup.sh arrived as 100644 and became
+#    100755 on every Codespace; `git pull` then refused because of a mode-only
+#    change the user could not see in a content diff. They are now checked too.
 #    The invariant is not "shell scripts are executable", it is "files setup.sh
 #    chmods must be committed the way setup.sh will leave them".
 
@@ -122,6 +128,28 @@ for path in "${SCRIPTS_DIR}"/*.sh; do
   log "ERROR: scripts/${name} is not in the STEPS array and not EXEMPT — it will never run."
   log "       Add it to STEPS in setup.sh, or add it to EXEMPT in this linter with a reason."
   errors=$((errors + 1))
+done
+
+# 2b. The repo-root entry points must be committed 100755 too. They are chmod'ed
+#     by things outside this repo — GitHub's dotfiles installer makes the install
+#     script executable before running it — so a 100644 commit shows up as a
+#     mode-only local modification on every machine, and blocks `git pull` with a
+#     diff that looks empty.
+for path in "${REPO_DIR}/setup.sh" "${REPO_DIR}/deploy-engineering-team-skill.sh" \
+  "${REPO_DIR}/.devcontainer/post-create.sh" "${REPO_DIR}/bin/setup-status"; do
+  [[ -f "${path}" ]] || continue
+  rel="${path#"${REPO_DIR}/"}"
+  mode="$(git -C "${REPO_DIR}" ls-files -s -- "${rel}" | awk '{print $1}')"
+  if [[ -z "${mode}" ]]; then
+    continue # untracked; nothing to assert
+  fi
+  if [[ "${mode}" != "100755" ]]; then
+    log "ERROR: ${rel} is committed ${mode}, expected 100755."
+    log "       It is executed directly and gets chmod'ed outside this repo, so a"
+    log "       644 commit becomes a mode-only local change that blocks 'git pull'."
+    log "       Fix: git update-index --chmod=+x ${rel}"
+    errors=$((errors + 1))
+  fi
 done
 
 # 3. Every script in scripts/ must be COMMITTED executable (100755), because
