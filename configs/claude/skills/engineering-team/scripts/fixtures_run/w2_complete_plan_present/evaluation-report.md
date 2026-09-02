@@ -1,0 +1,1 @@
+# stub artifact for fixture
