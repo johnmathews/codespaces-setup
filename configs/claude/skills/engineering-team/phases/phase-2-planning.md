@@ -51,6 +51,11 @@ open it in the user's default viewer if a GUI opener exists (`open` on
 macOS, `xdg-open` on Linux) — skip on headless hosts. Do not proceed past Phase 2
 to Phase 3 until the file exists on disk.
 
+Whether the plan is *also* tracked in git is the project's call, not this
+phase's — the rule and the check are in "The run directory" in `../SKILL.md`.
+Where it is tracked, it is tracked for the life of the run only, and Phase 4
+retires it.
+
 ---
 
 The goal is to produce a concrete, actionable improvement plan based on the evaluation findings.

@@ -185,17 +185,20 @@ Present a brief summary to the user:
   line and is the only thing keeping an unproven claim from ageing into an
   assumed one.
 
-Then close the run out — the three steps in "Closing a run" in `../SKILL.md`,
+Then close the run out — the four steps in "Closing a run" in `../SKILL.md`,
 performed in the **main checkout** (which is where `$RUN_DIR` lives — never
 the worktree):
 
-1. Remove the worktree and its branch (usually already done by `/merge-push`
+1. Retire the plan: delete `$RUN_DIR/improvement-plan.md`. Where it was
+   tracked, its `git rm` belongs in **Step 3's PR** — so do that while the
+   worktree still exists, not here.
+2. Remove the worktree and its branch (usually already done by `/merge-push`
    in Step 3 — confirm rather than assume, and never remove one holding
    unmerged commits).
-2. Set `phase: complete` in `$RUN_DIR/run.yaml`.
-3. `rm -f .engineering-team/current.txt`.
+3. Set `phase: complete` in `$RUN_DIR/run.yaml`.
+4. `rm -f .engineering-team/current.txt`.
 
-Do all three. They are belt and braces on purpose: clearing the pointer is the step
+Do all four. They are belt and braces on purpose: clearing the pointer is the step
 most likely to be skipped, because by now the interesting work is done and the
 summary is written. `phase: complete` is what makes a skipped step harmless —
 the next invocation reads it, sees the run is finished, and starts fresh instead
