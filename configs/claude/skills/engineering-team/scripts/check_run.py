@@ -17,10 +17,11 @@ It checks two things, both mechanical:
 2. **Reconciliation** — the skill's own stated invariant: a `phase:` of 2 or
    later means Phase 1 finished, so `evaluation-report.md` must exist; a `phase:`
    of 3 or later means Phase 2 finished, so `improvement-plan.md` must exist.
-   `phase: complete` is scope-dependent — an `evaluate` run that completed never
-   planned, so it needs no plan. A stale `phase:` that claims an artifact which
-   is not on disk is the "lies with authority" failure the skill calls out; this
-   catches it.
+   `phase: complete` is the opposite case and it caught this checker out: closeout
+   RETIRES the plan (deletes it), so a completed run is *expected* to have none, and
+   a plan still sitting in a `complete` run means the retire step was skipped — a
+   warning, not a failure. A stale `phase:` that claims an artifact which is not on
+   disk is the "lies with authority" failure the skill calls out; this catches it.
 
 Same two gate-design rules as `check_report.py`:
 
@@ -181,14 +182,25 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
         # A report is due once Phase 1 is finished: any numeric phase >= 2, or a
         # completed run (every scope runs Phase 1).
         report_due = (idx is not None and idx >= REPORT_FROM_PHASE) or complete
-        # A plan is due once Phase 2 is finished: numeric phase >= 3, or a
-        # completed run whose scope actually planned (not `evaluate`).
-        plan_due = (idx is not None and idx >= PLAN_FROM_PHASE) or (complete and scope in ("plan", "full"))
+        # A plan is due once Phase 2 is finished and until the run closes: numeric
+        # phase >= 3 only. `complete` is deliberately NOT here — closeout retires the
+        # plan, so requiring one on a closed run demands the exact file the closeout
+        # step deletes. This clause used to read `or (complete and scope in (...))`
+        # and turned every correctly-closed run red.
+        plan_due = idx is not None and idx >= PLAN_FROM_PHASE
 
         if report_due and not (run_dir / "evaluation-report.md").exists():
             err("E6", None, f"phase '{phase}' implies Phase 1 is done, but evaluation-report.md is missing from {run_dir}")
         if plan_due and not (run_dir / "improvement-plan.md").exists():
             err("E7", None, f"phase '{phase}' (scope {scope}) implies Phase 2 is done, but improvement-plan.md is missing from {run_dir}")
+
+        # W2 — a closed run still carrying its plan: the retire step was skipped.
+        # A warning, not a failure — the plan is harmless where it sits, and deleting
+        # someone's file is not a call a checker gets to make.
+        if complete and (run_dir / "improvement-plan.md").exists():
+            warn("W2", None,
+                 f"phase 'complete' but improvement-plan.md is still in {run_dir} — "
+                 "closeout retires the plan (see \"Closing a run\" in SKILL.md)")
 
         # W1 — a closed run still carrying unfinished work. Not a hard failure:
         # the skill says a run that ended early should stay open, so if this is
