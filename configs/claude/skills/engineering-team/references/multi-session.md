@@ -276,8 +276,11 @@ confirms rather than reaping silently.
 
 ## 10. Residual risks — be honest about these
 
-- **Same-machine assumption.** `$RUN_DIR` is git-untracked, so parallel sessions
-  must share a filesystem to read it by absolute path. A session on a different
+- **Same-machine assumption.** `$RUN_DIR`'s bookkeeping is git-untracked, so
+  parallel sessions must share a filesystem to read it by absolute path. (The
+  plan may be tracked while the run is live — see "The run directory" in
+  `../SKILL.md` — but that is a snapshot for reviewers; the authoritative copy
+  is still the one on the shared filesystem, so this risk stands.) A session on a different
   host needs its context **inlined into its prompt** — `/prompt` can do this when
   asked. The append-only tier of the state plane (issue and PR comments —
   `coordination-protocol.md` §1) is reachable from anywhere and lifts part of

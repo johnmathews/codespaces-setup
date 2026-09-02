@@ -189,6 +189,29 @@ Always write to `$RUN_DIR/<artifact>` — never to
 project's `.gitignore` if it isn't already there: run artifacts are
 working state, not deliverables.
 
+**The plan is the one exception, and it has a lifespan.** While a run is
+live, its PRs cite the plan as the authority a reviewer checks them
+against — and a citation to a path the repository does not contain cannot
+be checked at all. So where the project un-ignores it, the plan is
+**tracked while the run is active and deleted at closeout**. Check rather
+than assume:
+
+```bash
+git check-ignore -q "$RUN_DIR/improvement-plan.md" || echo "un-ignored — track it"
+```
+
+When it is un-ignored, copy the plan to the same repo-relative path inside
+the **worktree** and commit it there, in the first PR that ships work
+against it: `$RUN_DIR` lives in the main checkout, which you never commit
+in, so the worktree copy is the one git sees. Re-copy when the plan
+materially changes. **The `$RUN_DIR` copy stays authoritative while the run
+is live** — the tracked copy is a snapshot for reviewers, and naming which
+is which is what keeps the two from drifting silently.
+
+Where the project ignores the path, leave it ignored and say so at the
+Phase 2 gate: it means this run's PRs will cite an authority no reviewer
+can open.
+
 ## Always work in a worktree
 
 Every phase of every Build run happens inside a git worktree on a feature
@@ -359,21 +382,30 @@ Phase 1 → Phase 2 after synthesis), announce each phase as you enter it.
 ## Closing a run
 
 **Every run closes itself, whatever its `scope:`.** Once the last phase
-that scope calls for has produced its artifact, do these three things — in
+that scope calls for has produced its artifact, do these four things — in
 the **main checkout**, where `$RUN_DIR` lives, never in the worktree:
 
-1. **Remove the worktree this run created, if it holds zero commits**
+1. **Retire the plan.** Delete `$RUN_DIR/improvement-plan.md`, and where it
+   was tracked, `git rm` it in the run's **final PR** — which means doing
+   that before step 2 takes the worktree away. A completed plan is a second
+   account of work the ADRs, spec and journal now own, and a second account
+   drifts against them. Anything in it still worth having must already be
+   in one of those; if it exists only in the plan, that is a gap in the
+   real docs, and the fix is to write the ADR, not to keep the plan. Git
+   history keeps the file recoverable either way. A run with no plan skips
+   this step.
+2. **Remove the worktree this run created, if it holds zero commits**
    (`git worktree remove <path>`, then delete the branch). If it holds
    commits, do not remove it: say what is on it and ask what to do with it.
    An evaluation-only run normally leaves it empty.
-2. **Set `phase: complete`** in `$RUN_DIR/run.yaml`.
-3. **`rm -f .engineering-team/current.txt`.**
+3. **Set `phase: complete`** in `$RUN_DIR/run.yaml`.
+4. **`rm -f .engineering-team/current.txt`.**
 
 Then state in one line what the scope was and what the next phase would
 be, so the artifact reads as a finished deliverable rather than an
 interrupted run. Offer the next phase; do not start it unbidden.
 
-`full` reaches this through Phase 4's Step 4, which does the same three
+`full` reaches this through Phase 4's Step 4, which does the same four
 things after the merge. `evaluate` and `plan` reach it at the end of Phase
 1 and Phase 2 respectively — they have no Phase 4, which is exactly why the
 step has to live here rather than only there. A scope that never closes

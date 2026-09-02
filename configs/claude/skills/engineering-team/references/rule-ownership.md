@@ -65,6 +65,7 @@ should point here.
 | Status-stamp size budget: ratchet down, never raise to turn a red doc green | §8 (rule + rationale) | `worktree.md` §"Documentation gates" (the *gate*) — split by design, cross-linked |
 | Heading numbering (decimal, one H1) and stable IDs (`D1`/`W3`/`F7`) | §7 "Heading numbering and stable IDs" | `SKILL.md` §"Writing documentation"; phase docs; `multi-session.md` (stable W-ids) |
 | Living vs point-in-time is drawn by path (`journal/`, `docs/adr/`, `docs/rfc/` are exempt) | §3 | `worktree.md` (gate excludes by path) |
+| A finding cited outside its run is carried, not pointed at — an ADR/spec states the measurement, date and sha rather than citing a run artifact | §5 "Conventions common to all docs" | `SKILL.md` §"The run directory" (why run artifacts do not survive); phase 1 (findings are authored there) |
 
 ### Homed in `worktree.md`
 
@@ -105,7 +106,8 @@ should point here.
 | `run.yaml` state rules: write-at-announce, `abandoned` needs a `why`, a missing file is not an error, phase reconciles against artifacts | §"The run directory" | phases 1–4; `multi-session.md` (coordinator-owned) |
 | No default repo owner — read the remote, ask if none | §"Project configuration" | `worktree.md` |
 | Scope by the user's verb (evaluate/plan/full); scope gates what may merge | §"Decide which phase to load" | phases 1, 2, 4 |
-| Closing a run: three steps, in the main checkout | §"Closing a run" | phases 1, 2, 4 |
+| The plan is tracked only while the run is live, and retired at closeout; run bookkeeping is never tracked | §"The run directory" | phase 2 (pointer); phase 4 (the retire step); `multi-session.md` §10 |
+| Closing a run: four steps, in the main checkout | §"Closing a run" | phases 1, 2, 4 |
 | Announce the phase in one plain-prose line | §"Announce phase transitions" | phases 1–4 (four parallel copies — **see §4**) |
 
 ### Homed in `team-structure.md`

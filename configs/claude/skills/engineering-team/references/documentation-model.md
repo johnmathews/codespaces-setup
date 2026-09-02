@@ -175,6 +175,17 @@ per module.** If you cannot name the conceptual load it carries, don't write it.
   `### W3 — Database schema` → `#w3--database-schema`. Double hyphens are correct
   where an em-dash sat between spaces. A link checker with `--include-fragments`
   verifies these.
+- **A finding cited outside its run must be carried, not pointed at.** Run
+  artifacts — the evaluation report above all — are working state: untracked,
+  deleted with the run, and restored by nothing. So when an ADR or a spec rests
+  on one, it states the **finding itself** — the measurement, the date, and the
+  sha or run it was taken from — rather than citing "finding F28 of the
+  `<run-id>` evaluation" and leaving the reader to open a file the repository
+  does not contain. Such a citation is unverifiable the day it is written and
+  gone within the month. This is observed, not hypothetical: a merged ADR in one
+  repo rests on a finding graded `[VERIFIED]` against a live database whose run
+  directory no longer exists and was never tracked, so nothing can substantiate
+  it now.
 - **Acceptance criteria live in the plan or the issue, not the spec.** They are
   traceable *back* to a spec statement. If you find yourself writing a criterion
   the spec doesn't ground, the spec is incomplete — fix the spec first.
