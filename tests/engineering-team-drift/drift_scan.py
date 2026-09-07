@@ -77,6 +77,10 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                           r"No message type in the protocol can assign work"),
     "sense-dont-act": ("references/coordination-protocol.md",
                        r"Sense autonomously; act only on request"),
+    "no-first-person": ("references/writing-style.md",
+                        r"Never write in the first person"),
+    "imperative-for-steps": ("references/writing-style.md",
+                             r"takes the imperative mood"),
 }
 
 
