@@ -461,6 +461,14 @@ are actually writing a document, and this file is loaded on every invocation:
 All of it lives in `references/documentation-model.md` — load that before
 writing or auditing docs.
 
+**How a document should read is a separate question, and
+`references/writing-style.md` owns it.** Documentation is reference reading, so it
+is never written in the first person (no "I", no "we") and always in the active
+voice, with steps in the imperative mood. That file also carries the rhythm
+targets, the constructions that read as machine generated, and what each document
+type must contain. Load it alongside the documentation model whenever you write
+prose a human will read.
+
 ## Cross-cutting references
 
 Load these on demand when their topic becomes relevant:
@@ -473,6 +481,11 @@ Load these on demand when their topic becomes relevant:
 - `references/documentation-model.md` — the six document types, authority
   precedence, explainers, the documentation gates, **and how to write a doc**:
   heading numbering, stable IDs, and the living-document status stamp.
+- `references/writing-style.md` — how documentation should **read**: the ban on
+  the first person, the active voice, the imperative mood for steps, rhythm
+  targets, the constructions that read as machine generated, and what each
+  document type must contain. Load it with `documentation-model.md`, which
+  decides *which* document to write while this decides *how it reads*.
 - `references/multi-session.md` — parallel lanes across sessions:
   single-writer, disjoint footprints, coordinator/worker roles.
 - `references/coordination-protocol.md` — how coordinator and worker sessions
