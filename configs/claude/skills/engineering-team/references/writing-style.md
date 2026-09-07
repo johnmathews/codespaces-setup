@@ -2,11 +2,11 @@
 
 > Purpose
 >
-> How documentation in a project should **read**, and what each document type
-> must **contain**. `documentation-model.md` decides which type to write and
-> where authority sits. This file governs the prose inside it.
+> How documentation should **read**, and what a document must **contain** where
+> `documentation-model.md` does not say. That file decides which type to write and
+> where authority sits. This one governs the prose inside it.
 >
-> Load this before writing or rewriting any document a human reads: a README, an
+> Load it before writing or rewriting any document a human reads: a README, an
 > explainer, a runbook, a reference page, an ADR, a report.
 
 ## 1. Scope
@@ -18,6 +18,10 @@ Two things are outside it. A machine-read format such as a status stamp keeps it
 required shape even where that shape breaks a rule below. And a project with its
 own written style guide outranks this file, per the project-conventions rule in
 `worktree.md`.
+
+This skill's own reference files, commit messages and PR bodies are in scope for
+§2 only. Both of its rules are greppable, and neither depends on a reader
+arriving with a question.
 
 ## 2. The two hard rules
 
@@ -39,7 +43,6 @@ These change how a claim is phrased, never what is claimed:
 | Do not write | Write |
 |---|---|
 | What we deliberately do not claim | What this document does not claim |
-| the cases we thought to write down | the cases the test set covers |
 | a third of the tests check our gates | a third of the tests check the gates themselves |
 | I found the configuration overwhelming | The number of options is large enough to be a problem in itself |
 | the change is rejected by the gate | the gate rejects the change |
@@ -77,43 +80,21 @@ explainer describing how something works stays descriptive.
   is contestable, say what it rests on.
 - **Say what is not known, and move on.** "Which part of the build does this is
   still unknown." No defensiveness, and no promise to fix it.
-- **Offer a possible explanation, label it, then drop it.** "The corpus may
-  simply be smaller than the typical case. Either way, the fix was X." Do not
-  resolve what cannot be resolved.
-- **Report a reversal plainly.** "This was dismissed as unnecessary at first, and
-  that turned out to be wrong." A changed position is information, and it needs
-  no apology.
-- **State the feature, then state the reality flatly.** "It supports every
-  logging backend imaginable, and the project uses one."
-- **Be specific, and hedge an approximation openly.** "57 degrees", "about
-  10mm", "roughly four minutes". Never "significantly larger".
-- **End on what it means for the reader.** Do not trail off, and do not restate
-  the document.
+- **Be specific, and hedge an approximation openly.** "Four minutes", "about 12%
+  of rows", "roughly 40 files". Never "significantly larger".
 - **No jokes, no exclamations, no asides about feelings.** The goal is prose a
   person is comfortable reading, not a performance of being human.
 
 ## 5. Rhythm
 
-- **Aim for a median around seventeen words a sentence** and a mean around
-  nineteen. **Nothing past forty.**
-- **Long sentences are allowed.** Roughly one in six may run past thirty words.
-  Do not chop everything short.
-- **Short sentences are the exception, not the rhythm.** About one in nine under
-  eight words, used to land a point.
+- **Vary sentence length**, and let a long sentence run where the thought needs
+  it. **Nothing past forty words.**
 - **No em dashes.** Use a full stop, a comma, or brackets. A sentence that needs
   an em dash is two sentences.
 - **No semicolons.** Use a full stop.
-- **Keep the structure simple.** Chain clauses with *and* or *which*. Do not nest
-  a clause inside a clause.
 - **Bold sparingly.** A few per section, not a few per paragraph. If a point only
   lands because it is bold, rewrite the sentence instead.
-- **Occasionally open with a conjunction.** But, Then, So, Either way.
-  Occasionally means twice in a long document, not twice a paragraph.
 - **Paragraphs run two to five sentences** and carry one idea each.
-
-Treat the rhythm targets as an influence rather than a specification. The two
-punctuation bans in §5 and the two hard rules in §2 are not in that category and
-always hold.
 
 ## 6. Do not write
 
@@ -127,7 +108,6 @@ These read as machine generated:
   announce that something matters. "Most importantly" is fine when genuinely
   ranking things.
 - The previous paragraph restated in different words.
-- A heading every three paragraphs. Short pieces need no headings.
 
 ## 7. Skimmability, and how it squares with §5
 
@@ -141,95 +121,58 @@ is the reconciliation with the bold rule in §5, which still holds.
   Prose is for arguments, not for inventories.
 - A bullet is a sentence. Do not glue a fragment to a colon and call it a point.
 - A heading exists because a reader needs to find something, not because three
-  paragraphs have gone by.
+  paragraphs have gone by. A short piece needs none.
 
-## 8. Code examples
+## 8. What a document must contain
+
+`documentation-model.md` §1 decides which document to write. These are content
+rules for the kinds it does not enumerate, and they never override it.
+
+**Any snippet, in any document:**
 
 - **Every snippet must run exactly as written.** Copy-pasteable, current, and
   correct.
-- Mark a placeholder unmistakably, as `<YOUR_API_KEY>` or `<subscription-id>`.
+- **Mark a placeholder unmistakably**, as `<YOUR_API_KEY>` or `<subscription-id>`.
   Never leave a plausible-looking fake value a reader might use by mistake.
-- Show the expected output after any step whose success is not obvious, so the
-  reader can tell whether it worked.
-
-## 9. What each document type must contain
-
-§1 to §8 govern how the prose reads. This section is about content, by type.
-Which type to write at all is `documentation-model.md` §1.
-
-### 9.1 Landing and onboarding
-
-`README.md`, and any getting-started page.
-
-- **State the purpose in the first two sentences.** What it is, and who it is
-  for. A reader who stops after two sentences should still know what the project
-  does.
-- **Give a quickstart of three steps or fewer**, and make it the shortest path to
-  something that works rather than the most complete one.
-- **List the prerequisites explicitly, with versions.** A prerequisite
-  discovered halfway through a quickstart is a defect in the quickstart.
-- **Link outward instead of explaining.** A front door that explains everything
-  stops being a front door.
-
-### 9.2 Reference
-
-Specs, configuration schemas, API and CLI surfaces.
-
-- **Generate it from the code wherever the code can carry it.** A generated
-  reference compared in CI cannot drift. A hand-written one always can.
-- **State the data type, whether a field is required or optional, and the
-  default.** All three, for every field.
-- **Show a successful response and an error response.** A reference that
-  documents only the happy path is half a reference, and the half it omits is the
-  half a reader reaches for under pressure.
-
-### 9.3 Procedural
-
-Runbooks, tutorials, how-to guides.
-
-- **One goal per guide, named in the title.** "How to authenticate webhooks",
-  not "Webhooks".
-- **Order the steps chronologically**, in the imperative mood (§3).
 - **Show the expected output after any step whose success is not obvious**, so a
   reader can tell they are on track before the next step compounds the error.
 
-### 9.4 Architecture and context
+**A README or getting-started page:**
 
-ADRs, RFCs, system design documents.
+- **State the purpose in the first two sentences.** A reader who stops there
+  should still know what the project does and who it is for.
+- **List the prerequisites explicitly, with versions.** A prerequisite discovered
+  halfway through a quickstart is a defect in the quickstart.
 
-- **Explain why, not what.** The what belongs in the spec, and an architecture
-  document that describes behaviour will contradict the spec eventually.
-- **Draw the data flow** rather than describing it in a paragraph. Mermaid,
-  inline in the markdown.
-- **Stay high-level enough that a minor code change cannot falsify it.** A
-  decision record pinned to a function name goes stale at the next rename, and
-  nothing will notice.
+**A reference surface** (a spec, a configuration schema, an API or CLI):
 
-### 9.5 Maintenance and collaboration
+- **State the data type, whether a field is required or optional, and the
+  default.** All three, for every field.
+- **Show an error response as well as a successful one.** The half a reference
+  omits is the half a reader reaches for under pressure.
 
-`CONTRIBUTING.md`, troubleshooting pages, changelogs, journals.
+**A troubleshooting page:**
 
-- **Give exact commands** for setting up a local environment and running the
-  tests. Not a description of the commands.
-- **Group troubleshooting entries by the error message the reader will paste
-  into a search box.** The heading should be the text they actually saw, because
-  that is what they search for. Grouping by subsystem assumes the reader already
-  knows which subsystem failed, and a reader who knew that would not need the
-  page.
+- **Group entries by the error message the reader will paste into a search box.**
+  Grouping by subsystem assumes the reader already knows which subsystem failed,
+  and a reader who knew that would not need the page.
 - **Say what to do when the fix does not work.** An entry with one remedy and no
   fallback strands the reader it was written for.
 
-## 10. The test
+## 9. The test
 
 Read it aloud. If you run out of breath, cut the sentence. If every sentence is
 the same length, break one. If the emphasis lives in the bold rather than in the
 words, delete the bold and rewrite.
 
-Then check the two hard rules mechanically, because both are greppable:
+Then check the two hard rules mechanically, because both are greppable. Each
+pattern also matches quotations and fenced code, which §2 and §5 allow, so
+discount those hits by eye rather than editing them out:
 
 ```bash
-# §2 rule 1 — first person outside a quotation
-grep -nE '\b(I|we|our|us)\b' <file>
-# §5 — the two banned marks
+# §2 rule 1: first person outside a quotation. The capitals matter, because
+# "We" and "Our" open sentences and a case-sensitive alternation misses them.
+grep -nE '\b(I|[Ww]e|[Oo]ur|[Uu]s)\b' <file>
+# §5: the two banned marks
 grep -nE '—|;' <file>
 ```
