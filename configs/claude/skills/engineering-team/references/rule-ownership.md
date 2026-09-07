@@ -31,7 +31,7 @@
 |---|---|
 | `references/general-guidelines.md` | verification integrity (claim ≤ check, "green" is named, exemptions expire, caller can't verify callee); evidence grading + severity; disconfirmation; subagent independence / shared priors; structural-enforcement-over-policy; triage; Playwright/UI verification |
 | `references/documentation-model.md` | the six doc types; authority precedence; living-vs-point-in-time (split by path); heading numbering + stable IDs; the living-document **status stamp** incl. "method matches the claim" and the stamp size-budget *rule* |
-| `references/writing-style.md` | how documentation reads. No first person, active voice, and the imperative mood for steps. Rhythm targets, the banned punctuation, the machine-generated tells, and what each document type must contain |
+| `references/writing-style.md` | how documentation reads. No first person, active voice, and the imperative mood for steps. Rhythm, the banned punctuation, the machine-generated tells, and what a document must contain where the doc model does not say |
 | `references/worktree.md` | worktree isolation + the **detection idiom**; "already in one → don't nest"; project-conventions-outrank-defaults; linter setup; the **documentation gates**, the **make-a-check-required laws**, and "gate the code no other gate reads" |
 | `references/multi-session.md` | single-writer / one-artifact-one-owner; disjoint file footprints; append-only coordinator-owned plan; never-touch-another-lane's-worktree; the multi-session invariant list |
 | `references/coordination-protocol.md` | the three planes (control / state / sensing); the six-type message vocabulary + the mandatory `ref`; the blocking pre-PR gate + its four CHANGES criteria + the round limit; the contract register + unit zero + the integration gate; the sense-don't-act autonomy boundary |
@@ -74,9 +74,9 @@ should point here.
 |---|---|---|
 | Documentation is never written in the first person, meaning no "I", "we", "our" or "us". A quoted phrase may contain one | §"The two hard rules" rule 1 | `SKILL.md` §"Writing documentation" (one-line application) |
 | Active voice, with the actor named. A sentence that only works in the passive is missing its actor | §"The two hard rules" rule 2 | `SKILL.md` §"Writing documentation" |
-| Anything the reader is meant to do takes the imperative mood, and a precondition comes before the step it governs | §"Mood: imperative for steps" | `SKILL.md` §"Writing documentation" |
+| Anything the reader is meant to do takes the imperative mood, and a precondition comes before the step it governs | §"Mood: imperative for steps" | nothing else |
 | No em dashes and no semicolons in documentation prose | §"Rhythm" | nothing else |
-| What each document type must contain, such as a README purpose in two sentences and troubleshooting grouped by error message | §"What each document type must contain" | `documentation-model.md` §1 decides *which* type, and this decides its contents |
+| What a document must contain where the doc model does not say, such as a README purpose in two sentences and troubleshooting grouped by error message | §"What a document must contain" | nothing else. `documentation-model.md` §1 decides *which* type to write, and stops there |
 
 ### Homed in `worktree.md`
 
