@@ -405,6 +405,16 @@ Then state in one line what the scope was and what the next phase would
 be, so the artifact reads as a finished deliverable rather than an
 interrupted run. Offer the next phase; do not start it unbidden.
 
+**End with the session verdict: can this session be closed, or not?** Say
+it explicitly, as the last line, once the work and the housekeeping above
+are done. "This session can be closed" means the four steps are done, no
+question is outstanding, and nothing is left running or half-applied. If
+it cannot be closed, say so and name the one thing blocking it and what
+would clear it — an unanswered question, an unmerged lane, a worktree
+holding commits, a red check, a background process still writing. The
+user cannot see the four steps and should not have to infer from a
+summary's tone whether closing the terminal loses anything.
+
 `full` reaches this through Phase 4's Step 4, which does the same four
 things after the merge. `evaluate` and `plan` reach it at the end of Phase
 1 and Phase 2 respectively — they have no Phase 4, which is exactly why the

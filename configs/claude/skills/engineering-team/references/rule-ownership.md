@@ -118,7 +118,7 @@ should point here.
 | No default repo owner — read the remote, ask if none | §"Project configuration" | `worktree.md` |
 | Scope by the user's verb (evaluate/plan/full); scope gates what may merge | §"Decide which phase to load" | phases 1, 2, 4 |
 | The plan is tracked only while the run is live, and retired at closeout; run bookkeeping is never tracked | §"The run directory" | phase 2 (pointer); phase 4 (the retire step); `multi-session.md` §10 |
-| Closing a run: four steps, in the main checkout | §"Closing a run" | phases 1, 2, 4 |
+| Closing a run: four steps, in the main checkout, then the session-closable verdict | §"Closing a run" | phases 1, 2, 4 |
 | Announce the phase in one plain-prose line | §"Announce phase transitions" | phases 1–4 (four parallel copies — **see §4**) |
 
 ### Homed in `team-structure.md`
