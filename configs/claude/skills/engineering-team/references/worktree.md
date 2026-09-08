@@ -155,6 +155,80 @@ The `.engineering-team/` parent is working state, not a deliverable — add it t
 All project-facing documentation goes in `/docs/`. The development journal goes in `/journal/` with filenames
 like `250321-descriptive-name.md` (YYMMDD format). Create these directories if they don't exist.
 
+### Stale-base pushes silently revert merged work
+
+Worktrees isolate files completely — parallel sessions do not clobber each
+other's edits. The one thing they cannot isolate is **shared history**, and
+there is exactly one way concurrent sessions actively damage each other through
+it: a push whose tree is missing what `origin/main` gained. `git reset --soft
+origin/main` against an unfetched (stale) local ref, a force-push, or a rebase
+onto a stale base all produce a branch that, when merged, **deletes another
+session's merged files** — and every check passes on the reverting tree, so
+nothing downstream catches it. This has bitten a real repo: a soft-reset against
+a stale `origin/main` reverted another PR's files with all checks green.
+
+**The rule, and it is the load-bearing part:** branch from a freshly-fetched
+`origin/main`, and before every push confirm you are not silently deleting what
+someone else merged.
+
+```bash
+git fetch origin main
+git diff --name-status origin/main HEAD | grep '^D'   # files on main, absent on your branch
+```
+
+Every `D` line is a file that exists on `main` and not on your branch — a
+candidate silent reversion. Confirm each is a deletion you *meant*; if you never
+touched it, your base is stale — rebase onto the fresh `origin/main` and
+re-check.
+
+**Use the two-endpoint diff (`origin/main HEAD`), not three-dot
+(`origin/main...HEAD`).** Three-dot diffs from the merge-base, so it shows only
+what your branch added — a file another session merged *after* your fork point is
+invisible to it, which is exactly the file being reverted. Verified on a
+reproduction: three-dot reported the reverting branch as a clean one-file edit
+while two-endpoint surfaced the deletion. Getting this wrong ships a guard that
+cannot see the thing it guards.
+
+**Optional backstop — a committed `pre-push` hook.** The habit above catches the
+subtle case a hook cannot, so the hook is a backstop, not a replacement. Ship it
+in the project (`.githooks/pre-push`, activated once per clone with `git config
+core.hooksPath .githooks`) and **prove it blocks before relying on it** — seed a
+stale-base push and watch it exit non-zero (`general-guidelines.md` rule 1: a
+gate ships with a test proving it goes red).
+
+```sh
+#!/bin/sh
+# Block a push that rewrites shared history to a stale tree.
+git fetch -q origin main
+zero=0000000000000000000000000000000000000000
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  # A branch *deletion* sends an all-zero local sha. It rewrites no tree, and
+  # every ancestry test below would error on the null oid, so skip the ref.
+  [ "$local_sha" = "$zero" ] && continue
+  # Force-push discarding an existing remote tip: does it drop the tip's commits?
+  if [ "$remote_sha" != "$zero" ] &&
+    ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+    echo "pre-push: this discards commits already on the remote branch." >&2
+    echo "If another session pushed there, rebase — do not force." >&2
+    exit 1
+  fi
+  # Advanced-base is a WARN, not a block: it is legal (a rebase re-triggers CI),
+  # but it is also the shape of the stale-base reversion, so surface it. Test the
+  # ref being pushed, not HEAD — they differ whenever the push is not the branch
+  # you have checked out.
+  git merge-base --is-ancestor origin/main "$local_sha" ||
+    echo "pre-push: origin/main advanced past your base — rebase and re-check the diff above." >&2
+done
+```
+
+**Be honest about the hook's reach.** It hard-blocks only a force-push that
+discards a remote tip; the stale-base reversion above trips only the
+*advanced-base warning*, which prints and lets the push proceed. That is
+deliberate — advanced-base is a normal, legal state — but it means the hook does
+not stop the motivating case on its own. The `git diff` habit is what does; the
+hook narrows the window, and it is bypassable (`--no-verify`) and opt-in per
+clone. Rank them accordingly: rule first, hook second.
+
 ### Linter Setup
 
 **New projects (you just ran `git init`):** Set up a linter as part of project initialization. Choose the
@@ -252,6 +326,15 @@ Build it to these rules:
   `not yet` goes red, and a doc in an untouched repo stays **green** however old
   it is — that last one is what pins the design, and a calendar-based gate fails
   it. A scanner that matches nothing passes loudest when it is blind.
+
+**A shared-singleton runtime doc has no change signal — plan for it, don't gate
+it.** A doc whose `Covers:` is a runtime fact (`runtime:azure-dev`) matches no
+path, so the change-driven query above never marks it due, and the long runtime
+clock is too coarse for a value that turns over every deploy. Neither signal
+fits, so the gate degrades to "the stamp exists." Do not read that as covered:
+such a doc is taken out of per-feature-session hands and automated or
+single-owned instead — `documentation-model.md` §9. The gate is not the backstop
+here; the writer model is.
 
 These complement the wrap-up living-docs reconciliation step (Phase 4) and the
 per-unit "docs touched?" check (Phase 3): the gates are the machine enforcement,

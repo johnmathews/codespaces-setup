@@ -81,6 +81,8 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                         r"Never write in the first person"),
     "imperative-for-steps": ("references/writing-style.md",
                              r"takes the imperative mood"),
+    "shared-singleton-doc": ("references/documentation-model.md", r"shared singleton"),
+    "stale-base-push": ("references/worktree.md", r"stale-base"),
 }
 
 
