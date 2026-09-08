@@ -356,3 +356,43 @@ are historical by design and are allowed to age. ADRs instead carry a
 reader, and the CI doc-freshness gate, tell live docs from stale ones at a
 glance. Which documents are living, which are point-in-time, and why the split is
 drawn by path: §3 above.
+
+## 9. Shared-singleton living docs
+
+Some living docs record a **shared singleton** — one global fact that every
+session's merge changes: what is deployed right now (image tag, migration head,
+last green run), the current version, a global counter. These have a failure the
+six types above do not, and it is not about staleness: the fact is mutated by
+*every* merge, so the doc is contended by every session at once.
+
+**A doc that records a shared singleton must not be edited by per-feature
+sessions.** When two sessions merge in parallel, the one that refreshes the doc
+to its own state is made stale the instant the other's merge deploys — a
+treadmill with a last-merge-wins race and no stable value to write. Observed
+directly: a session went to refresh a `live-state` doc, found `main` had already
+advanced to another session's PR with a new deploy in flight, and the value it
+was about to write was already wrong. The right move was to not chase it — which
+leaves the doc lagging, silently, with no writer able to fix it.
+
+Two ways out, prefer the first:
+
+- **Automate it from the source of truth.** A post-deploy CI step writes the
+  running image tag and migration head into the doc straight from the deploy
+  job's own log, so no session ever edits it and "read it from the log, never
+  infer it from `main`" becomes code, not discipline. Do not *mandate* this in
+  every project — under a strict merge ruleset it means a bot PR per deploy,
+  which is its own cost — but recommend it where deploys are frequent.
+- **Single-owner, otherwise.** Exactly one session, or a scheduled pass,
+  refreshes it — never "whoever merged last." A per-feature PR must not touch it.
+
+**The freshness gate cannot save this doc, and that is the tell.** Its `Covers:`
+is a *runtime* fact (`runtime:azure-dev`) that matches no path, so the
+change-driven gate (`worktree.md`, "Documentation gates") never marks it due —
+and the long runtime clock (6–12 months) is far too coarse for a value that
+turns over every deploy. A doc whose accuracy nothing can detect is the "check
+that cannot fail" (`general-guidelines.md` rule 1) wearing a status stamp: the
+reason to take it out of contended hands, not merely to stamp it more often.
+
+The generalizable rule: **a living doc's value is inversely proportional to how
+many independent writers mutate the fact it records.** Give a shared singleton
+one writer, or a machine.

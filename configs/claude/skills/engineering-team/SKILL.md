@@ -263,8 +263,10 @@ sides before comparing.
   this run ships.
 - **In the main checkout** → create the worktree now (`references/worktree.md`).
 
-The full discipline is in `references/worktree.md`. There is exactly **one**
-exception, and it is a physical one:
+The full discipline is in `references/worktree.md` — including the rule that a
+**stale-base push silently reverts a peer's merged files** (fetch and
+two-endpoint-diff against a fresh `origin/main` before every push). There is
+exactly **one** exception, and it is a physical one:
 
 - A **non-git project**, or a repo where the user declined `git init` — a
   worktree is not possible, so work in place. Wrap-up degrades to "ask

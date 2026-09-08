@@ -30,9 +30,9 @@
 | Home file | Owns (rule families) |
 |---|---|
 | `references/general-guidelines.md` | verification integrity (claim ≤ check, "green" is named, exemptions expire, caller can't verify callee); evidence grading + severity; disconfirmation; subagent independence / shared priors; structural-enforcement-over-policy; triage; Playwright/UI verification |
-| `references/documentation-model.md` | the six doc types; authority precedence; living-vs-point-in-time (split by path); heading numbering + stable IDs; the living-document **status stamp** incl. "method matches the claim" and the stamp size-budget *rule* |
+| `references/documentation-model.md` | the six doc types; authority precedence; living-vs-point-in-time (split by path); heading numbering + stable IDs; the living-document **status stamp** incl. "method matches the claim" and the stamp size-budget *rule*; **shared-singleton docs** (one writer — automate or single-owner) |
 | `references/writing-style.md` | how documentation reads. No first person, active voice, and the imperative mood for steps. Rhythm, the banned punctuation, the machine-generated tells, and what a document must contain where the doc model does not say |
-| `references/worktree.md` | worktree isolation + the **detection idiom**; "already in one → don't nest"; project-conventions-outrank-defaults; linter setup; the **documentation gates**, the **make-a-check-required laws**, and "gate the code no other gate reads" |
+| `references/worktree.md` | worktree isolation + the **detection idiom**; "already in one → don't nest"; project-conventions-outrank-defaults; linter setup; the **documentation gates**, the **make-a-check-required laws**, "gate the code no other gate reads", and the **stale-base push guard** |
 | `references/multi-session.md` | single-writer / one-artifact-one-owner; disjoint file footprints; append-only coordinator-owned plan; never-touch-another-lane's-worktree; the multi-session invariant list |
 | `references/coordination-protocol.md` | the three planes (control / state / sensing); the six-type message vocabulary + the mandatory `ref`; the blocking pre-PR gate + its four CHANGES criteria + the round limit; the contract register + unit zero + the integration gate; the sense-don't-act autonomy boundary |
 | `references/team-structure.md` | the **findings contract**; dispatch mechanics + the read-the-roster rule; numbered-lists-to-the-user; clarifying-questions-first |
@@ -67,6 +67,7 @@ should point here.
 | Heading numbering (decimal, one H1) and stable IDs (`D1`/`W3`/`F7`) | §7 "Heading numbering and stable IDs" | `SKILL.md` §"Writing documentation"; phase docs; `multi-session.md` (stable W-ids) |
 | Living vs point-in-time is drawn by path (`journal/`, `docs/adr/`, `docs/rfc/` are exempt) | §3 | `worktree.md` (gate excludes by path) |
 | A finding cited outside its run is carried, not pointed at — an ADR/spec states the measurement, date and sha rather than citing a run artifact | §5 "Conventions common to all docs" | `SKILL.md` §"The run directory" (why run artifacts do not survive); phase 1 (findings are authored there) |
+| A shared-singleton doc must have one writer — automate from the source of truth or single-owner, never per-feature sessions | §9 "Shared-singleton living docs" | `worktree.md` §"Documentation gates" (the freshness-gate blind spot) |
 
 ### Homed in `writing-style.md`
 
@@ -87,6 +88,7 @@ should point here.
 | Doc freshness is change-driven (`git log` over covered paths), not a calendar | §"Documentation gates" | `documentation-model.md` §6 (points here) |
 | The laws for promoting a check to required (unfiltered triggers, aggregator name, required ≠ enabled) | §"Making a check required…" | phase 4 (points here) |
 | Project conventions outrank this skill's defaults | §"The project's own conventions outrank this skill's defaults" | phase docs (branch/journal/docs locations are defaults) |
+| A stale-base push silently reverts a peer's merged files; fetch + two-endpoint diff before pushing | §"Stale-base pushes silently revert merged work" | `SKILL.md` §"Always work in a worktree" |
 
 ### Homed in `multi-session.md`
 
