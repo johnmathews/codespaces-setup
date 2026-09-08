@@ -17,6 +17,13 @@ either the cycle is complete (plan exhausted, work merged, CI green), or
 work remains for a follow-up session — in which case produce the
 copy-paste next-session prompt from Step 5b below.
 
+Whichever it is, the **last** thing the phase says is the session verdict:
+whether this session can now be closed, or, if it cannot, the one thing
+blocking it and what would clear it. That rule's home is `../SKILL.md`
+§"Closing a run"; it applies here after Step 4's closeout and any Step 5
+handoff, because those are the last actions that can leave something
+outstanding.
+
 ---
 
 This phase handles committing, merging, pushing, and CI verification.
