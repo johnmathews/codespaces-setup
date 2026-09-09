@@ -88,7 +88,7 @@ should point here.
 | Doc freshness is change-driven (`git log` over covered paths), not a calendar | §"Documentation gates" | `documentation-model.md` §6 (points here) |
 | The laws for promoting a check to required (unfiltered triggers, aggregator name, required ≠ enabled) | §"Making a check required…" | phase 4 (points here) |
 | Project conventions outrank this skill's defaults | §"The project's own conventions outrank this skill's defaults" | phase docs (branch/journal/docs locations are defaults) |
-| A stale-base push silently reverts a peer's merged files; fetch + two-endpoint diff before pushing | §"Stale-base pushes silently revert merged work" | `SKILL.md` §"Always work in a worktree" |
+| A stale-base push silently reverts a peer's merged files; before pushing, fetch and read the three-dot diff against the unit's file footprint | §"Stale-base pushes silently revert merged work" | `SKILL.md` §"Always work in a worktree"; `multi-session.md` §3 (the footprint the diff is read against) |
 
 ### Homed in `multi-session.md`
 

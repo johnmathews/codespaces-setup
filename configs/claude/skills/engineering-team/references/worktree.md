@@ -160,74 +160,155 @@ like `250321-descriptive-name.md` (YYMMDD format). Create these directories if t
 Worktrees isolate files completely — parallel sessions do not clobber each
 other's edits. The one thing they cannot isolate is **shared history**, and
 there is exactly one way concurrent sessions actively damage each other through
-it: a push whose tree is missing what `origin/main` gained. `git reset --soft
-origin/main` against an unfetched (stale) local ref, a force-push, or a rebase
-onto a stale base all produce a branch that, when merged, **deletes another
-session's merged files** — and every check passes on the reverting tree, so
-nothing downstream catches it. This has bitten a real repo: a soft-reset against
-a stale `origin/main` reverted another PR's files with all checks green.
+it: a commit whose **parent already contains** what `origin/main` gained while
+its **tree does not**. Merging or squashing that commit **deletes another
+session's merged files**, and every check passes on the reverting tree, so
+nothing downstream catches it. This has bitten a real repo: a soft-reset
+reverted another PR's files with all checks green.
+
+`git reset --soft` is the sharp edge, because it moves the parent and leaves the
+worktree alone. Reset onto a *freshly-fetched* `origin/main` from a stale tree
+and the next commit claims main's tip as its parent while carrying a tree that
+predates it — reproduced, and the peer's file is gone after the merge. Reset
+onto a *stale* ref is not this bug: the merge base is then the stale commit, so
+a merge preserves everything added after it (also reproduced). The hazard is a
+fresh parent over a stale tree, not a stale ref, and knowing which is which is
+what keeps the check below pointed at the real thing.
 
 **The rule, and it is the load-bearing part:** branch from a freshly-fetched
-`origin/main`, and before every push confirm you are not silently deleting what
-someone else merged.
+`origin/main`, and before every push read what the push actually changes and
+compare it against the unit's declared file footprint (`multi-session.md` §3).
 
 ```bash
 git fetch origin main
-git diff --name-status origin/main HEAD | grep '^D'   # files on main, absent on your branch
+git diff --name-status origin/main...HEAD    # exactly what this branch changes
 ```
 
-Every `D` line is a file that exists on `main` and not on your branch — a
-candidate silent reversion. Confirm each is a deletion you *meant*; if you never
-touched it, your base is stale — rebase onto the fresh `origin/main` and
-re-check.
+Every path outside the footprint is a candidate silent reversion, whichever
+letter precedes it: a `D` drops a file, and an `M` on a file the unit never
+claimed rewinds someone else's edit. The footprint is what makes the judgement
+mechanical — without it there is no way to tell an intended change from a
+reversion, because on the diff they look identical.
 
-**Use the two-endpoint diff (`origin/main HEAD`), not three-dot
-(`origin/main...HEAD`).** Three-dot diffs from the merge-base, so it shows only
-what your branch added — a file another session merged *after* your fork point is
-invisible to it, which is exactly the file being reverted. Verified on a
-reproduction: three-dot reported the reverting branch as a clean one-file edit
-while two-endpoint surfaced the deletion. Getting this wrong ships a guard that
-cannot see the thing it guards.
+**Use the three-dot diff (`origin/main...HEAD`), not two-endpoint
+(`origin/main HEAD`).** Three-dot diffs from the merge base, which is exactly
+what a merge or a squash applies to `main`, so it is the set of changes that can
+revert a peer. Two-endpoint additionally lists every file `main` gained or
+changed since your fork point, as `D` and `M` lines you never authored:
 
-**Optional backstop — a committed `pre-push` hook.** The habit above catches the
-subtle case a hook cannot, so the hook is a backstop, not a replacement. Ship it
-in the project (`.githooks/pre-push`, activated once per clone with `git config
-core.hooksPath .githooks`) and **prove it blocks before relying on it** — seed a
-stale-base push and watch it exit non-zero (`general-guidelines.md` rule 1: a
-gate ships with a test proving it goes red).
+```
+$ git diff --name-status origin/main HEAD      # two-endpoint, on a branch merely behind
+A  f.txt
+D  peer1.py                                    # merged by a peer after the fork point
+D  peer2.py                                    # both survive the merge untouched
+$ git diff --name-status origin/main...HEAD    # three-dot: this branch's one change
+A  f.txt
+```
+
+Both `D` lines above are noise. Verified by merging that branch: `peer1.py` and
+`peer2.py` survive, because a merge and a squash both work from the merge base.
+**Being behind `origin/main` is the normal state** under disjoint lanes, where
+PRs merge in any order with no rebases, so reading those `D` lines as reversions
+turns every push into a rebase of already-pushed history — which discards the
+remote tip, and discards a peer's commits outright if one has pushed to that
+branch. Three-dot still sees every real reversion: a branch can only revert
+content that existed at the merge base, and content merged after it is
+preserved.
+
+**Optional backstop — a committed `pre-push` hook.** The footprint comparison
+above catches what the hook cannot, so the hook is a backstop, not a
+replacement. Ship it in the project as `.githooks/pre-push` and **prove each
+branch of it before relying on it** (`general-guidelines.md` rule 1: a gate
+ships with a test proving it goes red).
+
+Activate it per clone with `git config core.hooksPath .githooks`. **That setting
+replaces `.git/hooks/` wholesale**, so in a repo running husky or `pre-commit` it
+silently stops the existing hooks from firing — confirmed by installing a
+`.git/hooks/pre-push` alongside it and watching it never run. In such a repo,
+register this script through the framework already in place instead.
 
 ```sh
 #!/bin/sh
-# Block a push that rewrites shared history to a stale tree.
-git fetch -q origin main
-zero=0000000000000000000000000000000000000000
-while read -r _local_ref local_sha _remote_ref remote_sha; do
-  # A branch *deletion* sends an all-zero local sha. It rewrites no tree, and
-  # every ancestry test below would error on the null oid, so skip the ref.
-  [ "$local_sha" = "$zero" ] && continue
-  # Force-push discarding an existing remote tip: does it drop the tip's commits?
-  if [ "$remote_sha" != "$zero" ] &&
-    ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
-    echo "pre-push: this discards commits already on the remote branch." >&2
-    echo "If another session pushed there, rebase — do not force." >&2
+# Warn before a push whose tree reverts work already on the base branch, and
+# block a push that discards remote commits this clone has never seen.
+remote="$1"
+# Derive the null oid rather than writing 40 zeros: a SHA-256 repo uses 64, and
+# a hardcoded 40 makes every comparison below miss.
+zero=$(git hash-object --stdin </dev/null | tr '0-9a-f' '0')
+
+branch=$(git symbolic-ref --quiet --short "refs/remotes/$remote/HEAD" 2>/dev/null)
+branch=${branch#"$remote"/}
+base="$remote/${branch:=main}"
+git fetch -q "$remote" "$branch" 2>/dev/null || stale=1
+if ! git rev-parse --verify --quiet "$base^{commit}" >/dev/null; then
+  # Name which it is. A guard that could not run must never read as one that ran.
+  heads=$(git ls-remote --heads "$remote" 2>/dev/null) || {
+    echo "pre-push: $remote is unreachable, so the stale-base guard did NOT run." >&2
     exit 1
+  }
+  [ -n "$heads" ] || exit 0 # empty remote: the first push can revert nothing
+  echo "pre-push: $base does not exist, so the stale-base guard did NOT run." >&2
+  echo "Name the base branch with: git remote set-head $remote -a" >&2
+  exit 1
+fi
+[ -n "$stale" ] && echo "pre-push: could not fetch $base; comparing against a stale copy." >&2
+
+status=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  # A branch deletion sends an all-zero local sha. It rewrites no tree, and the
+  # ancestry test below errors on the null oid, so skip the ref.
+  [ "$local_sha" = "$zero" ] && continue
+
+  # Rewriting the remote tip. Discarding commits this clone does not have means
+  # another session pushed them, so block. Discarding commits it does have is
+  # the rebase-then-force-with-lease flow this section prescribes, so pass it.
+  if [ "$remote_sha" != "$zero" ] &&
+    ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+    if git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      echo "pre-push: this drops $(git rev-list --count "$local_sha..$remote_sha") commit(s) from the remote tip." >&2
+      echo "Expected after a rebase. Push with --force-with-lease, never plain --force." >&2
+    else
+      echo "pre-push: the remote tip $remote_sha is not in this clone." >&2
+      echo "Another session pushed there. Fetch, rebase onto it, and do not force." >&2
+      status=1
+    fi
   fi
-  # Advanced-base is a WARN, not a block: it is legal (a rebase re-triggers CI),
-  # but it is also the shape of the stale-base reversion, so surface it. Test the
-  # ref being pushed, not HEAD — they differ whenever the push is not the branch
-  # you have checked out.
-  git merge-base --is-ancestor origin/main "$local_sha" ||
-    echo "pre-push: origin/main advanced past your base — rebase and re-check the diff above." >&2
+
+  # A merge or a squash applies the three-dot diff, so what it can drop is what
+  # this push deletes relative to the merge base, plus what both sides touched
+  # since it. Both sets are empty on a lane whose footprint is disjoint.
+  deleted=$(git diff --name-only --diff-filter=D "$base...$local_sha")
+  contended=$(
+    git diff --name-only "$base...$local_sha"
+    git diff --name-only "$local_sha...$base"
+  )
+  contended=$(printf '%s\n' "$contended" | sed '/^$/d' | sort | uniq -d)
+  overlap=$(printf '%s\n%s\n' "$deleted" "$contended" | sed '/^$/d' | sort -u)
+  if [ -n "$overlap" ]; then
+    echo "pre-push: files this push rewrites that $base already carries:" >&2
+    echo "$overlap" | sed 's/^/  /' >&2
+    echo "Any one outside this unit's file footprint is a silent reversion." >&2
+  fi
 done
+
+exit "$status"
 ```
 
-**Be honest about the hook's reach.** It hard-blocks only a force-push that
-discards a remote tip; the stale-base reversion above trips only the
-*advanced-base warning*, which prints and lets the push proceed. That is
-deliberate — advanced-base is a normal, legal state — but it means the hook does
-not stop the motivating case on its own. The `git diff` habit is what does; the
-hook narrows the window, and it is bypassable (`--no-verify`) and opt-in per
-clone. Rank them accordingly: rule first, hook second.
+**Be honest about the hook's reach.** It hard-blocks exactly one thing: a push
+that discards remote commits this clone has never seen, which is another
+session's push and is unrecoverable from here. Everything else prints and
+proceeds, and that is deliberate — a hook cannot see `--force-with-lease`, so
+every stricter block fires on the rebase this section prescribes and teaches
+`--no-verify`, which disables the whole hook.
+
+**One reversion shape stays invisible to it.** When the branch already contains
+the base tip and rewinds a file's *content* rather than deleting it, the diff is
+indistinguishable from an ordinary edit: nothing in git says which version was
+meant. Reproduced — a session soft-reset onto a fresh `main` from a stale tree,
+reverting a peer's edit to a shared file, and the hook printed nothing while the
+footprint comparison named the file immediately. The hook is also bypassable and
+opt-in per clone. Rank them accordingly: footprint comparison first, hook
+second.
 
 ### Linter Setup
 
