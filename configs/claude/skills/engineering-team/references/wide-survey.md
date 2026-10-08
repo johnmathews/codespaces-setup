@@ -18,6 +18,7 @@ delegated:
 | Step 2.5 NFR register | Cross-cutting by construction — an NFR is a property of the project, not of a directory |
 | Step 2.6 onboarding bar | *You* are the measurement. An agent that read one module cold has not had the experience being measured |
 | Engineer 5 / UI verification | One browser session, walked once. Fanning it out gets you N logins and no journey |
+| Any triggered specialist (`specialists.md`) | Each is one pass over one concern, not a lens. The suite runs once, the schema is one object, the hot paths are a property of the whole program |
 | Step 3 synthesis, regrading, disconfirmation | The judgement the whole phase exists to produce |
 
 **Read that table before writing the script.** The temptation is to push

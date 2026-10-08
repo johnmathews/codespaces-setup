@@ -40,7 +40,7 @@ paragraph a non-engineer can read, that paragraph is a summary at the top, not a
 register change halfway down. Prose that switches voice mid-document reads as two
 people arguing.
 
-## 2. Person, and the "we" carve-out
+## 2. Person, and the first-person carve-out
 
 This is the rule that differs most between registers, so it is stated once, here.
 

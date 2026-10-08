@@ -188,7 +188,7 @@ Each is cheap to write and expensive to read, and all four look like diligence.
    section recapping the section before. §7 already bans the local form. The
    same rule applies at document scale.
 
-### 6.4 The test
+### 6.4 The length test
 
 Read the headings alone. A reader who sees only those and the first sentence
 under each should come away with the answer, and everything else should be
