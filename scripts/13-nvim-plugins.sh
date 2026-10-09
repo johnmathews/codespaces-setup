@@ -56,19 +56,19 @@ NVIM_DB_DIR="${HOME}/.local/share/nvim/databases"
 mkdir -p "${NVIM_DB_DIR}"
 log "Ensured Neovim database directory exists: ${NVIM_DB_DIR}"
 
-# Bootstrap lazy.nvim and install/sync all plugins.
-# '+Lazy! sync' runs synchronously in headless mode.
-# '+qa' quits after the sync completes.
-log "Running lazy.nvim plugin sync (this may take a few minutes)..."
+# Restore plugins to the exact revisions recorded in the config repo's lockfile.
+# '+Lazy! restore' runs synchronously in headless mode without updating plugins.
+# '+qa' quits after the restore completes.
+log "Restoring lazy.nvim plugins from lazy-lock.json (this may take a few minutes)..."
 # Retried and time-bounded like every other network operation. Cloning dozens
 # of repos is slow, so allow a much longer per-attempt budget than the default.
 if RETRY_TIMEOUT="${NVIM_SYNC_TIMEOUT:-900}" RETRY_ATTEMPTS=3 \
-  retry nvim --headless "+Lazy! sync" +qa 2>&1; then
-  log "Plugin sync complete."
+  retry nvim --headless "+Lazy! restore" +qa 2>&1; then
+  log "Plugin restore complete."
 else
-  log "WARNING: Plugin sync exited with non-zero status – some plugins may be missing."
-  log "Re-run manually with: nvim --headless '+Lazy! sync' +qa"
-  NVIM_PROBLEMS+=("plugin sync failed")
+  log "WARNING: Plugin restore exited with non-zero status – some plugins may be missing."
+  log "Re-run manually with: nvim --headless '+Lazy! restore' +qa"
+  NVIM_PROBLEMS+=("plugin restore failed")
 fi
 
 # Run Treesitter parser compilation for common languages.
