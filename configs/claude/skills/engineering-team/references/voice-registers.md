@@ -1,15 +1,9 @@
 # Voice registers — who is reading, and how the prose sounds
 
-> Purpose
->
-> Pick the register before writing a word. Three audiences read what this team
-> produces and they do not want the same prose. This file owns the **axis** and
-> defines the two non-engineering registers. The Reference register's detailed
-> rules live in `writing-style.md`, which this file points at rather than
-> restates.
->
-> Load it when writing anything a non-engineer reads: product copy, a status
-> report, an explainer written for a product owner.
+> Loaded on demand, when writing anything a non-engineer reads: product copy, a
+> status report, an explainer for a product owner. This file owns the **axis**
+> and the two non-engineering registers; the Reference register's rules live in
+> `writing-style.md`.
 
 ## 1. The axis
 
@@ -21,10 +15,10 @@ One question picks the register: **who is reading, and what do they want back?**
 | **Briefing** | a colleague who does not write code | to understand a decision | §3 |
 | **Product** | someone using the thing | to get on with it | §4 |
 
-**Scope by path, not by judgement.** `documentation-model.md` §3 draws
-living-versus-point-in-time by path for exactly this reason: a rule that needs a
-decision gets a different decision each time. Set the mapping once in the
-project, and default to this:
+**Scope by path, not by judgement** — `documentation-model.md` §3 draws
+living-versus-point-in-time the same way, because a rule that needs a decision
+gets a different decision each time. Set the mapping once per project, defaulting
+to this:
 
 | Path | Register |
 | --- | --- |
@@ -32,13 +26,12 @@ project, and default to this:
 | `docs/briefings/`, status reports, anything addressed to a named non-engineer | Briefing |
 | UI strings, locale files, email and notification templates, error copy, onboarding flows | Product |
 
-The failure this prevents is a warm-voice pass rewriting the ADR log. Register
-follows the file, so that pass has nowhere to land.
+This is what stops a warm-voice pass rewriting the ADR log: register follows the
+file, so that pass has nowhere to land.
 
 **A document is written in one register.** When a Reference document needs a
 paragraph a non-engineer can read, that paragraph is a summary at the top, not a
-register change halfway down. Prose that switches voice mid-document reads as two
-people arguing.
+register change halfway down.
 
 ## 2. Person, and the first-person carve-out
 
@@ -50,21 +43,18 @@ This is the rule that differs most between registers, so it is stated once, here
 | **Briefing** | **"We" permitted** for the team. "I" still banned | Encouraged |
 | **Product** | **"We" preferred** over the company name. "I" only in UI labels the reader is choosing ("Remember my password") | Required |
 
-**Why the registers split rather than sharing one rule.** Published voice guides
-genuinely disagree, so this is a choice and not a consensus. Mailchimp mandates
-the first person everywhere, including API documentation: *"Refer to Mailchimp as
-'we,' not 'it.'"* Monzo writes its entire guide in it, and makes the first person
-load-bearing in its apology rule — *"It's never 'We'd like to apologise', it's
-'We're sorry'"* — which only works with a speaker on the page. Microsoft
-discourages it everywhere, including marketing, on the grounds that "we" reads as
-"a daunting corporate presence". Monzo and Mailchimp are the target here, so "we"
-is carved out — but only where a speaker actually exists. A reference document
-has no narrator, which is why the ban survives in the one register whose reader
-is looking something up.
+**Why the registers split.** Published guides disagree, so this is a choice, not
+a consensus. Mailchimp mandates the first person everywhere, API docs included —
+*"Refer to Mailchimp as 'we,' not 'it.'"* — and Monzo makes it load-bearing in
+its apology rule: *"It's never 'We'd like to apologise', it's 'We're sorry'."*
+Microsoft discourages it everywhere, including marketing, because "we" reads as
+"a daunting corporate presence". Monzo and Mailchimp are the target, so "we" is
+carved out where a speaker exists. A reference document has no narrator, which is
+why the ban survives there.
 
-**"We" needs a referent the reader can name.** In Product copy it is the
-company. In a Briefing it is the team. A "we" that could mean either is the
-corporate fog both guides warn about, so name the actor instead.
+**"We" needs a referent the reader can name** — the company in Product copy, the
+team in a Briefing. A "we" that could mean either is the corporate fog both
+guides warn about.
 
 ## 3. The Briefing register
 
@@ -89,34 +79,28 @@ product owner, a manager, a stakeholder.
 For copy inside the thing being used: interface strings, errors, notifications,
 onboarding, transactional email.
 
-**Warm does not mean funny.** This is the distinction most easily lost, so take
-Monzo's settings directly: it dials clarity and kindness to the maximum for
-operational and support copy, and sets humour to **none** — "the risk of getting
+**Warm does not mean funny.** Monzo dials clarity and kindness to the maximum for
+operational and support copy and sets humour to **none** — "the risk of getting
 it wrong is greater than the benefit of getting it right". Everything this team
-writes for a product lands in exactly that category. So the warmth is carried by
-plain words, contractions and respect for the reader, never by a joke in an error
-message. Charm belongs in marketing copy, which is not what this register covers.
+writes for a product is in that category, so warmth comes from plain words and
+respect for the reader, never from a joke in an error message.
 
 - **"We" for the company, "you" for the reader.** Never "the user" in copy the
   user is reading.
-- **Contractions are the default.** They are the single largest warmth lever and
-  every verified guide treats them that way.
+- **Contractions are the default** — the single largest warmth lever.
 - **Keep sentences to 25 words or fewer** — Mailchimp's published number, and
   tighter than the 40-word ceiling `writing-style.md` §5 sets for Reference.
-- **Plain words, not formal ones.** Swap the business register for the spoken
-  one: *about* not *regarding*, *start* not *commence*, *use* not *utilise*.
-  Jargon is defined on first use or removed.
-- **Read it aloud.** Monzo's test, and the fastest one there is: if it isn't
-  language you would use face to face, it's the wrong language.
+- **Plain words, not formal ones:** *about* not *regarding*, *start* not
+  *commence*, *use* not *utilise*. Jargon defined on first use, or removed.
+- **Read it aloud.** Monzo's test: if it isn't language you'd use face to face,
+  it's the wrong language.
 - **Open with "but", "and" or "so" when it helps.** There has never been a rule
-  against it, and it is how speech actually joins sentences.
-- **Respect the reader.** Explain without patronising. Address them, do not
-  market at them.
-- **Be understandable to everyone.** Idioms, wordplay and cultural references
-  cost the most from readers whose first language is not English, and they are
-  the easiest thing to cut.
-- **Exclamations are allowed, sparingly.** Use one where a person would. Never to
-  manufacture enthusiasm the reader does not share.
+  against it, and it is how speech joins sentences.
+- **Explain without patronising.** Address the reader, do not market at them.
+- **Skip idioms, wordplay and cultural references.** They cost the most from
+  readers whose first language is not English, and they are the easiest cut.
+- **Exclamations sparingly** — where a person would, never to manufacture
+  enthusiasm the reader does not share.
 - **Active voice, actor named.** Shared with every register.
 
 ### 4.1 Error copy
@@ -139,21 +123,19 @@ rules.
 
 ## 5. Serious is not the same as formal
 
-The reflex is the other way round, which is why this needs saying. When the
-subject is sensitive — a failure, a refusal, a bill, lost data, bad news of any
-kind — prose stiffens. The sentences lengthen, the actor disappears, and
-"unfortunately we are unable to process your request at this time" arrives in
-place of "we can't take that payment yet".
+The reflex runs the other way, which is why this needs saying. When the subject
+is sensitive — a failure, a refusal, a bill, lost data — prose stiffens. The
+sentences lengthen, the actor disappears, and "unfortunately we are unable to
+process your request at this time" replaces "we can't take that payment yet".
 
 That reflex is a writer protecting themselves, and it costs the reader exactly
 when they can least afford it. A sensitive subject is a reason to be
-**warmer and plainer, not more formal.** Take it as the tell for the two failure
-modes already banned elsewhere: the passive voice creeping in
-(`writing-style.md` §2 rule 2) and the sentence growing past the point a reader
-can hold it.
+**warmer and plainer, not more formal.** Treat the stiffening as the tell for two
+things already banned: the passive voice creeping in (`writing-style.md` §2 rule
+2) and sentences growing past what a reader can hold.
 
-This applies to every register, including Reference. An incident note is not
-improved by sounding like a legal filing.
+Every register, Reference included. An incident note is not improved by sounding
+like a legal filing.
 
 ## 6. What no register changes
 

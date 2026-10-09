@@ -124,21 +124,19 @@ document that reads as if it resents being written is one a reader puts down.
 
 ## 6. Length, and the detail budget
 
-**A document nobody finishes has failed.** Not every document is read end to
-end, and that is fine for the ones built to be searched. But an ADR, an RFC, an
-explainer and a README are arguments, and an argument only works if it lands. If
-the habit is to skim and never finish, the document is too long, and the fix is
-to cut it rather than to expect more of the reader.
-
-So split documents by how they are used:
+**A document nobody finishes has failed.** Some documents are built to be
+searched and that is fine. But an ADR, an RFC, an explainer and a README are
+arguments, and an argument only works if it lands. If the habit is to skim and
+never finish, the document is too long, and the fix is to cut it rather than to
+expect more of the reader.
 
 | Kind | Examples | Read how | Budget |
 | --- | --- | --- | --- |
 | **Read-through** | ADR, RFC, explainer, README, briefing | start to finish, once | **yes, below** |
-| **Lookup** | spec, configuration reference, API surface, runbook, troubleshooting | searched, never read whole | **no budget** — completeness is the job |
+| **Lookup** | spec, configuration reference, API surface, runbook, troubleshooting | searched, never read whole | **none** — completeness is the job |
 
-§8 says developers scan rather than read. That is true of lookup surfaces and it
-is not a licence for a read-through document to sprawl.
+§8's "developers scan rather than read" describes lookup surfaces. It is not a
+licence for a read-through document to sprawl.
 
 ### 6.1 Budgets
 
@@ -146,21 +144,16 @@ Starting points, not laws. Measure with `wc -w`.
 
 | Document | Budget |
 | --- | --- |
-| ADR | **400 words.** One decision, its consequences, a link to the RFC |
+| ADR | **400 words** — one decision, its consequences, a link to the RFC |
 | Explainer | **900 words** |
-| RFC | **2,000 words.** The one type whose job is exploring alternatives |
-| README | **600 words.** Longer means the detail belongs in `docs/` |
+| RFC | **2,000 words** — the one type whose job is exploring alternatives |
+| README | **600 words** — longer means the detail belongs in `docs/` |
 | Briefing | **one screen** (`voice-registers.md` §3) |
 
 Follow the status-stamp precedent in `documentation-model.md` §8: land the
 threshold where it reds real documents on arrival, then ratchet down. **Never
 raise a budget to turn a red document green.** The red is the measurement
-working, and the overflow is content that belongs somewhere else.
-
-### 6.2 Where the cut content goes
-
-Without a named destination, "keep it short" loses to the instinct that the
-detail might matter. It usually does matter. It just belongs elsewhere.
+working, and the overflow belongs somewhere else:
 
 | Content | Destination |
 | --- | --- |
@@ -171,32 +164,24 @@ detail might matter. It usually does matter. It just belongs elsewhere.
 | background a reader may already have | one sentence and a link |
 | the same point made again in different words | nowhere. Delete it |
 
-### 6.3 The four things that make a document long
+### 6.2 What makes a document long
 
-Each is cheap to write and expensive to read, and all four look like diligence.
+Four habits, each cheap to write, expensive to read, and disguised as diligence.
 
-1. **The war story.** A rule earns its place by being correct, not by being
-   argued at length. State the rule, then name the incident in a clause with a
-   link. Three paragraphs of narrative belong in the journal, which exists for
-   exactly this.
-2. **Pre-emptive defence.** Answering objections nobody raised. Say the thing
-   once and let it stand. If an objection is genuinely common, one sentence
-   handles it.
-3. **Over-explaining.** Context the reader already has. Judge by the reader the
-   document names, not by the least informed person who might open it.
-4. **Restatement.** The paragraph summarising the paragraph above it, the
-   section recapping the section before. §7 already bans the local form. The
-   same rule applies at document scale.
+1. **The war story.** State the rule, then name the incident in a clause with a
+   link. The narrative belongs in the journal.
+2. **Pre-emptive defence.** Answering objections nobody raised. Say it once.
+3. **Over-explaining.** Judge by the reader the document names, not by the least
+   informed person who might open it.
+4. **Restatement.** §7 bans the local form; the same applies at document scale.
 
-### 6.4 The length test
+### 6.3 The length test
 
 Read the headings alone. A reader who sees only those and the first sentence
-under each should come away with the answer, and everything else should be
-support for someone who wants it. If the headings alone do not carry the
+under each should come away with the answer. If the headings do not carry the
 document, the structure is wrong and length is the symptom.
 
-Then ask the blunt one: **would you read this to the end?** A document whose
-author would skim it has already found its defect.
+Then the blunt one: **would you read this to the end?**
 
 ## 7. Do not write
 
