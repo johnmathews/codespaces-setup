@@ -88,6 +88,8 @@ should point here.
 |---|---|---|
 | Register is picked by the file's path, never per-document judgement; one document is written in one register | §"The axis" | `writing-style.md` §1 (which names the register it governs) |
 | The first person is carved out by register: `we` for the company in Product copy and for the team in a Briefing, still banned in Reference | §"Person, and the first-person carve-out" | `writing-style.md` §"The two hard rules" rule 1 (the home of the ban itself); `SKILL.md` §"Writing documentation" |
+| Warmth is carried by plain words and contractions, never by humour: the humour dial is none for product, support and briefing copy | §"The Product register" | §"What no register changes" item 4 (which extends it to every register) |
+| A sensitive subject is a reason to be warmer and plainer, not more formal; the stiffening reflex is the tell for passive voice and overlong sentences | §"Serious is not the same as formal" | `writing-style.md` §"The two hard rules" rule 2 (the passive-voice ban it points at) |
 
 ### Homed in `specialists.md`
 
