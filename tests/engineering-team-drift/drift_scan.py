@@ -83,6 +83,18 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                              r"takes the imperative mood"),
     "shared-singleton-doc": ("references/documentation-model.md", r"shared singleton"),
     "stale-base-push": ("references/worktree.md", r"stale-base"),
+    "detail-budget": ("references/writing-style.md",
+                      r"A document nobody finishes has failed"),
+    "register-by-path": ("references/voice-registers.md",
+                         r"Scope by path, not by judgement"),
+    "first-person-carve-out": ("references/voice-registers.md",
+                               r"the first-person carve-out"),
+    "humour-dial-off": ("references/voice-registers.md",
+                        r"Warm does not mean funny"),
+    "serious-not-formal": ("references/voice-registers.md",
+                           r"warmer and plainer, not more formal"),
+    "specialist-default-off": ("references/specialists.md",
+                               r"A specialist is an addition, not a resize"),
 }
 
 

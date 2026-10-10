@@ -475,6 +475,13 @@ writing or auditing docs.
 
 **How a document *reads* is a separate question, owned by
 `references/writing-style.md`:** never the first person, always the active voice.
+That file also caps how **long** a read-through document may be (§6), because a
+document nobody finishes has failed.
+
+**Who is reading is a third question, owned by `references/voice-registers.md`.**
+The rules above are the Reference register's, for engineers. Copy inside a
+product and documents written for a non-engineer use a warmer register, and
+`we` is carved out there. Register follows the file path.
 
 ## Cross-cutting references
 
@@ -482,6 +489,10 @@ Load these on demand when their topic becomes relevant:
 
 - `references/team-structure.md` — roles (lead engineer, product owner,
   engineer), output formatting, and how to ask questions.
+- `references/specialists.md` — three **conditional** roles kept off by
+  default: the test engineer (suite speed), the database engineer (schema,
+  indexing, query shape), and the hot-path analyst (the code that runs most).
+  Each turns on only when a fact on disk triggers it; Phase 1's Step 2 checks.
 - `references/workflows.md` — Build vs Discussion overview.
 - `references/worktree.md` — working directory invariants, worktree
   isolation, linter detection, and the CI-gate laws.
@@ -489,8 +500,15 @@ Load these on demand when their topic becomes relevant:
   precedence, explainers, the documentation gates, **and how to write a doc**:
   heading numbering, stable IDs, and the living-document status stamp.
 - `references/writing-style.md` — how documentation should **read**: the two hard
-  rules, rhythm, the machine-generated tells, and what a document must contain.
-  Load it with `documentation-model.md`, which decides *which* document to write.
+  rules, rhythm, the machine-generated tells, the **detail budget** (§6, which
+  caps a read-through document's length and names where the cut content goes),
+  and what a document must contain. Load it with `documentation-model.md`, which
+  decides *which* document to write.
+- `references/voice-registers.md` — **who is reading**: the Reference register
+  (engineers, governed by `writing-style.md`), the Briefing register (a reader
+  who does not write code) and the Product register (copy inside the product).
+  It owns the person rule per register, including where `we` is permitted. Load
+  it before writing anything a non-engineer reads.
 - `references/multi-session.md` — parallel lanes across sessions:
   single-writer, disjoint footprints, coordinator/worker roles.
 - `references/coordination-protocol.md` — how coordinator and worker sessions

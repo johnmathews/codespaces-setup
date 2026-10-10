@@ -29,6 +29,10 @@ place.
 | **Journal** | "what happened, and what bit us?" | `journal/` | **Append-only. Never edited** | **nothing** — narrative history |
 | **Explainer** | "how should I *understand* this?" | `docs/explainers/` | Living (status-stamped) | **nothing** — teaches around the sources of truth |
 
+**How long each may be is a separate rule, owned by `writing-style.md` §6.** An
+RFC, an ADR, an explainer and a README are read start to finish, so each carries
+a word budget. A spec is searched rather than read, so it carries none.
+
 ### 1.1 RFC vs ADR — the distinction that carries the model
 
 **An RFC is the conversation. An ADR is the conclusion, indexed.**

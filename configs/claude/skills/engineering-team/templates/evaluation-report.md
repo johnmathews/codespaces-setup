@@ -170,4 +170,9 @@ with no accessibility requirement at all is the commonest.>
      it did NOT cover. Team shape and agent count. Anything capped, skipped
      or sampled. Any brief nobody was given, so silence is not read as
      coverage. If a tool was unavailable (Playwright, Workflow), say which
-     claim was therefore not made. -->
+     claim was therefore not made.
+
+     Name every specialist (references/specialists.md) that ran, with the
+     trigger that fired it, AND every one that did not. "No database
+     findings" and "no database engineer ran" mean opposite things, and a
+     reader cannot tell them apart unless this section says which. -->

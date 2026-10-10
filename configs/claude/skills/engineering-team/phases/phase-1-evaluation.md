@@ -191,6 +191,20 @@ grade them afterwards — grading is a statement about how the observation
 was made, and the lead did not make it. A report that comes back ungraded
 goes back to the agent.
 
+**3. Check whether any specialist is triggered.**
+`../references/specialists.md` holds three conditional roles — the **test
+engineer** (suite speed), the **database engineer** (schema, indexing,
+query shape) and the **hot-path analyst** (the code that runs most). Each
+is **off by default** and turns on only when a fact on disk says so, so
+most projects add none and the file is never loaded.
+
+Check the triggers against what recon found. If one fires, load that file
+and **name the specialist and its trigger in the same breath as the agent
+count** — *"plus the database engineer, triggered by `migrations/` and 23
+model files."* A specialist is an addition, not a resize: the bands above
+do not move. They are evaluation lenses only, and their findings reach
+Phase 3 through the plan like any other.
+
 **Engineer 1 — Codebase structure, quality, and problem space research:**
 
 The team's primary web researcher — findings on dependencies, APIs, and best

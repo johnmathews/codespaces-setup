@@ -14,10 +14,18 @@
 This governs prose written for a human reader. Project documentation, reports,
 runbooks and explainers all count.
 
-Two things are outside it. A machine-read format such as a status stamp keeps its
-required shape even where that shape breaks a rule below. And a project with its
-own written style guide outranks this file, per the project-conventions rule in
-`worktree.md`.
+**It governs the Reference register specifically**: prose for an engineer who
+arrives with a question. Two other registers exist and this file does not govern
+them. `voice-registers.md` owns the audience axis and defines the **Briefing**
+register (a reader who does not write code) and the **Product** register (copy
+inside the thing being used). Register follows the file path, so check there
+before writing anything a non-engineer reads. §2 rule 1 in particular differs by
+register.
+
+Two things are outside all of it. A machine-read format such as a status stamp
+keeps its required shape even where that shape breaks a rule below. And a project
+with its own written style guide outranks this file, per the project-conventions
+rule in `worktree.md`.
 
 This skill's own reference files, commit messages and PR bodies are in scope for
 §2 only. Both of its rules are greppable, and neither depends on a reader
@@ -28,11 +36,19 @@ arriving with a question.
 Documentation is **reference reading**. It is not a blog post, and it is not a
 narrative. A reader arrives with a question and leaves once it is answered.
 
-Two rules follow, and neither has an exception.
+Two rules follow. Rule 2 has no exception in any register. Rule 1 holds without
+exception **inside this register**, and `voice-registers.md` §2 is the only place
+that can relax it.
 
 1. **Never write in the first person. Not "I", not "we", not "our", not "us".**
    There is no narrator. A quoted phrase may contain one, such as a developer's
    complaint reproduced in quotation marks. Nothing else may.
+
+   **This rule is the Reference register's.** A reference document has no
+   speaker, which is the whole of the reason. Where a speaker genuinely exists —
+   a company addressing a customer, a team briefing a stakeholder — `we` is
+   carved out by register in `voice-registers.md` §2. "I" stays banned in every
+   register except a UI label the reader is choosing.
 2. **Use the active voice, and name the actor.** The actor is almost always the
    thing itself. The gate rejects the change. The suite runs in four minutes. The
    deployment stops. If a sentence only works in the passive, the actor is
@@ -73,6 +89,9 @@ explainer describing how something works stays descriptive.
 
 ## 4. Voice
 
+The register is plain and unhurried. Precise does not require severe, and a
+document that reads as if it resents being written is one a reader puts down.
+
 - **Lead with the thing.** First sentence, first paragraph. No preamble and no
   "this document describes".
 - **Mark a judgement as a judgement, without a narrator.** "This is the weakest
@@ -82,8 +101,15 @@ explainer describing how something works stays descriptive.
   still unknown." No defensiveness, and no promise to fix it.
 - **Be specific, and hedge an approximation openly.** "Four minutes", "about 12%
   of rows", "roughly 40 files". Never "significantly larger".
-- **No jokes, no exclamations, no asides about feelings.** The goal is prose a
-  person is comfortable reading, not a performance of being human.
+- **Contractions are welcome.** "It's", "you'll", "doesn't". They cost nothing
+  and they are most of the difference between prose that sounds like a colleague
+  and prose that sounds like a policy.
+- **Address the reader as a competent colleague.** Explain the thing, not the
+  obvious thing next to it. Over-explaining reads as distrust, and it is a common
+  source of the bulk §6.1 budgets.
+- **No jokes and no asides about feelings.** The goal is prose a person is
+  comfortable reading, not a performance of being human. An exclamation mark is
+  not forbidden outright, but one per document is already plenty.
 
 ## 5. Rhythm
 
@@ -96,7 +122,68 @@ explainer describing how something works stays descriptive.
   lands because it is bold, rewrite the sentence instead.
 - **Paragraphs run two to five sentences** and carry one idea each.
 
-## 6. Do not write
+## 6. Length, and the detail budget
+
+**A document nobody finishes has failed.** Some documents are built to be
+searched and that is fine. But an ADR, an RFC, an explainer and a README are
+arguments, and an argument only works if it lands. If the habit is to skim and
+never finish, the document is too long, and the fix is to cut it rather than to
+expect more of the reader.
+
+| Kind | Examples | Read how | Budget |
+| --- | --- | --- | --- |
+| **Read-through** | ADR, RFC, explainer, README, briefing | start to finish, once | **yes, below** |
+| **Lookup** | spec, configuration reference, API surface, runbook, troubleshooting | searched, never read whole | **none** — completeness is the job |
+
+§8's "developers scan rather than read" describes lookup surfaces. It is not a
+licence for a read-through document to sprawl.
+
+### 6.1 Budgets
+
+Starting points, not laws. Measure with `wc -w`.
+
+| Document | Budget |
+| --- | --- |
+| ADR | **400 words** — one decision, its consequences, a link to the RFC |
+| Explainer | **900 words** |
+| RFC | **2,000 words** — the one type whose job is exploring alternatives |
+| README | **600 words** — longer means the detail belongs in `docs/` |
+| Briefing | **one screen** (`voice-registers.md` §3) |
+
+Follow the status-stamp precedent in `documentation-model.md` §8: land the
+threshold where it reds real documents on arrival, then ratchet down. **Never
+raise a budget to turn a red document green.** The red is the measurement
+working, and the overflow belongs somewhere else:
+
+| Content | Destination |
+| --- | --- |
+| the incident that motivated a rule | the journal, cited in one clause |
+| the alternatives weighed | the RFC this ADR links to |
+| every field, flag and default | the spec or reference surface |
+| the step-by-step | a runbook |
+| background a reader may already have | one sentence and a link |
+| the same point made again in different words | nowhere. Delete it |
+
+### 6.2 What makes a document long
+
+Four habits, each cheap to write, expensive to read, and disguised as diligence.
+
+1. **The war story.** State the rule, then name the incident in a clause with a
+   link. The narrative belongs in the journal.
+2. **Pre-emptive defence.** Answering objections nobody raised. Say it once.
+3. **Over-explaining.** Judge by the reader the document names, not by the least
+   informed person who might open it.
+4. **Restatement.** §7 bans the local form; the same applies at document scale.
+
+### 6.3 The length test
+
+Read the headings alone. A reader who sees only those and the first sentence
+under each should come away with the answer. If the headings do not carry the
+document, the structure is wrong and length is the symptom.
+
+Then the blunt one: **would you read this to the end?**
+
+## 7. Do not write
 
 These read as machine generated:
 
@@ -109,7 +196,7 @@ These read as machine generated:
   ranking things.
 - The previous paragraph restated in different words.
 
-## 7. Skimmability, and how it squares with §5
+## 8. Skimmability, and how it squares with §5
 
 Developers scan documentation rather than reading it through, so a reader has to
 find an answer by eye. **Structure carries that load, and bold does not.** That
@@ -123,7 +210,7 @@ is the reconciliation with the bold rule in §5, which still holds.
 - A heading exists because a reader needs to find something, not because three
   paragraphs have gone by. A short piece needs none.
 
-## 8. What a document must contain
+## 9. What a document must contain
 
 `documentation-model.md` §1 decides which document to write. These are content
 rules for the kinds it does not enumerate, and they never override it.
@@ -159,7 +246,7 @@ rules for the kinds it does not enumerate, and they never override it.
 - **Say what to do when the fix does not work.** An entry with one remedy and no
   fallback strands the reader it was written for.
 
-## 9. The test
+## 10. The test
 
 Read it aloud. If you run out of breath, cut the sentence. If every sentence is
 the same length, break one. If the emphasis lives in the bold rather than in the

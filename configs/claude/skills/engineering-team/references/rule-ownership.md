@@ -31,7 +31,9 @@
 |---|---|
 | `references/general-guidelines.md` | verification integrity (claim ≤ check, "green" is named, exemptions expire, caller can't verify callee); evidence grading + severity; disconfirmation; subagent independence / shared priors; structural-enforcement-over-policy; triage; Playwright/UI verification |
 | `references/documentation-model.md` | the six doc types; authority precedence; living-vs-point-in-time (split by path); heading numbering + stable IDs; the living-document **status stamp** incl. "method matches the claim" and the stamp size-budget *rule*; **shared-singleton docs** (one writer — automate or single-owner) |
-| `references/writing-style.md` | how documentation reads. No first person, active voice, and the imperative mood for steps. Rhythm, the banned punctuation, the machine-generated tells, and what a document must contain where the doc model does not say |
+| `references/writing-style.md` | how documentation reads. No first person, active voice, and the imperative mood for steps. Rhythm, the banned punctuation, the machine-generated tells, the **detail budget** for read-through documents, and what a document must contain where the doc model does not say |
+| `references/voice-registers.md` | **who is reading**: the three registers and the path mapping that picks one; the person rule per register, including the `we` carve-out; the Briefing and Product register rules |
+| `references/specialists.md` | the **conditional roles**: default-off, trigger-on-a-fact, announce-with-the-trigger, addition-not-a-resize, evaluation-only; each specialist's boundary and evidence ceiling |
 | `references/worktree.md` | worktree isolation + the **detection idiom**; "already in one → don't nest"; project-conventions-outrank-defaults; linter setup; the **documentation gates**, the **make-a-check-required laws**, "gate the code no other gate reads", and the **stale-base push guard** |
 | `references/multi-session.md` | single-writer / one-artifact-one-owner; disjoint file footprints; append-only coordinator-owned plan; never-touch-another-lane's-worktree; the multi-session invariant list |
 | `references/coordination-protocol.md` | the three planes (control / state / sensing); the six-type message vocabulary + the mandatory `ref`; the blocking pre-PR gate + its four CHANGES criteria + the round limit; the contract register + unit zero + the integration gate; the sense-don't-act autonomy boundary |
@@ -73,11 +75,28 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
-| Documentation is never written in the first person, meaning no "I", "we", "our" or "us". A quoted phrase may contain one | §"The two hard rules" rule 1 | `SKILL.md` §"Writing documentation" (one-line application) |
-| Active voice, with the actor named. A sentence that only works in the passive is missing its actor | §"The two hard rules" rule 2 | `SKILL.md` §"Writing documentation" |
+| Documentation is never written in the first person, meaning no "I", "we", "our" or "us". A quoted phrase may contain one | §"The two hard rules" rule 1 | `SKILL.md` §"Writing documentation" (one-line application); `voice-registers.md` §"Person, and the first-person carve-out" (the register that may relax it) |
+| Active voice, with the actor named. A sentence that only works in the passive is missing its actor | §"The two hard rules" rule 2 | `SKILL.md` §"Writing documentation"; `voice-registers.md` §"What no register changes" |
 | Anything the reader is meant to do takes the imperative mood, and a precondition comes before the step it governs | §"Mood: imperative for steps" | nothing else |
 | No em dashes and no semicolons in documentation prose | §"Rhythm" | nothing else |
+| A read-through document carries a length budget; ratchet it down, never raise it to turn a red document green | §"Length, and the detail budget" | `documentation-model.md` §8 (the status-stamp budget this follows); `SKILL.md` §"Writing documentation" |
 | What a document must contain where the doc model does not say, such as a README purpose in two sentences and troubleshooting grouped by error message | §"What a document must contain" | nothing else. `documentation-model.md` §1 decides *which* type to write, and stops there |
+
+### Homed in `voice-registers.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| Register is picked by the file's path, never per-document judgement; one document is written in one register | §"The axis" | `writing-style.md` §1 (which names the register it governs) |
+| The first person is carved out by register: `we` for the company in Product copy and for the team in a Briefing, still banned in Reference | §"Person, and the first-person carve-out" | `writing-style.md` §"The two hard rules" rule 1 (the home of the ban itself); `SKILL.md` §"Writing documentation" |
+| Warmth is carried by plain words and contractions, never by humour: the humour dial is none for product, support and briefing copy | §"The Product register" | §"What no register changes" item 4 (which extends it to every register) |
+| A sensitive subject is a reason to be warmer and plainer, not more formal; the stiffening reflex is the tell for passive voice and overlong sentences | §"Serious is not the same as formal" | `writing-style.md` §"The two hard rules" rule 2 (the passive-voice ban it points at) |
+
+### Homed in `specialists.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| A specialist stays off until a fact on disk triggers it, is announced together with that trigger, and never resizes the team bands | §"Why they are off by default" | `phase-1-evaluation.md` Step 2 (the check); `wide-survey.md` (why they do not fan out) |
+| A specialist states the boundary against the standing lens beside it, and an evidence ceiling it cannot exceed without the measurement it may not get | §"The shape every entry has" | `team-structure.md` (the findings contract each brief carries verbatim) |
 
 ### Homed in `worktree.md`
 
