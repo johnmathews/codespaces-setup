@@ -53,6 +53,14 @@ python3 tests/engineering-team-drift/drift_scan.py
 bash tests/setup-resilience/run.sh
 ```
 
+The resilience suite also exercises the Neovim bootstrap/sync wrappers over fake
+upstream scripts: checkout working directory, user-local prefix/PATH, proxy trust,
+retry recovery, timeout, and truthful failure status. The real container smoke
+test (`bash ci/smoke-container.sh`) uses the devcontainer post-create entrypoint
+on Ubuntu 24.04, waits for background sync to finish, checks the selected Neovim
+pin and unchanged lockfile, then reruns config deployment, bootstrap and sync.
+CI also exercises the account-wide dotfiles environment with `universal:6`.
+
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace
 itself already installs `shfmt` via `scripts/15-dev-tools.sh`).
 

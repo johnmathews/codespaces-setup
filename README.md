@@ -27,13 +27,15 @@ single most common cause of a partial setup, and it is a one-line fix.
 
 A repo's base image is set by its own `.devcontainer/devcontainer.json`. There is **no account-wide
 setting** — a repo with no devcontainer gets GitHub's default "universal" image.
+Account-wide dotfiles cannot change that image. Neovim now requires **glibc 2.39+**
+(Ubuntu 24.04+ or Debian 13+), as enforced by its upstream bootstrap.
 
 | Image | Base OS | glibc | Works with this kit? |
 | --- | --- | --- | --- |
 | `universal:2` | Ubuntu 20.04 (focal) | 2.31 | **No** — Neovim, yazi and stylua cannot run; `zoxide` is not packaged |
 | `universal:6` | Ubuntu 24.04 (noble) | 2.39 | Yes |
-| `python:1-3.12-bookworm` | Debian bookworm | 2.36 | Yes |
-| `base:ubuntu` | Ubuntu 24.04 (noble) | 2.39 | Yes — what this repo pins |
+| `python:1-3.12-bookworm` | Debian bookworm | 2.36 | No — too old for Neovim |
+| `base:ubuntu-24.04` | Ubuntu 24.04 (noble) | 2.39 | Yes — what this repo pins |
 
 `universal:2` is the *focal* line and is four major versions behind; everything from `universal:3`
 onward is noble. If you have `universal:2` pinned, that is almost certainly a leftover rather than a
@@ -44,8 +46,8 @@ decision.
 - **`universal:6`** — the everything-image: Python, Node, Java, .NET, Go, Ruby, conda, all preinstalled.
   Choose it when you don't want to think about what a repo needs, or when moving off `universal:2` with
   the least risk. It is large (~10 GB+), so Codespaces take noticeably longer to create.
-- **`python:1-3.12-bookworm`** — a focused Python image. Choose it for a Python project. Far smaller and
-  much faster to start. Add anything else you need as a `feature` rather than reaching for `universal`.
+- **`base:ubuntu-24.04`** — a focused image. Add Python or other project tooling as
+  `features` rather than choosing an older Debian bookworm image.
 
 Changing the image requires creating a **new** Codespace — rebuilding an existing one will not switch it.
 
@@ -54,10 +56,11 @@ Changing the image requires creating a **new** Codespace — rebuilding an exist
 ```json
 {
   "name": "my-python-project",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
 
   // Anything the image does not already provide.
   "features": {
+    "ghcr.io/devcontainers/features/python:1": {},
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
@@ -77,8 +80,9 @@ Changing the image requires creating a **new** Codespace — rebuilding an exist
 Swap the `image` line for `mcr.microsoft.com/devcontainers/universal:6` if you would rather have
 everything preinstalled and drop the `features` block.
 
-**On an older image anyway?** The setup will not fail. Steps that cannot work on that platform are
-reported as *skipped*, with the reason, and everything else still installs — see
+**On an older image anyway?** The Neovim bootstrap fails with a clear platform message;
+the runner records the failure and continues installing independent tools. Other unsupported
+steps may be reported as *skipped* — see
 [Troubleshooting](#troubleshooting-my-codespace-came-up-half-built).
 
 If you need to run the script manually:
@@ -279,7 +283,7 @@ The script is idempotent – safe to run multiple times.
 
 | Tool                        | Version  | Purpose                                                                                                                     |
 | --------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Neovim**                  | v0.11.5  | Editor (config from [johnmathews/neovim](https://github.com/johnmathews/neovim))                                            |
+| **Neovim**                  | Upstream pin (currently v0.12.6) | Editor and bootstrap from [johnmathews/neovim](https://github.com/johnmathews/neovim) |
 | **Node.js**                 | 22 LTS   | Required for Neovim Mason LSP servers / formatters                                                                          |
 | **eza**                     | v0.20.14 | Modern `ls` replacement                                                                                                     |
 | **yazi**                    | v0.4.2   | Terminal file manager                                                                                                       |
@@ -319,7 +323,7 @@ configs/
 scripts/
   01-apt-packages.sh    # Install CLI tools via apt
   02-nodejs.sh          # Install Node.js 22 (official tarball into /usr/local)
-  03-neovim.sh          # Install Neovim AppImage (v0.11.5)
+  03-neovim.sh          # Run upstream bootstrap after config checkout + general tools
   04-neovim-config.sh   # Clone johnmathews/neovim → ~/.config/nvim
   05-eza.sh             # Install eza binary
   06-yazi.sh            # Install yazi binary
@@ -329,7 +333,7 @@ scripts/
   10-zsh-setup.sh       # Install Oh My Zsh, plugins, Powerlevel10k
   11-dotfiles.sh        # Deploy .zshrc, aliases, gitconfig; set default shell to zsh
   12-claude-code.sh     # Install Claude Code CLI
-  13-nvim-plugins.sh    # Pre-load Neovim plugins headlessly (run in background)
+  13-nvim-plugins.sh    # Upstream pinned plugin/Mason/parser sync (background)
   14-fonts.sh           # Install MesloLGS NF Nerd Font (in-container; SSH use)
   lib.sh                # SOURCED by the steps, never run as one: the shared retry /
                         # net_curl / install-guard helpers. Deliberately absent
@@ -435,12 +439,26 @@ If you specifically need the original restricted token back in a shell (e.g. for
 ## Neovim configuration
 
 The Neovim config is pulled directly from [johnmathews/neovim](https://github.com/johnmathews/neovim) into
-`~/.config/nvim`. Plugins are managed by [lazy.nvim](https://github.com/folke/lazy.nvim) and are **pre-loaded in the
-background** during Codespace creation so that `nvim` is ready to use immediately. Progress is logged to
-`~/.cache/nvim-setup.log` (see [Logs](#logs)).
+`~/.config/nvim`. The managed checkout is updated before `scripts/03-neovim.sh`
+invokes its `scripts/bootstrap-linux`. Upstream `scripts/versions.env` owns Neovim,
+tree-sitter CLI, StyLua and uv pins and download digests. Bootstrap also installs
+pynvim, required apt packages (passwordless sudo), and Node if missing or below 20.
+`SKIP_APT=1` skips upstream apt provisioning only; install its prerequisites yourself.
 
-If the background pre-load is still running when you first open `nvim`, plugins will already be partially or fully
-installed – lazy.nvim will not re-download what it has already cached.
+General Node/uv/editor tooling runs first; upstream bootstrap runs afterward.
+`~/.local/bin` comes first on PATH in setup, standalone steps, Bash and Zsh, so
+upstream tools take precedence over older `/usr/local/bin` installations.
+Both unattended and interactive installs retain system CA trust for proxy environments.
+
+`scripts/13-nvim-plugins.sh` invokes upstream `scripts/sync-plugins` **in the
+background** with bounded retries. It restores locked plugin commits, installs
+Mason tools and parsers, removes stale parsers, and verifies `lazy-lock.json` is
+unchanged; it never runs `Lazy sync` or independent parser updates here.
+The first sync can take several minutes: wait for `setup-status` to report `ok`
+before opening Neovim. Progress is in `~/.cache/nvim-setup.log`; status is in
+`~/.cache/nvim-setup.status`. Failures (including missing prerequisites) record
+`incomplete` and exit nonzero. Re-run with `bash scripts/13-nvim-plugins.sh`.
+There is no need for another `install.sh`: GitHub already recognizes `setup.sh`.
 
 ## Related repositories
 

@@ -619,6 +619,83 @@ else
 fi
 rm -rf "${WORK}"
 
+echo "== scenario 13: upstream Neovim wrappers preserve PATH, retries and status =="
+WORK="$(mktemp -d)"
+NVIM_HOME="${WORK}/home"
+mkdir -p "${NVIM_HOME}/.config/nvim/scripts" "${NVIM_HOME}/.local/bin"
+cat >"${NVIM_HOME}/.local/bin/nvim" <<'EOF'
+#!/usr/bin/env bash
+echo 'NVIM v0.12.6'
+EOF
+cat >"${NVIM_HOME}/.config/nvim/scripts/bootstrap-linux" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${PREFIX}" == "${HOME}/.local" ]]
+[[ "${PATH%%:*}" == "${HOME}/.local/bin" ]]
+[[ "${PWD}" == "${HOME}/.config/nvim" ]]
+[[ "${NODE_EXTRA_CA_CERTS}" == /etc/ssl/certs/ca-certificates.crt ]]
+printf 'bootstrap\n' >>"${HOME}/calls"
+EOF
+cat >"${NVIM_HOME}/.config/nvim/scripts/sync-plugins" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${PATH%%:*}" == "${HOME}/.local/bin" ]]
+[[ "${PWD}" == "${HOME}/.config/nvim" ]]
+printf 'sync\n' >>"${HOME}/calls"
+case "${SYNC_TEST_MODE:-ok}" in
+  fail) exit 2 ;;
+  hang) sleep 60 ;;
+  flaky)
+    if [[ ! -f "${HOME}/retried" ]]; then
+      touch "${HOME}/retried"
+      exit 1
+    fi
+    ;;
+esac
+EOF
+chmod +x "${NVIM_HOME}/.local/bin/nvim"
+NVIM_ENV=(env HOME="${NVIM_HOME}" PATH="${PATH}" RETRY_BASE_DELAY=0 RETRY_MAX_DELAY=0)
+if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/03-neovim.sh" >"${WORK}/bootstrap.log" 2>&1; then
+  ok "bootstrap uses upstream checkout, forced user-local prefix, PATH and proxy trust"
+else
+  bad "bootstrap did not honor its upstream contract"
+fi
+if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
+  ok "upstream sync succeeds"
+else
+  bad "upstream sync failed"
+fi
+STATUS="${NVIM_HOME}/.cache/nvim-setup.status"
+assert_contains "successful sync records ok" "${STATUS}" "ok"
+if "${NVIM_ENV[@]}" SYNC_TEST_MODE=fail bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
+  bad "upstream refusal incorrectly reported success"
+else
+  ok "upstream refusal returns nonzero"
+fi
+assert_contains "upstream refusal records incomplete" "${STATUS}" "incomplete"
+assert_contains "upstream exit code is retained" "${STATUS}" "exit 2"
+if "${NVIM_ENV[@]}" SYNC_TEST_MODE=flaky bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
+  ok "transient upstream sync failure recovers"
+else
+  bad "sync retry failed"
+fi
+assert_contains "recovered sync clears incomplete status" "${STATUS}" "ok"
+if "${NVIM_ENV[@]}" SYNC_TEST_MODE=hang NVIM_SYNC_TIMEOUT=1 \
+  bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
+  bad "hanging sync incorrectly reported success"
+else
+  ok "hanging upstream sync is bounded"
+fi
+assert_contains "timed out sync records incomplete" "${STATUS}" "exit 124"
+rm "${NVIM_HOME}/.config/nvim/scripts/sync-plugins"
+if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
+  bad "missing upstream sync incorrectly reported success"
+else
+  ok "missing upstream sync fails"
+fi
+assert_contains "missing script records incomplete, never ok" "${STATUS}" "incomplete"
+rm -rf "${WORK}"
+
 echo ""
 if ((SKIP > 0)); then
   echo "== ${SKIP} check(s) SKIPPED — they did not run, and did not pass =="

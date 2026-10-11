@@ -11,6 +11,14 @@
 #   # shellcheck source=scripts/lib.sh
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+# User-local upstream tools must win in standalone steps as well as setup.sh.
+export PATH="${HOME}/.local/bin:${PATH}"
+if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
+  export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+  export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+fi
+
 # retry <cmd...> — run a command, retrying on any non-zero exit with exponential
 # backoff. This is the shared answer to the failure mode that dominates this
 # repo: nearly every step fetches something over the network, so a *transient*

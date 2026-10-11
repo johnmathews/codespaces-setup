@@ -5,6 +5,13 @@
 
 set -euo pipefail
 
+export PATH="${HOME}/.local/bin:${PATH}"
+if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
+  export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+  export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+fi
+
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # SCRIPTS_DIR is overridable via env (SETUP_SCRIPTS_DIR) so the resilience test in
 # tests/setup-resilience/ can drive this exact runner over a throwaway set of
@@ -75,7 +82,6 @@ STEPS=(
   "11-dotfiles.sh|Deploying dotfiles (.zshrc, aliases, gitconfig)"
   "14-fonts.sh|Installing MesloLGS NF (Nerd Font)"
   "02-nodejs.sh|Installing Node.js 22"
-  "03-neovim.sh|Installing Neovim"
   "04-neovim-config.sh|Setting up Neovim configuration"
   "05-eza.sh|Installing eza (modern ls)"
   "06-yazi.sh|Installing yazi (file manager)"
@@ -86,6 +92,7 @@ STEPS=(
   "12-claude-code.sh|Installing Claude Code"
   "17-claude-skills.sh|Deploying Claude skills and slash commands"
   "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
+  "03-neovim.sh|Bootstrapping Neovim and pinned tools from its config"
   "16-gh.sh|Installing GitHub CLI (gh)"
   "18-azure-cli.sh|Installing Azure CLI (az)"
 )
@@ -133,7 +140,7 @@ else
   STEP_DEPS=(
     "18-azure-cli.sh:09-uv.sh"
     "15-dev-tools.sh:02-nodejs.sh,09-uv.sh"
-    "04-neovim-config.sh:03-neovim.sh"
+    "03-neovim.sh:04-neovim-config.sh"
   )
 fi
 

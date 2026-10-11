@@ -74,15 +74,40 @@ docker run --rm \
     chown -R "${RUN_AS}":"${RUN_AS}" /tmp/repo 2>/dev/null || true
     su - "${RUN_AS}" -c "sudo -n true" 2>/dev/null ||
       echo "[smoke] note: ${RUN_AS} does not have passwordless sudo"
-    # Run ONCE. An earlier version had a `|| su - ... setup.sh` fallback, which
-    # re-ran the entire install on failure — doubling a ~15 minute job to learn
-    # nothing new, since a genuine failure fails the same way twice. setup.sh
-    # already retries internally, both per-download and as an end-of-run pass.
+    # Exercise the devcontainer entrypoint, which delegates to the same runner
+    # GitHub uses for account-wide dotfiles.
     RC=0
-    su - "${RUN_AS}" -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/setup.sh" || RC=$?
+    su - "${RUN_AS}" -c "SETUP_LOG_DIR=/tmp/setup-logs bash /tmp/repo/.devcontainer/post-create.sh" || RC=$?
     echo "[smoke] setup.sh exit code: ${RC}"
     echo "[smoke] ---- run record ----"
     cat /tmp/setup-logs/latest.json 2>/dev/null || echo "[smoke] NO RUN RECORD WRITTEN"
+    if [ "${RC}" -eq 0 ]; then
+      su - "${RUN_AS}" -s /bin/bash -c '"'"'
+        set -euo pipefail
+        export PATH="${HOME}/.local/bin:${PATH}"
+        timeout 1800 bash -c '"'"'"'"'"'"'"'"'
+          while [[ ! -f "${HOME}/.cache/nvim-setup.status" ]] ||
+            [[ "$(head -1 "${HOME}/.cache/nvim-setup.status")" == running ]]; do
+            sleep 2
+          done
+          [[ "$(head -1 "${HOME}/.cache/nvim-setup.status")" == ok ]]
+        '"'"'"'"'"'"'"'"'
+        cd "${HOME}/.config/nvim"
+        source scripts/versions.env
+        [[ "$(command -v nvim)" == "${HOME}/.local/bin/nvim" ]]
+        [[ "$(nvim --version | head -1)" == "NVIM v${NVIM_PIN}" ]]
+        git diff --exit-code -- lazy-lock.json
+        before="$(sha256sum lazy-lock.json)"
+        # Re-run the managed checkout, bootstrap and sync after initial preload.
+        bash /tmp/repo/scripts/04-neovim-config.sh
+        bash /tmp/repo/scripts/03-neovim.sh
+        bash /tmp/repo/scripts/13-nvim-plugins.sh
+        [[ "$(head -1 "${HOME}/.cache/nvim-setup.status")" == ok ]]
+        [[ "$(sha256sum lazy-lock.json)" == "${before}" ]]
+        git diff --exit-code -- lazy-lock.json
+        echo "[smoke] PASS: Neovim pins, fresh synchronization and idempotent rerun"
+      '"'"' || RC=$?
+    fi
     exit "${RC}"
   '
 RC=$?
