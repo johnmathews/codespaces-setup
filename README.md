@@ -448,6 +448,10 @@ pynvim, required apt packages (passwordless sudo), and Node if missing or below 
 General Node/uv/editor tooling runs first; upstream bootstrap runs afterward.
 `~/.local/bin` comes first on PATH in setup, standalone steps, Bash and Zsh, so
 upstream tools take precedence over older `/usr/local/bin` installations.
+After bootstrap, `/usr/local/bin/nvim` points to the user-local binary and the
+obsolete `/opt/nvim-v0.11.5` installation is removed. Step 01 preinstalls
+`lua-check` alongside the other bootstrap prerequisites, avoiding an unnecessary
+upstream apt refresh when a third-party apt source is broken.
 Both unattended and interactive installs retain system CA trust for proxy environments.
 
 `scripts/13-nvim-plugins.sh` invokes upstream `scripts/sync-plugins` **in the
@@ -458,6 +462,11 @@ The first sync can take several minutes: wait for `setup-status` to report `ok`
 before opening Neovim. Progress is in `~/.cache/nvim-setup.log`; status is in
 `~/.cache/nvim-setup.status`. Failures (including missing prerequisites) record
 `incomplete` and exit nonzero. Re-run with `bash scripts/13-nvim-plugins.sh`.
+Each attempt first restores the managed checkout's committed `lazy-lock.json`;
+upstream refusals (exit 2) are not retried. New Zsh shells show a notice while
+sync is running. Bootstrap defaults to three 300-second attempts to fit the
+runner's 1200-second step budget; increasing `NVIM_BOOTSTRAP_TIMEOUT` requires
+increasing `SETUP_STEP_TIMEOUT` to cover all attempts and backoff.
 There is no need for another `install.sh`: GitHub already recognizes `setup.sh`.
 
 ## Related repositories

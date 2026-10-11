@@ -6,6 +6,7 @@
 set -euo pipefail
 
 export PATH="${HOME}/.local/bin:${PATH}"
+# Match interactive shell trust for unattended installs in proxied Codespaces.
 if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
   export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
   export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt

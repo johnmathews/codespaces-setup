@@ -13,6 +13,8 @@
 
 # User-local upstream tools must win in standalone steps as well as setup.sh.
 export PATH="${HOME}/.local/bin:${PATH}"
+# Corporate Codespaces may intercept TLS; unattended Node/Python installs need
+# the same system trust bundle already exported by configs/.zshrc.
 if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
   export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
   export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
@@ -40,6 +42,7 @@ fi
 #   RETRY_TIMEOUT     wall clock for ONE attempt, seconds (default 180); set to
 #                     0 to disable the bound (used by the tests that pass shell
 #                     functions, which `timeout` cannot exec)
+#   RETRY_STOP_RC    optional exit code that must not be retried (e.g. refusal)
 #
 # Budget note: these numbers multiply. RETRY_TIMEOUT bounds one attempt, so the
 # worst case for a step whose network is entirely dead is
@@ -81,7 +84,7 @@ retry() {
       return 0
     }
     _retry_rc=$?
-    if ((_retry_n >= _retry_attempts)); then
+    if ((_retry_n >= _retry_attempts)) || [[ "${RETRY_STOP_RC:-}" == "${_retry_rc}" ]]; then
       # shellcheck disable=SC2034  # for a same-process caller; steps use _retry_report
       RETRY_LAST_ATTEMPTS="${_retry_n}"
       _retry_report "${_retry_n}"

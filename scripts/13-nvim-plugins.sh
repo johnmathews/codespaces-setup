@@ -39,6 +39,10 @@ fi
 
 cd "${NVIM_CONFIG_DIR}"
 log "Synchronizing pinned plugins, Mason tools and parsers (may take several minutes)..."
-RETRY_TIMEOUT="${NVIM_SYNC_TIMEOUT:-900}" RETRY_ATTEMPTS=3 RETRY_PROCESS_GROUP=1 \
-  retry bash "${SYNC}"
+# The clone is managed: discard lockfile drift from an interrupted attempt.
+# Keep this inside the timed process group, and never retry upstream refusals.
+# shellcheck disable=SC2016 # Positional arguments expand in the timed child.
+RETRY_TIMEOUT="${NVIM_SYNC_TIMEOUT:-900}" RETRY_ATTEMPTS=3 RETRY_PROCESS_GROUP=1 RETRY_STOP_RC=2 \
+  retry bash -c 'git -C "$1" checkout -- lazy-lock.json || exit 2; exec bash "$2"' \
+  bash "${NVIM_CONFIG_DIR}" "${SYNC}"
 log "Upstream synchronization complete; lockfile unchanged."

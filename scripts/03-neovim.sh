@@ -19,6 +19,9 @@ fi
 
 cd "${NVIM_CONFIG_DIR}"
 log "Bootstrapping Neovim and tools from ${NVIM_CONFIG_DIR}..."
-RETRY_TIMEOUT="${NVIM_BOOTSTRAP_TIMEOUT:-900}" RETRY_ATTEMPTS=3 RETRY_PROCESS_GROUP=1 \
+# Three 300s attempts plus backoff fit the runner's default 1200s step budget.
+RETRY_TIMEOUT="${NVIM_BOOTSTRAP_TIMEOUT:-300}" RETRY_ATTEMPTS=3 RETRY_PROCESS_GROUP=1 \
   retry env PREFIX="${HOME}/.local" bash "${BOOTSTRAP}"
+sudo ln -sfn "${HOME}/.local/bin/nvim" /usr/local/bin/nvim
+sudo rm -rf /opt/nvim-v0.11.5
 log "Installed: $(nvim --version | head -1) ($(command -v nvim))"

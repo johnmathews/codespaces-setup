@@ -29,6 +29,7 @@ ESSENTIAL=(
 OPTIONAL=(
   build-essential
   cmake
+  lua-check
   python3-pip
   python3-venv
   htop

@@ -142,4 +142,8 @@ if [[ -f ~/.cache/codespaces-setup.failed ]]; then
 fi
 
 # Local customisations (not managed by codespaces-setup)
+if [[ -r ~/.cache/nvim-setup.status && "$(< ~/.cache/nvim-setup.status)" == running ]]; then
+  print -P "%F{yellow}Neovim plugins still syncing — wait or tail ~/.cache/nvim-setup.log%f"
+fi
+
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local

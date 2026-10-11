@@ -623,6 +623,14 @@ echo "== scenario 13: upstream Neovim wrappers preserve PATH, retries and status
 WORK="$(mktemp -d)"
 NVIM_HOME="${WORK}/home"
 mkdir -p "${NVIM_HOME}/.config/nvim/scripts" "${NVIM_HOME}/.local/bin"
+git -C "${NVIM_HOME}/.config/nvim" init -q
+printf 'committed lockfile\n' >"${NVIM_HOME}/.config/nvim/lazy-lock.json"
+git -C "${NVIM_HOME}/.config/nvim" add lazy-lock.json
+git -C "${NVIM_HOME}/.config/nvim" -c user.name=Test -c user.email=test@example.invalid commit -qm fixture
+cat >"${NVIM_HOME}/.local/bin/sudo" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"${HOME}/sudo-calls"
+EOF
 cat >"${NVIM_HOME}/.local/bin/nvim" <<'EOF'
 #!/usr/bin/env bash
 echo 'NVIM v0.12.6'
@@ -634,6 +642,7 @@ set -euo pipefail
 [[ "${PATH%%:*}" == "${HOME}/.local/bin" ]]
 [[ "${PWD}" == "${HOME}/.config/nvim" ]]
 [[ "${NODE_EXTRA_CA_CERTS}" == /etc/ssl/certs/ca-certificates.crt ]]
+[[ "${RETRY_TIMEOUT}" == 300 ]]
 printf 'bootstrap\n' >>"${HOME}/calls"
 EOF
 cat >"${NVIM_HOME}/.config/nvim/scripts/sync-plugins" <<'EOF'
@@ -641,10 +650,12 @@ cat >"${NVIM_HOME}/.config/nvim/scripts/sync-plugins" <<'EOF'
 set -euo pipefail
 [[ "${PATH%%:*}" == "${HOME}/.local/bin" ]]
 [[ "${PWD}" == "${HOME}/.config/nvim" ]]
+grep -qx 'committed lockfile' lazy-lock.json
 printf 'sync\n' >>"${HOME}/calls"
 case "${SYNC_TEST_MODE:-ok}" in
   fail) exit 2 ;;
   hang)
+    printf 'interrupted drift\n' >lazy-lock.json
     sleep 60 &
     printf '%s\n' "$!" >>"${HOME}/children"
     wait
@@ -652,18 +663,23 @@ case "${SYNC_TEST_MODE:-ok}" in
   flaky)
     if [[ ! -f "${HOME}/retried" ]]; then
       touch "${HOME}/retried"
+      printf 'failed attempt drift\n' >lazy-lock.json
       exit 1
     fi
     ;;
 esac
 EOF
-chmod +x "${NVIM_HOME}/.local/bin/nvim"
+chmod +x "${NVIM_HOME}/.local/bin/nvim" "${NVIM_HOME}/.local/bin/sudo"
 NVIM_ENV=(env HOME="${NVIM_HOME}" PATH="${PATH}" RETRY_BASE_DELAY=0 RETRY_MAX_DELAY=0)
 if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/03-neovim.sh" >"${WORK}/bootstrap.log" 2>&1; then
   ok "bootstrap uses upstream checkout, forced user-local prefix, PATH and proxy trust"
 else
   bad "bootstrap did not honor its upstream contract"
 fi
+assert_contains "bootstrap repairs the system nvim link" "${NVIM_HOME}/sudo-calls" \
+  "ln -sfn ${NVIM_HOME}/.local/bin/nvim /usr/local/bin/nvim"
+assert_contains "bootstrap removes only the obsolete installation" "${NVIM_HOME}/sudo-calls" \
+  "rm -rf /opt/nvim-v0.11.5"
 if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
   ok "upstream sync succeeds"
 else
@@ -671,6 +687,7 @@ else
 fi
 STATUS="${NVIM_HOME}/.cache/nvim-setup.status"
 assert_contains "successful sync records ok" "${STATUS}" "ok"
+CALLS_BEFORE="$(grep -c '^sync$' "${NVIM_HOME}/calls")"
 if "${NVIM_ENV[@]}" SYNC_TEST_MODE=fail bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
   bad "upstream refusal incorrectly reported success"
 else
@@ -678,6 +695,11 @@ else
 fi
 assert_contains "upstream refusal records incomplete" "${STATUS}" "incomplete"
 assert_contains "upstream exit code is retained" "${STATUS}" "exit 2"
+if [[ "$(grep -c '^sync$' "${NVIM_HOME}/calls")" == "$((CALLS_BEFORE + 1))" ]]; then
+  ok "upstream refusal is not retried"
+else
+  bad "upstream refusal was retried"
+fi
 if "${NVIM_ENV[@]}" SYNC_TEST_MODE=flaky bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
   ok "transient upstream sync failure recovers"
 else
@@ -698,6 +720,11 @@ while read -r child; do
     ok "timeout stops upstream child before retry"
   fi
 done <"${NVIM_HOME}/children"
+if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
+  ok "a later sync repairs lockfile drift left by the final timeout"
+else
+  bad "final timeout poisoned a later sync"
+fi
 rm "${NVIM_HOME}/.config/nvim/scripts/sync-plugins"
 if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
   bad "missing upstream sync incorrectly reported success"
