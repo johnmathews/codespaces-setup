@@ -19,6 +19,6 @@ fi
 
 cd "${NVIM_CONFIG_DIR}"
 log "Bootstrapping Neovim and tools from ${NVIM_CONFIG_DIR}..."
-RETRY_TIMEOUT="${NVIM_BOOTSTRAP_TIMEOUT:-900}" RETRY_ATTEMPTS=3 \
+RETRY_TIMEOUT="${NVIM_BOOTSTRAP_TIMEOUT:-900}" RETRY_ATTEMPTS=3 RETRY_PROCESS_GROUP=1 \
   retry env PREFIX="${HOME}/.local" bash "${BOOTSTRAP}"
 log "Installed: $(nvim --version | head -1) ($(command -v nvim))"

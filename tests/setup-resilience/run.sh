@@ -644,7 +644,11 @@ set -euo pipefail
 printf 'sync\n' >>"${HOME}/calls"
 case "${SYNC_TEST_MODE:-ok}" in
   fail) exit 2 ;;
-  hang) sleep 60 ;;
+  hang)
+    sleep 60 &
+    printf '%s\n' "$!" >>"${HOME}/children"
+    wait
+    ;;
   flaky)
     if [[ ! -f "${HOME}/retried" ]]; then
       touch "${HOME}/retried"
@@ -687,6 +691,13 @@ else
   ok "hanging upstream sync is bounded"
 fi
 assert_contains "timed out sync records incomplete" "${STATUS}" "exit 124"
+while read -r child; do
+  if kill -0 "${child}" 2>/dev/null && [[ "$(ps -o stat= -p "${child}")" != Z* ]]; then
+    bad "timeout left upstream child ${child} running"
+  else
+    ok "timeout stops upstream child before retry"
+  fi
+done <"${NVIM_HOME}/children"
 rm "${NVIM_HOME}/.config/nvim/scripts/sync-plugins"
 if "${NVIM_ENV[@]}" bash "${REPO_DIR}/scripts/13-nvim-plugins.sh" >"${WORK}/sync.log" 2>&1; then
   bad "missing upstream sync incorrectly reported success"

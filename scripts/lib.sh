@@ -122,7 +122,12 @@ _retry_run() {
   shift
   if ((_rr_timeout > 0)) && command -v timeout >/dev/null 2>&1 &&
     ! declare -F "$1" >/dev/null 2>&1; then
-    timeout --foreground "${_rr_timeout}" "$@"
+    if [[ "${RETRY_PROCESS_GROUP:-0}" == 1 ]]; then
+      # Upstream scripts spawn installers; stop their children before retrying.
+      timeout --kill-after=10 "${_rr_timeout}" "$@"
+    else
+      timeout --foreground "${_rr_timeout}" "$@"
+    fi
   else
     "$@"
   fi

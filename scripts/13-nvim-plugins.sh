@@ -39,6 +39,6 @@ fi
 
 cd "${NVIM_CONFIG_DIR}"
 log "Synchronizing pinned plugins, Mason tools and parsers (may take several minutes)..."
-RETRY_TIMEOUT="${NVIM_SYNC_TIMEOUT:-900}" RETRY_ATTEMPTS=3 \
+RETRY_TIMEOUT="${NVIM_SYNC_TIMEOUT:-900}" RETRY_ATTEMPTS=3 RETRY_PROCESS_GROUP=1 \
   retry bash "${SYNC}"
 log "Upstream synchronization complete; lockfile unchanged."
