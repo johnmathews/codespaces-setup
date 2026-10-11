@@ -2,6 +2,8 @@
 # Zsh configuration for GitHub Codespaces
 # Managed by codespaces-setup - edit configs/.zshrc in the repo to change.
 
+export PATH="${HOME}/.local/bin:${PATH}"
+
 # Enable Powerlevel10k instant prompt (must be near the top of .zshrc)
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
@@ -140,4 +142,8 @@ if [[ -f ~/.cache/codespaces-setup.failed ]]; then
 fi
 
 # Local customisations (not managed by codespaces-setup)
+if [[ -r ~/.cache/nvim-setup.status && "$(< ~/.cache/nvim-setup.status)" == running ]]; then
+  print -P "%F{yellow}Neovim plugins still syncing — wait or tail ~/.cache/nvim-setup.log%f"
+fi
+
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local

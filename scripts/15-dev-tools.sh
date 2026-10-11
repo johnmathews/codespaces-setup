@@ -132,6 +132,11 @@ install_glow() {
 }
 
 install_stylua() {
+  # The Neovim bootstrap owns the user-local pin; never replace or shadow it.
+  if installed_runs "${HOME}/.local/bin/stylua"; then
+    log "Using Neovim's user-local stylua (${INSTALLED_VERSION})."
+    return 0
+  fi
   # stylua's release binary does not run on glibc 2.31 (Ubuntu 20.04) — verified
   # in CI, where its own installer reported "System glibc version (`2.31\') is
   # too old". Unlike a whole step, this is one tool among nine here, so it

@@ -171,7 +171,7 @@ jobs:
         # detects that case and skips those tools with an explanation
         # (require_glibc in scripts/lib.sh) rather than failing.
         image:
-          - mcr.microsoft.com/devcontainers/base:ubuntu
+          - mcr.microsoft.com/devcontainers/base:ubuntu-24.04
           - mcr.microsoft.com/devcontainers/universal:6
     # Do not fail the whole workflow while this is bedding in: it depends on the
     # network and on upstream release CDNs. Promote it to required (and drop this

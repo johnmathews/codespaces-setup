@@ -141,6 +141,11 @@ BASHRC="${HOME}/.bashrc"
 BASH_MARKER_START="# BEGIN codespaces-setup zsh handoff"
 BASH_MARKER_END="# END codespaces-setup zsh handoff"
 
+if ! grep -qF '# codespaces-setup user-local tools' "${BASHRC}" 2>/dev/null; then
+  # shellcheck disable=SC2016 # Expand in the deployed shell, not during setup.
+  printf '\n# codespaces-setup user-local tools\nexport PATH="${HOME}/.local/bin:${PATH}"\n' >>"${BASHRC}"
+fi
+
 if ! grep -qF "${BASH_MARKER_START}" "${BASHRC}" 2>/dev/null; then
   log "Adding zsh handoff block to ${BASHRC}..."
   cat >>"${BASHRC}"  <<EOF

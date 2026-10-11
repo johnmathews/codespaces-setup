@@ -11,6 +11,16 @@
 #   # shellcheck source=scripts/lib.sh
 #   source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
+# User-local upstream tools must win in standalone steps as well as setup.sh.
+export PATH="${HOME}/.local/bin:${PATH}"
+# Corporate Codespaces may intercept TLS; unattended Node/Python installs need
+# the same system trust bundle already exported by configs/.zshrc.
+if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
+  export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+  export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+  export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+fi
+
 # retry <cmd...> — run a command, retrying on any non-zero exit with exponential
 # backoff. This is the shared answer to the failure mode that dominates this
 # repo: nearly every step fetches something over the network, so a *transient*
@@ -32,6 +42,7 @@
 #   RETRY_TIMEOUT     wall clock for ONE attempt, seconds (default 180); set to
 #                     0 to disable the bound (used by the tests that pass shell
 #                     functions, which `timeout` cannot exec)
+#   RETRY_STOP_RC    optional exit code that must not be retried (e.g. refusal)
 #
 # Budget note: these numbers multiply. RETRY_TIMEOUT bounds one attempt, so the
 # worst case for a step whose network is entirely dead is
@@ -73,7 +84,7 @@ retry() {
       return 0
     }
     _retry_rc=$?
-    if ((_retry_n >= _retry_attempts)); then
+    if ((_retry_n >= _retry_attempts)) || [[ "${RETRY_STOP_RC:-}" == "${_retry_rc}" ]]; then
       # shellcheck disable=SC2034  # for a same-process caller; steps use _retry_report
       RETRY_LAST_ATTEMPTS="${_retry_n}"
       _retry_report "${_retry_n}"
@@ -114,7 +125,12 @@ _retry_run() {
   shift
   if ((_rr_timeout > 0)) && command -v timeout >/dev/null 2>&1 &&
     ! declare -F "$1" >/dev/null 2>&1; then
-    timeout --foreground "${_rr_timeout}" "$@"
+    if [[ "${RETRY_PROCESS_GROUP:-0}" == 1 ]]; then
+      # Upstream scripts spawn installers; stop their children before retrying.
+      timeout --kill-after=10 "${_rr_timeout}" "$@"
+    else
+      timeout --foreground "${_rr_timeout}" "$@"
+    fi
   else
     "$@"
   fi
