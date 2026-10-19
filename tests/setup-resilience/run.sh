@@ -25,6 +25,19 @@
 #   8. A step that fails once and works on the end-of-run retry pass leaves the
 #      run green, and SETUP_RETRY_PASS=0 disables that pass.
 #
+# Later scenarios extend the same approach to the UPDATE path — `--only` /
+# `--group` selection and the self-update — because that path is a selector over
+# the very same STEPS array, not a second runner:
+#
+#   14. A selection runs exactly the named steps, in STEPS order; an unknown
+#       name or flag is a hard error rather than a silent full run; dependency
+#       skipping still applies; and a clean PARTIAL run does not clear a failure
+#       signal left by an earlier run, because it never attempted those steps.
+#   15. setup.sh fetches and fast-forwards its own checkout before running, and
+#       survives every case that actually occurs: already current, uncommitted
+#       local edits (never discarded), an unreachable origin, a shallow clone,
+#       a non-git directory, and the explicit opt-out.
+#
 # Usage: bash tests/setup-resilience/run.sh
 set -euo pipefail
 
@@ -119,14 +132,21 @@ EOF
   done
 }
 
-# run_setup <scripts_dir> <steps> <required> <home> — returns setup.sh exit code
-# in RC, and leaves its log at ${home}/.cache/codespaces-setup.log.
+# run_setup <scripts_dir> <steps> <required> <home> [args...] — returns setup.sh
+# exit code in RC, and leaves its log at ${home}/.cache/codespaces-setup.log.
+# Arguments after <home> are passed to setup.sh itself (--only/--group/...).
 # SKIP_VERIFY defaults to 1: these scenarios drive the runner over FAKE steps
 # that install nothing, so the end-of-run tool verification would (correctly)
 # report every tool missing, which is not what they are measuring. Scenario 5
 # sets it to 0 to cover that block itself.
+#
+# SETUP_NO_SELF_UPDATE=1 throughout: setup.sh now fast-forwards its own checkout
+# before running, and a test harness must never reach the network or mutate the
+# working tree it is testing. Scenario 15 covers the self-update itself, against
+# a local origin it builds for the purpose.
 run_setup() {
   local scripts_dir="$1" steps="$2" required="$3" home="$4"
+  shift 4
   local skip_verify="${SKIP_VERIFY:-1}"
   mkdir -p "${home}/.cache"
   RC=0
@@ -136,6 +156,8 @@ run_setup() {
     SETUP_SCRIPTS_DIR="${scripts_dir}" \
     SETUP_STEPS="${steps}" \
     SETUP_REQUIRED="${required}" \
+    SETUP_GROUPS="${GROUPS_SPEC:-}" \
+    SETUP_NO_SELF_UPDATE=1 \
     SETUP_SKIP_VERIFY="${skip_verify}" \
     SETUP_LOG="${home}/.cache/codespaces-setup.log" \
     SETUP_LOG_DIR="${home}/.cache" \
@@ -144,7 +166,7 @@ run_setup() {
     SETUP_RETRY_PASS="${RETRY_PASS:-1}" \
     SETUP_DEPS="${DEPS:-}" \
     SETUP_STEP_TIMEOUT="${STEP_TIMEOUT:-1200}" \
-    bash "${SETUP}" >/dev/null 2>&1 || RC=$?
+    bash "${SETUP}" "$@" >/dev/null 2>&1 || RC=$?
   # setup.sh execs stdout through `tee` (a background process); give it a beat to
   # flush the log before we read it.
   local log="${home}/.cache/codespaces-setup.log"
@@ -390,6 +412,7 @@ export SETUP_SCRIPTS_DIR="${WORK}/scripts"
 export SETUP_STEPS="01-a.sh|Step A;02-b.sh|Step B;03-c.sh|Step C;04-d.sh|Step D"
 export SETUP_REQUIRED=""
 export SETUP_SKIP_VERIFY=1
+export SETUP_NO_SELF_UPDATE=1
 export SETUP_RETRY_PASS=0
 export SETUP_LOG="${LOG}"
 export SETUP_LOG_DIR="${HOME7}/.cache"
@@ -558,7 +581,7 @@ mkdir -p "${HOME11}/.cache"
 env -i HOME="${HOME11}" PATH="${PATH}" \
   SETUP_SCRIPTS_DIR="${WORK}/scripts" \
   SETUP_STEPS="01-slow.sh|A stalled download" \
-  SETUP_REQUIRED="" SETUP_SKIP_VERIFY=1 SETUP_RETRY_PASS=0 \
+  SETUP_REQUIRED="" SETUP_SKIP_VERIFY=1 SETUP_RETRY_PASS=0 SETUP_NO_SELF_UPDATE=1 \
   SETUP_LOG="${HOME11}/.cache/codespaces-setup.log" \
   SETUP_LOG_DIR="${HOME11}/.cache" \
   RAN_MARKER="${RAN_MARKER}" \
@@ -733,6 +756,460 @@ else
 fi
 assert_contains "missing script records incomplete, never ok" "${STATUS}" "incomplete"
 rm -rf "${WORK}"
+
+echo "== scenario 14: --only / --group select a subset of STEPS =="
+# The update path is a SELECTOR over STEPS, never a second list of things to do.
+# These checks pin the four properties that make that claim true rather than
+# merely intended: the selection runs exactly what was named, in STEPS order;
+# an unknown name is a hard error rather than a silent full run; dependency
+# skipping still applies inside a selection; and — the subtle one — a clean
+# partial run does NOT clear a failure signal left by an earlier full run.
+WORK="$(mktemp -d)"
+RAN_MARKER="${WORK}/ran.txt"
+: >"${RAN_MARKER}"
+make_fixture "${WORK}/scripts" "01-a:0" "02-b:0" "03-c:0" "04-d:0"
+STEPSPEC="01-a.sh|Step A;02-b.sh|Step B;03-c.sh|Step C;04-d.sh|Step D"
+HOME14="${WORK}/home"
+mkdir -p "${HOME14}"
+
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14}" --only 03-c.sh 01-a.sh
+LOG="${HOME14}/.cache/codespaces-setup.log"
+
+if [[ "${RC}" -eq 0 ]]; then ok "--only run exited 0"; else
+  bad "--only run exited ${RC}, expected 0"
+fi
+# Exactly the named steps, and nothing else.
+if [[ "$(sort "${RAN_MARKER}" | tr '\n' ' ')" == "01-a 03-c " ]]; then
+  ok "--only ran exactly the named steps"
+else
+  bad "--only ran '$(tr '\n' ' ' <"${RAN_MARKER}")', expected '01-a 03-c'"
+fi
+# STEPS order, not the order they were typed. The numeric prefixes are labels;
+# STEPS is the only thing that knows what has to run before what, so a selection
+# that honoured argv order would silently reorder a dependency.
+if [[ "$(tr '\n' ' ' <"${RAN_MARKER}")" == "01-a 03-c " ]]; then
+  ok "--only preserves STEPS order, not the order given on the command line"
+else
+  bad "--only ran in argv order: '$(tr '\n' ' ' <"${RAN_MARKER}")'"
+fi
+assert_contains "a partial run says so in its banner" "${LOG}" "SETUP (PARTIAL)"
+assert_contains "a clean partial run gets its own banner" "${LOG}" "SELECTED STEPS COMPLETE"
+assert_absent "a partial run never prints the full COMPLETE banner" "${LOG}" "SETUP COMPLETE"
+if grep -q '"filtered": true' "${HOME14}/.cache/latest.json"; then
+  ok "the run record marks the run as filtered"
+else
+  bad "the run record does not mark the run as filtered"
+fi
+
+# --group resolves through STEP_GROUPS (overridden here, exactly as SETUP_STEPS
+# overrides STEPS, so the harness tests the real resolution over fake steps).
+: >"${RAN_MARKER}"
+HOME14B="${WORK}/home_b"
+mkdir -p "${HOME14B}"
+GROUPS_SPEC="pair|04-d.sh,02-b.sh" \
+  run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14B}" --group pair
+if [[ "$(tr '\n' ' ' <"${RAN_MARKER}")" == "02-b 04-d " ]]; then
+  ok "--group runs its members, in STEPS order"
+else
+  bad "--group ran '$(tr '\n' ' ' <"${RAN_MARKER}")', expected '02-b 04-d'"
+fi
+
+# An unknown name is a HARD ERROR. Before argv was parsed at all, every typo'd
+# flag was silently a full run, which is the most expensive possible way to
+# misunderstand a command.
+: >"${RAN_MARKER}"
+HOME14C="${WORK}/home_c"
+mkdir -p "${HOME14C}"
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14C}" --only 99-nope.sh
+if [[ "${RC}" -ne 0 ]]; then
+  ok "an unknown step name exits non-zero (${RC})"
+else
+  bad "an unknown step name was accepted — the run proceeded"
+fi
+if [[ ! -s "${RAN_MARKER}" ]]; then
+  ok "an unknown step name runs nothing at all"
+else
+  bad "an unknown step name still ran: $(tr '\n' ' ' <"${RAN_MARKER}")"
+fi
+: >"${RAN_MARKER}"
+HOME14D="${WORK}/home_d"
+mkdir -p "${HOME14D}"
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14D}" --group nope
+if [[ "${RC}" -ne 0 && ! -s "${RAN_MARKER}" ]]; then
+  ok "an unknown group name is rejected and runs nothing"
+else
+  bad "an unknown group name was not rejected (rc=${RC})"
+fi
+: >"${RAN_MARKER}"
+HOME14E="${WORK}/home_e"
+mkdir -p "${HOME14E}"
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14E}" --frobnicate
+if [[ "${RC}" -ne 0 && ! -s "${RAN_MARKER}" ]]; then
+  ok "an unknown FLAG is rejected rather than silently running everything"
+else
+  bad "an unknown flag did not abort (rc=${RC})"
+fi
+
+# Dependency skipping still applies inside a selection: selecting a dependent
+# whose dependency failed must still skip it, not run it into a derived failure.
+: >"${RAN_MARKER}"
+HOME14F="${WORK}/home_f"
+mkdir -p "${HOME14F}"
+make_fixture "${WORK}/scripts2" "09-dep:1" "18-needs-dep:0"
+DEPS="18-needs-dep.sh:09-dep.sh" RETRY_PASS=0 \
+  run_setup "${WORK}/scripts2" \
+  "09-dep.sh|Dependency;18-needs-dep.sh|Dependent;20-other.sh|Other" \
+  "" "${HOME14F}" --only 09-dep.sh 18-needs-dep.sh
+LOG="${HOME14F}/.cache/codespaces-setup.log"
+assert_contains "dependency skipping still applies in a selected run" "${LOG}" \
+  "Skipped    : depends on 09-dep.sh"
+if grep -qx "18-needs-dep" "${RAN_MARKER}"; then
+  bad "the dependent ran inside a selection despite its dependency failing"
+else
+  ok "the dependent did not run inside a selection"
+fi
+
+# A step that was dependency-SKIPPED must not be forgotten when its blocker
+# recovers on the retry pass. It is not in FAILED_STEPS, so the retry loop never
+# considers it — and a FILTERED run skips the whole-environment verification that
+# would otherwise notice, so nothing else can catch it either. Left alone, the
+# run reports "SELECTED STEPS COMPLETE" and exits 0 having never run a step it
+# was explicitly asked to run: a half-built environment reporting success, which
+# is the single failure this whole runner exists to prevent.
+: >"${RAN_MARKER}"
+HOME14H="${WORK}/home_h"
+mkdir -p "${HOME14H}"
+FLAKY_MARK="${WORK}/dep-flaky.mark"
+export FLAKY_MARK
+rm -f "${FLAKY_MARK}"
+make_flaky "${WORK}/scripts3" "09-dep"
+make_fixture "${WORK}/scripts3" "18-needs-dep:0"
+DEPS="18-needs-dep.sh:09-dep.sh" \
+  run_setup "${WORK}/scripts3" \
+  "09-dep.sh|Dependency;18-needs-dep.sh|Dependent" \
+  "" "${HOME14H}" --only 09-dep.sh 18-needs-dep.sh
+if grep -qx "18-needs-dep" "${RAN_MARKER}"; then
+  ok "a dependency-skipped step is re-attempted once its blocker recovers"
+else
+  bad "the skipped step never ran even though its dependency recovered"
+fi
+if [[ "${RC}" -eq 0 ]]; then
+  ok "...and the run is then genuinely clean"
+else
+  bad "the run exited ${RC} after everything recovered"
+fi
+rm -f "${FLAKY_MARK}"
+unset FLAKY_MARK
+
+# The same situation with the retry pass DISABLED: nothing recovers, so the
+# dependent is still skipped — and the verdict must say so rather than calling
+# a run that never ran a selected step "complete".
+: >"${RAN_MARKER}"
+HOME14I="${WORK}/home_i"
+mkdir -p "${HOME14I}"
+make_fixture "${WORK}/scripts4" "09-dep:1" "18-needs-dep:0"
+DEPS="18-needs-dep.sh:09-dep.sh" RETRY_PASS=0 \
+  run_setup "${WORK}/scripts4" \
+  "09-dep.sh|Dependency;18-needs-dep.sh|Dependent" \
+  "" "${HOME14I}" --only 09-dep.sh 18-needs-dep.sh
+if [[ "${RC}" -ne 0 ]]; then
+  ok "a run with a step that never ran does not report success"
+else
+  bad "a run that silently skipped a selected step exited 0"
+fi
+assert_contains "the durable signal names the step that never ran" \
+  "${HOME14I}/.cache/codespaces-setup.failed" "Never ran"
+
+# An EMPTY selection is a malformed selection, not an absent one. `--only=` and
+# `--only ""` name nothing, and falling through to a full run would be the
+# silent-widening failure reached from the other side: the user asked for a
+# subset and got all of everything, plus a cleared failure signal, silently.
+for _empty in "--only=" "--group=" "--only=,"; do
+  : >"${RAN_MARKER}"
+  HOME14J="${WORK}/home_j"
+  rm -rf "${HOME14J}"
+  mkdir -p "${HOME14J}"
+  run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14J}" "${_empty}"
+  if [[ "${RC}" -ne 0 && ! -s "${RAN_MARKER}" ]]; then
+    ok "'${_empty}' is rejected rather than silently running everything"
+  else
+    bad "'${_empty}' ran '$(tr '\n' ' ' <"${RAN_MARKER}")' (rc=${RC})"
+  fi
+done
+: >"${RAN_MARKER}"
+HOME14K="${WORK}/home_k"
+mkdir -p "${HOME14K}"
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14K}" --only ""
+if [[ "${RC}" -ne 0 && ! -s "${RAN_MARKER}" ]]; then
+  ok "--only '' is rejected rather than silently running everything"
+else
+  bad "--only '' ran '$(tr '\n' ' ' <"${RAN_MARKER}")' (rc=${RC})"
+fi
+
+# THE SUBTLE ONE. A successful partial run must leave an earlier failure signal
+# alone: it only knows about the steps it selected, so clearing the file would
+# silence a real, unfixed breakage on the strength of evidence about something
+# else — and the quickest, most repeated command in the kit would be the one
+# that hides a broken Codespace.
+: >"${RAN_MARKER}"
+HOME14G="${WORK}/home_g"
+mkdir -p "${HOME14G}/.cache"
+echo "stale failure from an earlier full run" >"${HOME14G}/.cache/codespaces-setup.failed"
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14G}" --only 01-a.sh
+if [[ "${RC}" -eq 0 ]]; then ok "the partial run itself succeeded"; else
+  bad "the partial run exited ${RC}"
+fi
+if [[ -f "${HOME14G}/.cache/codespaces-setup.failed" ]]; then
+  ok "a clean PARTIAL run leaves an existing failure signal in place"
+  assert_contains "the pre-existing signal is untouched" \
+    "${HOME14G}/.cache/codespaces-setup.failed" "stale failure from an earlier full run"
+else
+  bad "a clean partial run DELETED the failure signal — it would hide a broken Codespace"
+  bad "the pre-existing signal is untouched (file was removed)"
+fi
+# And the contrast that proves the rule is about filtering, not about luck: the
+# same clean run WITHOUT a filter does clear it (scenario 3 covers this too, but
+# pairing them here is what makes the asymmetry legible).
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14G}"
+if [[ ! -f "${HOME14G}/.cache/codespaces-setup.failed" ]]; then
+  ok "a clean FULL run still clears the signal"
+else
+  bad "a clean full run no longer clears the signal"
+fi
+rm -rf "${WORK}"
+
+echo "== scenario 15: setup.sh refreshes its own checkout before running =="
+# The actual missing piece. setup.sh never updated its own clone, and under the
+# dotfiles mechanism that clone is frozen at Codespace creation — so `bash
+# setup.sh` faithfully re-applied the version the VM was born with and looked
+# like a no-op. Driven here against a LOCAL origin, so it is still fully
+# headless: no network, and nothing outside the temp dir is touched.
+if command -v git >/dev/null 2>&1; then
+  WORK="$(mktemp -d)"
+  ORIGIN="${WORK}/origin"
+  git init -q --bare "${ORIGIN}"
+  # `git init --bare` picks its default branch name from the local git config,
+  # which varies by version and machine. Pin it, or the clones below check out
+  # nothing and every assertion here becomes a confusing git error.
+  git --git-dir="${ORIGIN}" symbolic-ref HEAD refs/heads/main
+
+  # make_marker_step <path> <marker> — a fake step that appends <marker> to the
+  # harness's RAN_MARKER file, proving WHICH version of the step ran.
+  # shellcheck disable=SC2016  # ${RAN_MARKER} must expand in the CHILD, not here.
+  make_marker_step() {
+    printf '#!/usr/bin/env bash\nprintf "%s\\n" >>"${RAN_MARKER}"\n' "$2" >"$1"
+  }
+
+  # A miniature repo whose "setup.sh" is the real one, so the self-update block
+  # under test is the shipped code rather than a copy of it.
+  SEED="${WORK}/seed"
+  mkdir -p "${SEED}/scripts"
+  cp "${SETUP}" "${SEED}/setup.sh"
+  make_marker_step "${SEED}/scripts/01-a.sh" v1
+  # A second step, so a SELECTION during a self-update is observable: with one
+  # step, "ran everything" and "ran only what I asked for" look identical.
+  make_marker_step "${SEED}/scripts/02-b.sh" b
+  git -C "${SEED}" init -q
+  git -C "${SEED}" symbolic-ref HEAD refs/heads/main
+  git -C "${SEED}" add -A
+  git -C "${SEED}" -c user.name=T -c user.email=t@example.invalid commit -qm one
+  git -C "${SEED}" remote add origin "${ORIGIN}"
+  git -C "${SEED}" push -q origin main
+
+  # Take the shallow clone NOW, while v1 is the tip — that is what `--depth=1`
+  # against a moving branch actually leaves behind, and constructing it after
+  # the fact would need a server that allows fetching an arbitrary sha.
+  SHALLOW="${WORK}/shallow"
+  git clone -q --depth=1 "file://${ORIGIN}" "${SHALLOW}" 2>/dev/null || true
+
+  # A second commit, which neither clone below will have.
+  make_marker_step "${SEED}/scripts/01-a.sh" v2
+  git -C "${SEED}" add -A
+  git -C "${SEED}" -c user.name=T -c user.email=t@example.invalid commit -qm two
+  git -C "${SEED}" push -q origin main
+  NEWEST="$(git -C "${SEED}" rev-parse --short HEAD)"
+
+  # run_clone <dir> <home> [env assignments...] — run setup.sh from a checkout,
+  # WITHOUT SETUP_NO_SELF_UPDATE, so the self-update block actually executes.
+  # SETUP_SCRIPTS_DIR is deliberately NOT set: the point is that the steps come
+  # from the (possibly updated) checkout itself.
+  run_clone() {
+    local dir="$1" home="$2" a
+    shift 2
+    # Trailing arguments are split: NAME=value is an environment assignment,
+    # anything else is forwarded to setup.sh as a command-line argument.
+    local -a envs=() args=()
+    for a in "$@"; do
+      if [[ "${a}" == [A-Za-z_]*=* ]]; then envs+=("${a}"); else args+=("${a}"); fi
+    done
+    mkdir -p "${home}/.cache"
+    RC=0
+    env -i HOME="${home}" PATH="${PATH}" \
+      RAN_MARKER="${RAN_MARKER}" \
+      SETUP_STEPS="01-a.sh|Step A;02-b.sh|Step B" \
+      SETUP_REQUIRED="" SETUP_SKIP_VERIFY=1 SETUP_RETRY_PASS=0 \
+      SETUP_LOG="${home}/.cache/codespaces-setup.log" \
+      SETUP_LOG_DIR="${home}/.cache" \
+      ${envs[@]+"${envs[@]}"} \
+      bash "${dir}/setup.sh" ${args[@]+"${args[@]}"} >/dev/null 2>&1 || RC=$?
+  }
+
+  # (a) A stale clone fast-forwards, re-execs, and runs the NEW steps.
+  CLONE="${WORK}/clone"
+  git clone -q "${ORIGIN}" "${CLONE}"
+  git -C "${CLONE}" reset -q --hard HEAD~1
+  RAN_MARKER="${WORK}/ran.txt"
+  : >"${RAN_MARKER}"
+  run_clone "${CLONE}" "${WORK}/home_a"
+  if grep -qx "v2" "${RAN_MARKER}"; then
+    ok "a stale checkout fast-forwards and runs the UPDATED step"
+  else
+    bad "a stale checkout ran '$(tr '\n' ' ' <"${RAN_MARKER}")' — it did not update"
+  fi
+  if [[ "$(git -C "${CLONE}" rev-parse --short HEAD)" == "${NEWEST}" ]]; then
+    ok "the checkout is left at origin/main"
+  else
+    bad "the checkout was not fast-forwarded"
+  fi
+  # Exactly one hop. The re-exec is guarded so a repo that somehow never
+  # converged could not loop forever.
+  if [[ "$(grep -c '^v2$' "${RAN_MARKER}")" == "1" ]]; then
+    ok "the re-exec happens exactly once (no loop)"
+  else
+    bad "the step ran $(grep -c '^v2$' "${RAN_MARKER}") times — the re-exec looped"
+  fi
+  if grep -q '"self_update": "updated' "${WORK}/home_a/.cache/latest.json"; then
+    ok "the run record says what the self-update did"
+  else
+    bad "the run record does not record the self-update"
+  fi
+  if grep -q "\"commit\": \"${NEWEST}\"" "${WORK}/home_a/.cache/latest.json"; then
+    ok "the run record names the commit the run was built from"
+  else
+    bad "the run record does not name the commit"
+  fi
+
+  # (a2) A SELECTION SURVIVES THE RE-EXEC. This is the case that makes the
+  #      self-update and the selector safe together, and it is not implied by
+  #      (a): the re-exec is a fresh `bash setup.sh ...`, so if the restart drops
+  #      the arguments, `--group claude` on an out-of-date checkout silently
+  #      becomes a FULL run — the exact "silently a full run" failure the
+  #      unknown-argument error exists to prevent, firing on the first run after
+  #      every upstream change. It also wrongly clears the failure signal, since
+  #      the run now believes it was a full one.
+  SELCLONE="${WORK}/selclone"
+  git clone -q "${ORIGIN}" "${SELCLONE}"
+  git -C "${SELCLONE}" reset -q --hard HEAD~1
+  : >"${RAN_MARKER}"
+  run_clone "${SELCLONE}" "${WORK}/home_a2" --only 02-b.sh
+  if [[ "$(tr '\n' ' ' <"${RAN_MARKER}")" == "b " ]]; then
+    ok "a selection survives the self-update re-exec"
+  else
+    bad "the re-exec widened '--only 02-b.sh' to '$(tr '\n' ' ' <"${RAN_MARKER}")'"
+  fi
+  if [[ "$(git -C "${SELCLONE}" rev-parse --short HEAD)" == "${NEWEST}" ]]; then
+    ok "...and the checkout was still updated"
+  else
+    bad "the selected run did not update the checkout"
+  fi
+  assert_contains "a selected run that self-updated still reports itself PARTIAL" \
+    "${WORK}/home_a2/.cache/codespaces-setup.log" "PARTIAL"
+
+  # (b) An up-to-date clone does not re-exec, and says so.
+  : >"${RAN_MARKER}"
+  run_clone "${CLONE}" "${WORK}/home_b"
+  if [[ "$(grep -c '^v2$' "${RAN_MARKER}")" == "1" ]]; then
+    ok "an already-current checkout runs its steps once"
+  else
+    bad "an already-current checkout ran the step $(grep -c '^v2$' "${RAN_MARKER}") times"
+  fi
+  assert_contains "an already-current checkout says so" \
+    "${WORK}/home_b/.cache/codespaces-setup.log" "already current"
+
+  # (c) LOCAL EDITS ARE NEVER DISCARDED. Running slightly old code is
+  #     recoverable; deleting work that exists nowhere else is not.
+  DIRTY="${WORK}/dirty"
+  git clone -q "${ORIGIN}" "${DIRTY}"
+  git -C "${DIRTY}" reset -q --hard HEAD~1
+  make_marker_step "${DIRTY}/scripts/01-a.sh" mine
+  : >"${RAN_MARKER}"
+  run_clone "${DIRTY}" "${WORK}/home_c"
+  if grep -qx "mine" "${RAN_MARKER}"; then
+    ok "a dirty checkout is NOT reset — the local edit still runs"
+  else
+    bad "a dirty checkout discarded a local edit"
+  fi
+  assert_contains "a dirty checkout explains why it did not update" \
+    "${WORK}/home_c/.cache/codespaces-setup.log" "uncommitted changes"
+
+  # (d) An unreachable origin must never be the reason setup fails. An update is
+  #     an improvement to the run, not a precondition for it.
+  OFFLINE="${WORK}/offline"
+  git clone -q "${ORIGIN}" "${OFFLINE}"
+  git -C "${OFFLINE}" remote set-url origin "${WORK}/does-not-exist"
+  : >"${RAN_MARKER}"
+  run_clone "${OFFLINE}" "${WORK}/home_d"
+  if [[ "${RC}" -eq 0 ]] && grep -qx "v2" "${RAN_MARKER}"; then
+    ok "an unreachable origin is survivable — the run continues on the code on disk"
+  else
+    bad "an unreachable origin broke the run (rc=${RC})"
+  fi
+  assert_contains "an unreachable origin is reported, not hidden" \
+    "${WORK}/home_d/.cache/codespaces-setup.log" "could not reach origin"
+
+  # (e) A shallow clone — what `--depth=1` leaves behind, and the case a plain
+  #     fetch cannot fast-forward, because the grafted history shares no commit
+  #     with the fetched tip. It was taken above, while v1 was still the tip.
+  if [[ -d "${SHALLOW}" ]] &&
+    [[ "$(git -C "${SHALLOW}" rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
+    : >"${RAN_MARKER}"
+    run_clone "${SHALLOW}" "${WORK}/home_e"
+    if grep -qx "v2" "${RAN_MARKER}"; then
+      ok "a shallow (--depth=1) checkout is deepened and fast-forwarded"
+    else
+      bad "a shallow checkout did not update: ran '$(tr '\n' ' ' <"${RAN_MARKER}")'"
+    fi
+  else
+    skip "shallow clone: could not construct a shallow checkout to test against"
+  fi
+
+  # (f) Not a git checkout at all (a bind-mount, an extracted tarball). Nothing
+  #     to update, and not a problem.
+  PLAIN="${WORK}/plain"
+  mkdir -p "${PLAIN}/scripts"
+  cp "${SETUP}" "${PLAIN}/setup.sh"
+  make_marker_step "${PLAIN}/scripts/01-a.sh" plain
+  make_marker_step "${PLAIN}/scripts/02-b.sh" b
+  : >"${RAN_MARKER}"
+  run_clone "${PLAIN}" "${WORK}/home_f"
+  if [[ "${RC}" -eq 0 ]] && grep -qx "plain" "${RAN_MARKER}"; then
+    ok "a non-git directory runs normally"
+  else
+    bad "a non-git directory broke the run (rc=${RC})"
+  fi
+  assert_contains "a non-git directory says why it did not update" \
+    "${WORK}/home_f/.cache/codespaces-setup.log" "not a git checkout"
+
+  # (g) The opt-out, which .devcontainer/post-create.sh relies on.
+  : >"${RAN_MARKER}"
+  run_clone "${CLONE}" "${WORK}/home_g" SETUP_NO_SELF_UPDATE=1
+  assert_contains "SETUP_NO_SELF_UPDATE=1 disables the self-update" \
+    "${WORK}/home_g/.cache/codespaces-setup.log" "SETUP_NO_SELF_UPDATE=1"
+
+  rm -rf "${WORK}"
+else
+  skip "self-update: git is not available"
+fi
+
+echo "== scenario 16: the devcontainer path opts out of the self-update =="
+# post-create.sh runs at container creation, from whatever ref the Codespace was
+# created from — commonly a PR branch or a detached HEAD. Pulling there would
+# run code the user did not ask for, and there is nothing to update anyway.
+if grep -q 'SETUP_NO_SELF_UPDATE=1' "${REPO_DIR}/.devcontainer/post-create.sh"; then
+  ok "post-create.sh disables the self-update"
+else
+  bad "post-create.sh does NOT disable the self-update"
+fi
 
 echo ""
 if ((SKIP > 0)); then

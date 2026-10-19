@@ -113,25 +113,36 @@ else
   fi
 fi
 
-# Put setup-status on PATH. It is the answer to "what happened during setup?"
-# from inside the VM, and it must be reachable without knowing any file paths —
-# which was the whole problem it exists to fix. Deployed here rather than as its
-# own step because it is a dotfile-shaped concern and this step already runs
-# second, so the command is available even when later steps fail.
-STATUS_SRC="${REPO_DIR}/bin/setup-status"
-if [[ -f "${STATUS_SRC}" ]]; then
-  if sudo install -m 755 "${STATUS_SRC}" /usr/local/bin/setup-status 2>/dev/null; then
-    log "Installed setup-status to /usr/local/bin/setup-status."
+# Put the two helper commands on PATH. Both must be reachable without knowing
+# any file paths — for setup-status that was the whole problem it exists to fix
+# ("what happened during setup?"), and codespaces-update is useless if you have
+# to find the checkout first. Deployed here rather than as their own step
+# because they are dotfile-shaped concerns and this step already runs second, so
+# the commands are available even when later steps fail.
+for helper in setup-status codespaces-update; do
+  HELPER_SRC="${REPO_DIR}/bin/${helper}"
+  if [[ ! -f "${HELPER_SRC}" ]]; then
+    log "WARNING: ${HELPER_SRC} not found; ${helper} not installed."
+    continue
+  fi
+  if sudo install -m 755 "${HELPER_SRC}" "/usr/local/bin/${helper}" 2>/dev/null; then
+    log "Installed ${helper} to /usr/local/bin/${helper}."
   else
     # No sudo (or a read-only /usr/local): fall back to ~/.local/bin, which
     # configs/.zshrc already puts on PATH.
     mkdir -p "${HOME}/.local/bin"
-    install -m 755 "${STATUS_SRC}" "${HOME}/.local/bin/setup-status"
-    log "Installed setup-status to ${HOME}/.local/bin/setup-status."
+    install -m 755 "${HELPER_SRC}" "${HOME}/.local/bin/${helper}"
+    log "Installed ${helper} to ${HOME}/.local/bin/${helper}."
   fi
-else
-  log "WARNING: ${STATUS_SRC} not found; setup-status not installed."
-fi
+done
+
+# Record where this checkout is. Once copied onto PATH, codespaces-update can no
+# longer find the repo by looking next to itself, and guessing from a list of
+# likely paths is exactly the kind of "probably right" that breaks on the one
+# machine that is laid out differently. The run that deployed it knows the
+# answer, so write it down rather than re-deriving it later.
+mkdir -p "${HOME}/.cache"
+printf '%s\n' "${REPO_DIR}" >"${HOME}/.cache/codespaces-setup.dir"
 
 log "Dotfiles deployed."
 

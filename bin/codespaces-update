@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# codespaces-update — pull this repo's latest changes into the Codespace.
+#
+# Ergonomics only. It finds the checkout and forwards to setup.sh; `setup.sh`
+# does the actual work, including fetching and fast-forwarding its own checkout
+# before it runs (see the self-update block there).
+#
+# IT KNOWS NO STEP NAMES, AND IT MUST NOT LEARN ANY.
+#
+# That is the whole design constraint. The update path is a SELECTOR over the
+# STEPS array in setup.sh — never a copy of it — because a second ordered list
+# has nothing keeping it honest: add scripts/19-foo.sh, wire it into STEPS, and
+# a list over here would silently never run it. ci/lint-steps.sh can enforce
+# that property for setup.sh's own groups; it cannot enforce it for a list that
+# lives in a different file and means something slightly different. So this
+# script forwards a group name and nothing else. If it ever grows a list of
+# scripts, or a case statement mapping words to steps, the design has failed and
+# the right fix is to add a group to STEP_GROUPS in setup.sh instead.
+#
+# Usage:
+#   codespaces-update                 # everything (full, idempotent setup)
+#   codespaces-update claude          # just the Claude skills and commands
+#   codespaces-update nvim            # Neovim config, tools and plugin sync
+#   codespaces-update --list          # what can be selected
+#   codespaces-update --only 11-dotfiles.sh
+#
+# Any argument starting with '-' is passed through untouched, so every flag
+# setup.sh grows is available here the day it is added, with no change needed.
+
+set -euo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Find the checkout. Next to this script first (running it straight out of the
+# repo is unambiguous), then the path the last run wrote down — which is the
+# only non-guess once this file has been copied onto PATH, where looking next to
+# itself finds /usr/local. The remaining two are last-resort guesses at where a
+# Codespace puts it. CODESPACES_SETUP_DIR overrides everything.
+RECORDED=""
+if [[ -f "${HOME}/.cache/codespaces-setup.dir" ]]; then
+  RECORDED="$(head -n 1 "${HOME}/.cache/codespaces-setup.dir")"
+fi
+
+CANDIDATES=()
+[[ -n "${CODESPACES_SETUP_DIR:-}" ]] && CANDIDATES+=("${CODESPACES_SETUP_DIR}")
+CANDIDATES+=(
+  "$(cd "${SELF_DIR}/.." 2>/dev/null && pwd)"
+  "${RECORDED}"
+  "${HOME}/codespaces-setup"
+  "/workspaces/.codespaces/.persistedshare/dotfiles"
+)
+
+REPO_DIR=""
+for d in "${CANDIDATES[@]}"; do
+  if [[ -n "${d}" && -f "${d}/setup.sh" ]]; then
+    REPO_DIR="${d}"
+    break
+  fi
+done
+
+if [[ -z "${REPO_DIR}" ]]; then
+  echo "codespaces-update: could not find the codespaces-setup checkout." >&2
+  echo "" >&2
+  echo "Looked in:" >&2
+  for d in "${CANDIDATES[@]}"; do
+    [[ -n "${d}" ]] && echo "  ${d}/setup.sh" >&2
+  done
+  echo "" >&2
+  echo "Set CODESPACES_SETUP_DIR=/path/to/codespaces-setup and try again." >&2
+  exit 2
+fi
+
+# A bare word is a group name; anything else is a flag setup.sh already
+# understands. Deliberately no validation of the word itself — setup.sh owns the
+# list of groups and reports an unknown one, with the known names, in one place.
+declare -a ARGS=()
+if (($# > 0)) && [[ "$1" != -* ]]; then
+  ARGS=(--group "$@")
+else
+  ARGS=("$@")
+fi
+
+exec bash "${REPO_DIR}/setup.sh" ${ARGS[@]+"${ARGS[@]}"}

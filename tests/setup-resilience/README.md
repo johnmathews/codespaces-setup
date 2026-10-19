@@ -39,6 +39,25 @@ purpose — `SETUP_SCRIPTS_DIR`, `SETUP_STEPS`, `SETUP_REQUIRED`,
    command keeps failing, gives up after `RETRY_ATTEMPTS` returning that
    command's own exit code.
 
+Later scenarios (see the header comment in `run.sh` for the full list) cover the
+**update** path, which is a *selector over the same `STEPS` array* rather than a
+second runner:
+
+6. **A selection runs exactly what it names.** `--only`/`--group` run the named
+   steps in `STEPS` order (not command-line order), an unknown step, group or
+   flag is a hard error rather than a silent full run, and dependency skipping
+   still applies inside the subset.
+7. **A clean partial run does not clear the failure signal.** The signal answers
+   "is this environment fully set up?", and only a full run can answer that — so
+   `--group claude` succeeding must not erase evidence that an earlier full run
+   left the machine broken. A clean *full* run still clears it.
+8. **The self-update is survivable in every case that occurs.** `setup.sh`
+   fetches and fast-forwards its own checkout, re-execs exactly once, and keeps
+   going when the checkout is already current, carries uncommitted edits (which
+   are never discarded), is shallow, is not a git checkout at all, or has an
+   unreachable origin. An update is an improvement to the run, never a
+   precondition for it.
+
 ## Run locally
 
 ```bash

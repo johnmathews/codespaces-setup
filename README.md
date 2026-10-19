@@ -6,6 +6,7 @@ Scripts to set up a new GitHub Codespace with a full, opinionated development en
 
 - [Choosing a base image (read this first)](#choosing-a-base-image-read-this-first)
 - [Manual steps (do these yourself)](#manual-steps-do-these-yourself)
+- [Updating an existing Codespace](#updating-an-existing-codespace)
 - [Logs](#logs)
 - [Troubleshooting: my Codespace came up half-built](#troubleshooting-my-codespace-came-up-half-built)
 - [Getting started](#getting-started)
@@ -136,6 +137,65 @@ After that, `git push`/`pull` work against any repo (via the `gh` credential hel
 `configs/.gitconfig_managed`). Full details and the "give me the restricted token back" escape hatch are in
 [GitHub CLI authentication](#github-cli-authentication).
 
+## Updating an existing Codespace
+
+**There is no `update.sh`, deliberately.** `setup.sh` _is_ the update path: every step is idempotent, so
+re-running it brings an existing Codespace up to date with this repo. What was previously missing is the
+step everyone forgets — **the checkout itself is stale**. Under the dotfiles route your Codespace holds the
+copy GitHub cloned at creation time, so re-running it faithfully re-applies the version you started with.
+
+`setup.sh` now fetches and fast-forwards its own checkout before doing anything else, then re-execs once so
+the run uses the new code:
+
+```bash
+bash <repo>/setup.sh                 # pull, then run everything
+```
+
+If the checkout has uncommitted changes it is **never** reset — you are warned and the run continues on
+your code. A missing `origin`, a non-git directory, or an unreachable network are all warned about and
+survived: an update is an improvement to the run, never a precondition for it. `SETUP_NO_SELF_UPDATE=1`
+turns it off (the devcontainer path sets this, because that checkout is already current).
+
+> **One-time bootstrap.** A Codespace created *before* this landed is running a `setup.sh` that has no
+> self-update block, so it cannot pull itself the first time — by definition, the fix has to already be on
+> disk to run. Pull by hand once, after which `bash setup.sh` keeps itself current:
+>
+> ```bash
+> git -C /workspaces/.codespaces/.persistedshare/dotfiles pull
+> ```
+
+### Updating just one thing
+
+The two things that change most often are the Claude assets and the Neovim config, and both have a group:
+
+```bash
+bash <repo>/setup.sh --group claude   # configs/claude/ → ~/.claude (skills + commands)
+bash <repo>/setup.sh --group nvim     # Neovim config, pinned tools, and the plugin sync
+bash <repo>/setup.sh --group shell    # .zshrc, aliases, gitconfig, Oh My Zsh/p10k
+bash <repo>/setup.sh --only 09-uv.sh  # one named step
+bash <repo>/setup.sh --list           # what can be selected
+```
+
+Or the wrapper, which does the same thing with less typing from anywhere on the system:
+
+```bash
+codespaces-update claude
+```
+
+A few things worth knowing:
+
+- **Groups are names for subsets of the existing `STEPS` array, not a second list of commands.** That is the
+  whole design: a parallel update list would silently stop including new steps, which is exactly the defect
+  `ci/lint-steps.sh` exists to prevent. A CI check asserts every group member is a real entry in `STEPS`.
+- **A selection runs in `STEPS` order**, not the order you typed, because `STEPS` is the only thing that
+  knows what must run before what.
+- **Unknown arguments are an error**, not a silent full run.
+- **The `nvim` group runs the plugin sync in the foreground**, so you can watch it and see any failure. The
+  unattended full run still launches it in the background.
+- **A clean partial run does not clear the "setup failed" signal.** That signal answers "is this environment
+  fully set up?", which only a full run can answer — otherwise a one-group update would mask a machine that
+  is still broken. `setup-status` says so explicitly, and a clean full run still clears it.
+
 ## Logs
 
 **Start here: `setup-status`.** It is installed on `PATH` and answers "what happened during setup?" without
@@ -193,17 +253,23 @@ run — it is recorded, the run continues, and the failure is reported at the en
    bash <repo>/setup.sh
    ```
 
-   Every step is idempotent *and* verifies its own work: a guard checks that the installed binary actually
-   runs and is the pinned version, so a half-finished install from an interrupted run is detected and
-   repaired rather than skipped. Re-running also automatically re-attempts anything that failed.
+   This pulls the latest version of this repo into the checkout first (see
+   [Updating an existing Codespace](#updating-an-existing-codespace)) — worth knowing, because if the step
+   failed for a reason that has since been fixed upstream, re-running the old copy would reproduce the
+   failure forever. Every step is idempotent *and* verifies its own work: a guard checks that the installed
+   binary actually runs and is the pinned version, so a half-finished install from an interrupted run is
+   detected and repaired rather than skipped. Re-running also automatically re-attempts anything that failed.
 
 4. **Or re-run just the one step**, if you know which:
 
    ```bash
-   bash <repo>/scripts/09-uv.sh
+   bash <repo>/setup.sh --only 09-uv.sh
+   bash <repo>/scripts/09-uv.sh          # same step, without the runner
    ```
 
-   `setup-status` prints the exact command for each failed step.
+   `setup-status` prints the exact command for each failed step. Note that a *partial* run deliberately
+   leaves the failure signal in place even when it succeeds — only a full run can declare the environment
+   healthy.
 
 5. **On a genuinely slow link**, give the retries more room:
 
@@ -344,8 +410,13 @@ scripts/
   18-azure-cli.sh       # Install Azure CLI (az) via uv, symlinked into /usr/local/bin
 bin/
   setup-status          # Report what the last setup run did; deployed onto PATH
+  codespaces-update     # Thin wrapper, deployed onto PATH by 11-dotfiles.sh:
+                        # `codespaces-update claude` → setup.sh --group claude.
+                        # Forwards a group name and NOTHING else — it must never
+                        # learn which scripts exist, or it becomes a second STEPS list.
 ci/
-  lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS
+  lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS,
+                        # and that every --group member is a real entry in STEPS
   lint-conventions.sh   # Assert the per-script conventions (strict mode, log(), retry)
 .github/workflows/
   ci.yml                # shellcheck + shfmt + lint-steps + skill gates on push/PR
@@ -359,28 +430,40 @@ tests/
   engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
   engineering-team-command-links/ # Link-check: the /done + /merge-push commands' cross-references into the skill tree still resolve (headless, in CI)
 journal/                # Dated development-journal entries
-setup.sh                # Main entry point – runs the ordered STEPS array, then
-                        # launches 13-nvim-plugins.sh in background
+setup.sh                # Main entry point AND the update path – self-updates its own
+                        # checkout, then runs the ordered STEPS array (or a subset of
+                        # it via --only/--group), then launches 13-nvim-plugins.sh in
+                        # the background on full runs
 deploy-engineering-team-skill.sh  # Standalone: overwrite ~/.claude engineering-team
                         # skill with this repo's copy (only the skill; see below)
 ```
 
 > **Note:** `setup.sh` runs an explicit, ordered `STEPS` array — **not** every file in `scripts/`. Filename number
-> prefixes are labels, not run order, and `13-nvim-plugins.sh` is deliberately excluded (launched in the background).
-> Adding a script means also adding it to `STEPS`; `ci/lint-steps.sh` enforces this. See
+> prefixes are labels, not run order, and `13-nvim-plugins.sh` is absent from `STEPS` (launched in the background on a
+> full run; appended as a foreground step by `--group nvim`). Adding a script means also adding it to `STEPS`;
+> `ci/lint-steps.sh` enforces this, and also that every `--group` names only real `STEPS` entries. See
 > [docs/development.md](docs/development.md).
 
 ## Customisation
 
-- **Shell config**: edit `configs/.zshrc` then re-run `bash scripts/11-dotfiles.sh`
-- **Aliases**: edit `configs/.zsh_aliases` then re-run `bash scripts/11-dotfiles.sh`
-- **Git aliases**: edit `configs/.gitconfig_managed` then re-run `bash scripts/11-dotfiles.sh`
+Edit the file in this repo, then re-apply it. On an existing Codespace, **pull first** — `bash setup.sh`
+does that for you, and `--only`/`--group` narrow it to the step you changed (see
+[Updating an existing Codespace](#updating-an-existing-codespace)). Running `bash scripts/NN-….sh`
+directly still works and is the fastest loop when you are editing the repo in place.
+
+- **Shell config**: edit `configs/.zshrc` then re-run `bash setup.sh --group shell`
+- **Aliases**: edit `configs/.zsh_aliases` then re-run `bash setup.sh --group shell`
+- **Git aliases**: edit `configs/.gitconfig_managed` then re-run `bash setup.sh --group shell`
 - **Git identity**: `scripts/11-dotfiles.sh` sets global Git user details for the Codespace
-- **Claude skills/commands**: edit the files under `configs/claude/` then re-run `bash scripts/17-claude-skills.sh`. To
-  add another skill or command, drop it into `configs/claude/skills/<name>/` or `configs/claude/commands/<name>.md` and
-  wire it into the deploy calls in `scripts/17-claude-skills.sh`. For the common case of just re-pushing the
-  `engineering-team` skill after an edit, run `bash deploy-engineering-team-skill.sh` — it deploys *only* that skill and
-  overwrites the local copy unconditionally (no commands, no diff-skip)
+- **Claude skills/commands**: edit the files under `configs/claude/` then re-run
+  `bash setup.sh --group claude`. To add another skill or command, drop it into
+  `configs/claude/skills/<name>/` or `configs/claude/commands/<name>.md` and wire it into the deploy calls in
+  `scripts/17-claude-skills.sh`. For the common case of just re-pushing the `engineering-team` skill after an
+  edit, run `bash deploy-engineering-team-skill.sh` — it deploys *only* that skill and overwrites the local
+  copy unconditionally (no commands, no diff-skip)
+- **Neovim**: the config lives in [johnmathews/neovim](https://github.com/johnmathews/neovim); pull it and
+  re-sync the plugins with `bash setup.sh --group nvim` (the plugin sync runs in the foreground here, so you
+  see it finish or fail)
 - **Editor tooling**: `scripts/15-dev-tools.sh` installs the formatters/linters (and `glow`) that Neovim expects on
   `PATH`. `.zshrc` also points Node/Python at the system CA bundle so Mason can install npm/pip tools behind a
   TLS-intercepting proxy (otherwise installs fail with `SELF_SIGNED_CERT_IN_CHAIN`)
@@ -400,11 +483,13 @@ locally:
 ```bash
 # shell correctness and formatting
 shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
-  bin/setup-status .devcontainer/post-create.sh tests/setup-resilience/run.sh
+  bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
+  tests/setup-resilience/run.sh
 shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
 
 # structural gates
-bash ci/lint-steps.sh                    # every scripts/NN-*.sh is wired into STEPS
+bash ci/lint-steps.sh                    # every scripts/NN-*.sh is wired into STEPS,
+                                         # and every --group member is a real STEPS entry
 bash ci/lint-conventions.sh              # per-script conventions (strict mode, log(), retry)
 bash ci/lint-conventions.sh --selftest   # ...and each of those rules can still go red
 zsh -n configs/.zshrc configs/.zsh_aliases
@@ -412,7 +497,8 @@ python3 -c "import json; json.load(open('.devcontainer/devcontainer.json'))"
 
 # behaviour
 bash tests/setup-resilience/run.sh       # the runner: failure accounting, timeouts,
-                                         # interrupts, the retry pass, the verdict
+                                         # interrupts, the retry pass, the verdict,
+                                         # --only/--group selection, the self-update
 ```
 
 `docs/development.md` lists the skill-related checks too; this block is the setup path only.
@@ -461,7 +547,10 @@ unchanged; it never runs `Lazy sync` or independent parser updates here.
 The first sync can take several minutes: wait for `setup-status` to report `ok`
 before opening Neovim. Progress is in `~/.cache/nvim-setup.log`; status is in
 `~/.cache/nvim-setup.status`. Failures (including missing prerequisites) record
-`incomplete` and exit nonzero. Re-run with `bash scripts/13-nvim-plugins.sh`.
+`incomplete` and exit nonzero. To pull the latest config and re-sync, run
+`bash setup.sh --group nvim` — that group runs the sync **in the foreground** so an
+interactive update shows you the failure instead of hiding it in a log; `bash
+scripts/13-nvim-plugins.sh` runs the sync alone.
 Each attempt first restores the managed checkout's committed `lazy-lock.json`;
 upstream refusals (exit 2) are not retried. New Zsh shells show a notice while
 sync is running. Bootstrap defaults to three 300-second attempts to fit the

@@ -97,6 +97,8 @@ if mode == "--log":
 outcome = d.get("outcome", "unknown")
 history = d.get("steps", [])
 missing = d.get("missing_tools", [])
+filtered = bool(d.get("filtered", False))
+selection = d.get("selection", "")
 
 # The record keeps the full history, so a step retried at the end of the run
 # appears twice: once failed, once ok. Report the CONCLUSION per step, and
@@ -135,7 +137,24 @@ print("  run     : %s" % d.get("run_id", "?"))
 print("  finished: %s  (%ss)" % (d.get("ended_at", "?"), d.get("elapsed_seconds", "?")))
 print("  steps   : %d of %d recorded, %d failed"
       % (len(steps), d.get("total_steps", len(steps)), len(failed)))
+# Which code the run was built from, and whether it refreshed itself first.
+# "I re-ran setup and my change isn't there" is almost always a stale checkout,
+# and until the run record carried a commit, nothing in the VM could say so.
+commit = d.get("commit", "")
+if commit:
+    branch = d.get("branch", "")
+    print("  commit  : %s%s" % (commit, " (%s)" % branch if branch else ""))
+self_update = d.get("self_update", "")
+if self_update:
+    print("  updated : %s" % self_update)
 print("  log     : %s" % d.get("log", "?"))
+
+if filtered:
+    print("")
+    print("  PARTIAL RUN: only %s was selected." % (selection or "a subset of the steps"))
+    print("  The steps it did not select were not attempted, so this record says")
+    print("  nothing about them — and a clean partial run deliberately leaves any")
+    print("  existing failure signal in place rather than clearing it.")
 
 if outcome == "interrupted":
     print("")
