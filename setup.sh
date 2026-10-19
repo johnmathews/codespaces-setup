@@ -2,6 +2,15 @@
 # Main setup script for GitHub Codespace environment.
 # Clone this repo and run: bash setup.sh
 # Safe to run multiple times (idempotent).
+#
+# It is also the UPDATE path. There is deliberately no update.sh: a second
+# ordered list of things to do would duplicate STEPS with nothing keeping the
+# copy honest, which is the defect ci/lint-steps.sh already exists to prevent
+# (add scripts/19-foo.sh, wire it into STEPS, watch the other list silently
+# never run it). Updating is therefore a SELECTOR OVER STEPS — `--only` and
+# `--group` filter the one array in place — plus a self-update that refreshes
+# this checkout before running, because re-running a stale clone re-applies the
+# version the Codespace was created with and looks exactly like a no-op.
 
 set -euo pipefail
 
@@ -20,6 +29,439 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="${SETUP_SCRIPTS_DIR:-${REPO_DIR}/scripts}"
 REPO_URL="https://github.com/johnmathews/codespaces-setup"
 README_URL="${REPO_URL}#readme"
+
+# ---------------------------------------------------------------------------
+# Command line
+# ---------------------------------------------------------------------------
+# Until this existed setup.sh ignored argv entirely, so every typo'd flag was
+# silently a FULL run — `bash setup.sh --only 17-claude-skills.sh` on an older
+# copy reinstalls everything and gives no hint it misunderstood. Unknown
+# arguments are therefore a hard error, not a warning.
+usage() {
+  cat <<EOF
+Usage: setup.sh [options]
+
+With no options, runs every step: the full, idempotent setup. The same script
+is the update path — select a subset with --only / --group.
+
+Options:
+  --only <step>[,<step>...]   Run only these steps. Repeatable, and several may
+                              follow one flag. Names are the scripts/ filenames;
+                              the trailing '.sh' may be omitted.
+  --group <name>[,<name>...]  Run only the steps in the named group(s).
+  --list                      Print the steps and groups, then exit.
+  -h, --help                  Print this help, then exit.
+
+Environment:
+  SETUP_NO_SELF_UPDATE=1      Do not fetch/fast-forward this checkout first.
+  SETUP_RETRY_PASS=0          Disable the end-of-run retry pass.
+  SETUP_STEP_TIMEOUT=<secs>   Per-step wall clock (default 1200; 0 disables).
+  RETRY_ATTEMPTS / RETRY_BASE_DELAY / RETRY_TIMEOUT
+                              Tune the per-download retry (see scripts/lib.sh).
+
+Examples:
+  bash setup.sh                       # everything
+  bash setup.sh --group claude        # just the Claude skills and commands
+  bash setup.sh --group nvim          # Neovim config, tools and plugin sync
+  bash setup.sh --only 11-dotfiles.sh # one step
+  bash setup.sh --list                # what can be selected
+
+See: ${README_URL}
+EOF
+}
+
+WANT_LIST=0
+declare -a SELECT_RAW=()
+_kind=""
+_val=""
+declare -a _vals=()
+
+while (($# > 0)); do
+  case "$1" in
+    --only | --group)
+      _kind="${1#--}"
+      shift
+      if (($# == 0)) || [[ "$1" == -* ]]; then
+        echo "[setup] ERROR: --${_kind} needs at least one value." >&2
+        usage >&2
+        exit 2
+      fi
+      # Consume every following non-flag word, so `--only a b c` works as well
+      # as `--only a,b,c`. There are no positional arguments, so this is not
+      # ambiguous.
+      while (($# > 0)) && [[ "$1" != -* ]]; do
+        IFS=',' read -r -a _vals <<<"$1"
+        for _val in ${_vals[@]+"${_vals[@]}"}; do
+          [[ -n "${_val}" ]] && SELECT_RAW+=("${_kind}:${_val}")
+        done
+        shift
+      done
+      ;;
+    --only=* | --group=*)
+      _kind="${1%%=*}"
+      _kind="${_kind#--}"
+      IFS=',' read -r -a _vals <<<"${1#*=}"
+      for _val in ${_vals[@]+"${_vals[@]}"}; do
+        [[ -n "${_val}" ]] && SELECT_RAW+=("${_kind}:${_val}")
+      done
+      shift
+      ;;
+    --list)
+      WANT_LIST=1
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "[setup] ERROR: unknown argument '$1'." >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
+# What to run
+# ---------------------------------------------------------------------------
+STEPS=(
+  "01-apt-packages.sh|Installing apt packages and CLI tools"
+  "11-dotfiles.sh|Deploying dotfiles (.zshrc, aliases, gitconfig)"
+  "14-fonts.sh|Installing MesloLGS NF (Nerd Font)"
+  "02-nodejs.sh|Installing Node.js 22"
+  "04-neovim-config.sh|Setting up Neovim configuration"
+  "05-eza.sh|Installing eza (modern ls)"
+  "06-yazi.sh|Installing yazi (file manager)"
+  "07-lazygit.sh|Installing lazygit"
+  "08-atuin.sh|Installing atuin (shell history)"
+  "09-uv.sh|Installing uv (Python package manager)"
+  "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
+  "12-claude-code.sh|Installing Claude Code"
+  "17-claude-skills.sh|Deploying Claude skills and slash commands"
+  "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
+  "03-neovim.sh|Bootstrapping Neovim and pinned tools from its config"
+  "16-gh.sh|Installing GitHub CLI (gh)"
+  "18-azure-cli.sh|Installing Azure CLI (az)"
+)
+
+# Test hook: SETUP_STEPS, if set, replaces the list above with ';'-separated
+# "script|description" entries. Lets tests/setup-resilience/ exercise the runner
+# over fake steps. Unset in every real run, so production behaviour is unchanged.
+if [[ -n "${SETUP_STEPS:-}" ]]; then
+  IFS=';' read -r -a STEPS <<<"${SETUP_STEPS}"
+fi
+
+# Named subsets of STEPS, for `--group`.
+#
+# A group is a NAME FOR A SUBSET, never a second list of things to do. Every
+# member must be an entry in STEPS above, and ci/lint-steps.sh asserts exactly
+# that — otherwise a group could name a script the runner does not run, which is
+# the defect that linter exists to catch, reintroduced one level up.
+#
+# NOT named GROUPS. `GROUPS` is a bash special variable holding the current
+# user's group IDs, and the shell silently DISCARDS assignments to it — the
+# array read back as "1001 100 4", so every --group lookup missed and `--list`
+# offered numeric group ids as group names. It failed quietly and plausibly,
+# which is the only reason it is worth a comment.
+STEP_GROUPS=(
+  "claude|17-claude-skills.sh"
+  "nvim|04-neovim-config.sh,03-neovim.sh"
+  "shell|11-dotfiles.sh,10-zsh-setup.sh"
+)
+
+# Test hook, mirroring SETUP_STEPS: ';'-separated "name|member,member" entries.
+if [[ -n "${SETUP_GROUPS:-}" ]]; then
+  IFS=';' read -r -a STEP_GROUPS <<<"${SETUP_GROUPS}"
+fi
+
+# Is <script> an entry in STEPS?
+step_exists() {
+  local candidate="$1" entry
+  for entry in ${STEPS[@]+"${STEPS[@]}"}; do
+    [[ "${entry%%|*}" == "${candidate}" ]] && return 0
+  done
+  return 1
+}
+
+# Print the members of group <name>, one per line. Silent (and returns 1) when
+# no such group exists.
+group_members() {
+  local wanted="$1" entry member
+  for entry in ${STEP_GROUPS[@]+"${STEP_GROUPS[@]}"}; do
+    [[ "${entry%%|*}" == "${wanted}" ]] || continue
+    IFS=',' read -r -a _vals <<<"${entry#*|}"
+    for member in ${_vals[@]+"${_vals[@]}"}; do
+      [[ -n "${member}" ]] && printf '%s\n' "${member}"
+    done
+    return 0
+  done
+  return 1
+}
+
+group_names() {
+  local entry
+  for entry in ${STEP_GROUPS[@]+"${STEP_GROUPS[@]}"}; do
+    printf '%s\n' "${entry%%|*}"
+  done
+}
+
+if ((WANT_LIST)); then
+  echo "Steps (run in this order):"
+  for _val in ${STEPS[@]+"${STEPS[@]}"}; do
+    printf '  %-22s %s\n' "${_val%%|*}" "${_val#*|}"
+  done
+  echo ""
+  echo "Groups (for --group):"
+  for _val in ${STEP_GROUPS[@]+"${STEP_GROUPS[@]}"}; do
+    printf '  %-10s %s\n' "${_val%%|*}" "${_val#*|}"
+  done
+  echo ""
+  echo "Run a subset:  bash setup.sh --group <name>   |   bash setup.sh --only <step>"
+  exit 0
+fi
+
+# Resolve --only/--group into a filtered STEPS. FILTERED is load-bearing well
+# beyond the loop below: a partial run must not clear the failure signal, must
+# not run the whole-environment verification, and must not print the green
+# "setup complete" banner — see the end of this file.
+FILTERED=0
+SELECTION_LABEL=""
+declare -a SELECTED=()
+
+selected_contains() {
+  local candidate="$1" s
+  for s in ${SELECTED[@]+"${SELECTED[@]}"}; do
+    [[ "${s}" == "${candidate}" ]] && return 0
+  done
+  return 1
+}
+
+if ((${#SELECT_RAW[@]} > 0)); then
+  FILTERED=1
+  declare -a _labels=()
+  for _val in "${SELECT_RAW[@]}"; do
+    _kind="${_val%%:*}"
+    _val="${_val#*:}"
+    if [[ "${_kind}" == "group" ]]; then
+      if ! group_members "${_val}" >/dev/null; then
+        echo "[setup] ERROR: no such group '${_val}'." >&2
+        echo "[setup]        Known groups: $(group_names | tr '\n' ' ')" >&2
+        echo "[setup]        See 'bash setup.sh --list'." >&2
+        exit 2
+      fi
+      while IFS= read -r _member; do
+        [[ -n "${_member}" ]] || continue
+        if ! step_exists "${_member}"; then
+          # Caught by ci/lint-steps.sh long before here, but a group that names
+          # a non-step must never silently run nothing.
+          echo "[setup] ERROR: group '${_val}' names '${_member}', which is not a step." >&2
+          exit 2
+        fi
+        selected_contains "${_member}" || SELECTED+=("${_member}")
+      done < <(group_members "${_val}")
+      _labels+=("group:${_val}")
+    else
+      # Accept '17-claude-skills' as well as '17-claude-skills.sh'; the trailing
+      # .sh is noise a user should not have to remember.
+      _member="${_val}"
+      step_exists "${_member}" || _member="${_val}.sh"
+      if ! step_exists "${_member}"; then
+        echo "[setup] ERROR: no such step '${_val}'." >&2
+        echo "[setup]        See 'bash setup.sh --list' for the step names." >&2
+        exit 2
+      fi
+      selected_contains "${_member}" || SELECTED+=("${_member}")
+      _labels+=("${_member}")
+    fi
+  done
+
+  # Filter in place, preserving the ARRAY's order rather than the order the
+  # names were typed in: the numeric filename prefixes are labels, and STEPS is
+  # the only thing that knows what has to run before what.
+  declare -a _filtered=()
+  for _val in ${STEPS[@]+"${STEPS[@]}"}; do
+    selected_contains "${_val%%|*}" && _filtered+=("${_val}")
+  done
+  STEPS=(${_filtered[@]+"${_filtered[@]}"})
+  SELECTION_LABEL="$(
+    IFS=' '
+    echo "${_labels[*]}"
+  )"
+
+  # The Neovim plugin sync is the POINT of a Neovim update, and in a selected
+  # run it must be watchable. A full run detaches it deliberately (nobody is
+  # watching an unattended Codespace creation, and it takes minutes), but that
+  # is the wrong default here: detached, it finishes long after the command
+  # returned and reports its failure only into a file nobody opens. Appending it
+  # as a real step gives it the wall clock, the run record and the retry pass.
+  if [[ -f "${SCRIPTS_DIR}/13-nvim-plugins.sh" ]] && group_members nvim >/dev/null; then
+    while IFS= read -r _member; do
+      [[ -n "${_member}" ]] || continue
+      if selected_contains "${_member}"; then
+        STEPS+=("13-nvim-plugins.sh|Synchronising Neovim plugins, Mason tools and parsers")
+        break
+      fi
+    done < <(group_members nvim)
+  fi
+fi
+
+# Steps that MUST succeed for the rest of the run to be meaningful. A required
+# step that fails aborts the run immediately (the historical behaviour) instead
+# of being recorded-and-skipped, because continuing past it would only produce a
+# cascade of derived failures.
+#
+# Only 01-apt-packages qualifies: it installs the foundational tools every later
+# step assumes are already on PATH (curl, git, unzip, tar, zsh). If it fails,
+# essentially every remaining step fails too, so aborting yields one clear,
+# actionable error instead of 16 misleading ones. Every other step installs an
+# independent tool whose failure the rest of the run can survive, so those are
+# recorded and skipped past rather than fatal.
+#
+# Overridable via env for the resilience test: SETUP_REQUIRED="" means "none".
+if [[ -n "${SETUP_REQUIRED+defined}" ]]; then
+  IFS=';' read -r -a REQUIRED <<<"${SETUP_REQUIRED}"
+else
+  REQUIRED=("01-apt-packages.sh")
+fi
+
+# Hard dependencies between steps: "script:dependency[,dependency...]".
+#
+# These were unreachable before a non-required failure stopped aborting the run —
+# the run died at the dependency, so the dependent never ran. Now it does, and it
+# fails for a reason that has nothing to do with itself: 09-uv.sh failing produced
+# TWO entries in the FAILED banner, with nothing saying which was the cause and
+# which the consequence. Marking dependents SKIPPED keeps one root cause to one
+# line, and stops a derived failure being re-attempted by the retry pass (which
+# would just fail again, slowly).
+#
+# Overridable for tests via SETUP_DEPS; empty means "no dependencies".
+if [[ -n "${SETUP_DEPS+defined}" ]]; then
+  IFS=';' read -r -a STEP_DEPS <<<"${SETUP_DEPS}"
+else
+  STEP_DEPS=(
+    "18-azure-cli.sh:09-uv.sh"
+    "15-dev-tools.sh:02-nodejs.sh,09-uv.sh"
+    "03-neovim.sh:04-neovim-config.sh"
+  )
+fi
+
+# ---------------------------------------------------------------------------
+# Self-update
+# ---------------------------------------------------------------------------
+# The missing piece that made "re-run setup.sh to pick up my changes" quietly
+# untrue. setup.sh never touched its own checkout, and under the dotfiles
+# mechanism that checkout is frozen at the moment the Codespace was created — so
+# a re-run faithfully re-applied the OLD repo and looked like a no-op, which
+# reads as "my edit didn't deploy" rather than "I ran last month's code".
+#
+# Every branch below ends in "keep going with the code on disk". An update is an
+# improvement to the run, never a precondition for it: failing a Codespace
+# because a fetch timed out would trade a stale-but-working environment for no
+# environment at all.
+SELF_UPDATE_STATUS="${SETUP_SELF_UPDATE_STATUS:-}"
+
+self_update() {
+  local branch head_before head_after fetch_rc=0
+
+  if [[ "${SETUP_NO_SELF_UPDATE:-0}" == "1" ]]; then
+    SELF_UPDATE_STATUS="disabled (SETUP_NO_SELF_UPDATE=1)"
+    return 0
+  fi
+  # Set by the exec below. Without it a repo that somehow never converges would
+  # re-exec forever; one hop is all this is ever allowed.
+  if [[ "${SETUP_SELF_UPDATE_DONE:-0}" == "1" ]]; then
+    return 0
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    SELF_UPDATE_STATUS="skipped (git not installed yet)"
+    return 0
+  fi
+  # Not a git checkout at all: a devcontainer bind-mount, an extracted tarball,
+  # or a fixture directory. Nothing to update, and not a problem.
+  if ! git -C "${REPO_DIR}" rev-parse --git-dir >/dev/null 2>&1; then
+    SELF_UPDATE_STATUS="skipped (${REPO_DIR} is not a git checkout)"
+    return 0
+  fi
+  if ! git -C "${REPO_DIR}" remote get-url origin >/dev/null 2>&1; then
+    SELF_UPDATE_STATUS="skipped (no 'origin' remote)"
+    return 0
+  fi
+  branch="$(git -C "${REPO_DIR}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  if [[ -z "${branch}" ]]; then
+    SELF_UPDATE_STATUS="skipped (detached HEAD — no branch to fast-forward)"
+    return 0
+  fi
+  # Local modifications are NEVER discarded. 04-neovim-config.sh hard-resets its
+  # managed clone because that tree is upstream's and the drift is machine-
+  # generated; this tree is the user's, and work they have not pushed exists
+  # nowhere else. Running slightly old code is recoverable; deleting an edit is
+  # not.
+  if [[ -n "$(git -C "${REPO_DIR}" status --porcelain 2>/dev/null)" ]]; then
+    SELF_UPDATE_STATUS="skipped (uncommitted changes in ${REPO_DIR})"
+    echo "[setup] NOTE: ${REPO_DIR} has uncommitted changes — not updating it."
+    echo "[setup]       Running the code already on disk. Commit or stash to update."
+    return 0
+  fi
+
+  echo "[setup] Checking ${REPO_DIR} for updates (branch ${branch})..."
+  if [[ "$(git -C "${REPO_DIR}" rev-parse --is-shallow-repository 2>/dev/null)" == "true" ]]; then
+    # A --depth=1 clone shares no history with the fetched tip, so a plain fetch
+    # leaves nothing to fast-forward ONTO: the ancestry test below would fail and
+    # the update would be reported as a divergence on every single run. Deepen
+    # first, and fall back to a normal fetch if the remote refuses.
+    git -C "${REPO_DIR}" fetch --quiet --unshallow origin "${branch}" 2>/dev/null ||
+      git -C "${REPO_DIR}" fetch --quiet origin "${branch}" 2>/dev/null ||
+      fetch_rc=$?
+  else
+    git -C "${REPO_DIR}" fetch --quiet origin "${branch}" 2>/dev/null || fetch_rc=$?
+  fi
+  if ((fetch_rc != 0)); then
+    SELF_UPDATE_STATUS="skipped (could not reach origin)"
+    echo "[setup] NOTE: could not fetch from origin — continuing with the current checkout."
+    return 0
+  fi
+  if ! git -C "${REPO_DIR}" rev-parse --verify --quiet "refs/remotes/origin/${branch}" >/dev/null 2>&1; then
+    SELF_UPDATE_STATUS="skipped (origin has no branch '${branch}')"
+    return 0
+  fi
+
+  head_before="$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  head_after="$(git -C "${REPO_DIR}" rev-parse --short "origin/${branch}" 2>/dev/null || echo unknown)"
+  if [[ "${head_before}" == "${head_after}" ]]; then
+    SELF_UPDATE_STATUS="already current (${head_before})"
+    echo "[setup] Already up to date (${head_before})."
+    return 0
+  fi
+  if ! git -C "${REPO_DIR}" merge-base --is-ancestor HEAD "origin/${branch}" 2>/dev/null; then
+    SELF_UPDATE_STATUS="skipped (${branch} has diverged from origin/${branch})"
+    echo "[setup] NOTE: ${branch} has diverged from origin/${branch} — not fast-forwarding."
+    return 0
+  fi
+  if ! git -C "${REPO_DIR}" merge --ff-only --quiet "origin/${branch}" 2>/dev/null; then
+    SELF_UPDATE_STATUS="skipped (fast-forward to origin/${branch} failed)"
+    echo "[setup] NOTE: could not fast-forward to origin/${branch} — using the code on disk."
+    return 0
+  fi
+
+  SELF_UPDATE_STATUS="updated ${head_before} -> ${head_after} (origin/${branch})"
+  echo "[setup] Updated ${REPO_DIR}: ${head_before} -> ${head_after}."
+  echo "[setup] Restarting so the rest of this run uses the new code."
+  # Re-exec, because the steps, the STEPS array and this file's own logic have
+  # all just changed underneath a running shell — bash reads a script lazily, so
+  # continuing here would execute a splice of the old and new files.
+  export SETUP_SELF_UPDATE_DONE=1
+  export SETUP_SELF_UPDATE_STATUS="${SELF_UPDATE_STATUS}"
+  exec bash "${REPO_DIR}/setup.sh" "$@"
+}
+
+self_update "$@"
+
+# Which commit this run is actually built from — the question nobody could
+# answer from inside the VM, and the first one worth asking when a change
+# "didn't deploy".
+REPO_COMMIT="$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo "")"
+REPO_BRANCH="$(git -C "${REPO_DIR}" symbolic-ref --quiet --short HEAD 2>/dev/null || echo "")"
 
 # Mirror every line of output to a log file as well as the terminal, so the run
 # can be followed from any other shell (or after it finishes) with:
@@ -78,73 +520,6 @@ HAS_TTY=0
 exec > >(tee -a "${SETUP_LOG}") 2>&1
 ln -sf "${SETUP_LOG}" "${SETUP_LATEST_LOG}" 2>/dev/null || true
 
-STEPS=(
-  "01-apt-packages.sh|Installing apt packages and CLI tools"
-  "11-dotfiles.sh|Deploying dotfiles (.zshrc, aliases, gitconfig)"
-  "14-fonts.sh|Installing MesloLGS NF (Nerd Font)"
-  "02-nodejs.sh|Installing Node.js 22"
-  "04-neovim-config.sh|Setting up Neovim configuration"
-  "05-eza.sh|Installing eza (modern ls)"
-  "06-yazi.sh|Installing yazi (file manager)"
-  "07-lazygit.sh|Installing lazygit"
-  "08-atuin.sh|Installing atuin (shell history)"
-  "09-uv.sh|Installing uv (Python package manager)"
-  "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
-  "12-claude-code.sh|Installing Claude Code"
-  "17-claude-skills.sh|Deploying Claude skills and slash commands"
-  "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
-  "03-neovim.sh|Bootstrapping Neovim and pinned tools from its config"
-  "16-gh.sh|Installing GitHub CLI (gh)"
-  "18-azure-cli.sh|Installing Azure CLI (az)"
-)
-
-# Test hook: SETUP_STEPS, if set, replaces the list above with ';'-separated
-# "script|description" entries. Lets tests/setup-resilience/ exercise the runner
-# over fake steps. Unset in every real run, so production behaviour is unchanged.
-if [[ -n "${SETUP_STEPS:-}" ]]; then
-  IFS=';' read -r -a STEPS <<<"${SETUP_STEPS}"
-fi
-
-# Steps that MUST succeed for the rest of the run to be meaningful. A required
-# step that fails aborts the run immediately (the historical behaviour) instead
-# of being recorded-and-skipped, because continuing past it would only produce a
-# cascade of derived failures.
-#
-# Only 01-apt-packages qualifies: it installs the foundational tools every later
-# step assumes are already on PATH (curl, git, unzip, tar, zsh). If it fails,
-# essentially every remaining step fails too, so aborting yields one clear,
-# actionable error instead of 16 misleading ones. Every other step installs an
-# independent tool whose failure the rest of the run can survive, so those are
-# recorded and skipped past rather than fatal.
-#
-# Overridable via env for the resilience test: SETUP_REQUIRED="" means "none".
-if [[ -n "${SETUP_REQUIRED+defined}" ]]; then
-  IFS=';' read -r -a REQUIRED <<<"${SETUP_REQUIRED}"
-else
-  REQUIRED=("01-apt-packages.sh")
-fi
-
-# Hard dependencies between steps: "script:dependency[,dependency...]".
-#
-# These were unreachable before a non-required failure stopped aborting the run —
-# the run died at the dependency, so the dependent never ran. Now it does, and it
-# fails for a reason that has nothing to do with itself: 09-uv.sh failing produced
-# TWO entries in the FAILED banner, with nothing saying which was the cause and
-# which the consequence. Marking dependents SKIPPED keeps one root cause to one
-# line, and stops a derived failure being re-attempted by the retry pass (which
-# would just fail again, slowly).
-#
-# Overridable for tests via SETUP_DEPS; empty means "no dependencies".
-if [[ -n "${SETUP_DEPS+defined}" ]]; then
-  IFS=';' read -r -a STEP_DEPS <<<"${SETUP_DEPS}"
-else
-  STEP_DEPS=(
-    "18-azure-cli.sh:09-uv.sh"
-    "15-dev-tools.sh:02-nodejs.sh,09-uv.sh"
-    "03-neovim.sh:04-neovim-config.sh"
-  )
-fi
-
 # A wall clock for an entire step, as a backstop behind the per-operation bound
 # inside `retry` (scripts/lib.sh).
 #
@@ -159,6 +534,17 @@ fi
 # Node, is a ~45 MB download) and short enough that a wedged run still reports
 # rather than being killed from outside. 0 disables it.
 SETUP_STEP_TIMEOUT="${SETUP_STEP_TIMEOUT:-1200}"
+
+# Per-step overrides of that wall clock, as "script:seconds".
+#
+# One step legitimately outlives the general bound. The Neovim plugin sync
+# retries up to three times at NVIM_SYNC_TIMEOUT (900s) each, so the default
+# 1200s would kill it mid-recovery — and it only runs as a step at all in a
+# selected run (a full run detaches it, unbounded). A bound that fires during
+# normal operation teaches people to disable bounds.
+STEP_TIMEOUTS=(
+  "13-nvim-plugins.sh:3000"
+)
 
 TOTAL_STEPS="${#STEPS[@]}"
 SETUP_START_TS="$(date +%s)"
@@ -283,6 +669,12 @@ write_failure_file() {
     echo "Your environment is only partially set up. To fix it:"
     echo "  bash ${REPO_DIR}/setup.sh      # re-run (idempotent; safe to repeat)"
     echo "  tail -n 200 ${SETUP_LOG}       # see what went wrong"
+    if ((FILTERED)); then
+      echo ""
+      echo "NOTE: that run was a SUBSET (${SELECTION_LABEL}). The steps it did not"
+      echo "      select were not attempted, so they are neither confirmed working"
+      echo "      nor confirmed broken. The full re-run above covers them."
+    fi
     echo ""
     echo "This notice clears itself once setup completes with no failures."
   } >"${SETUP_FAILURE_FILE}"
@@ -316,6 +708,16 @@ write_summary() {
     printf '  "interactive": %s,\n' "$( ((HAS_TTY)) && echo true || echo false)"
     printf '  "log": "%s",\n' "$(json_escape "${SETUP_LOG}")"
     printf '  "repo_dir": "%s",\n' "$(json_escape "${REPO_DIR}")"
+    # Which commit this run was built from, and what the self-update did to get
+    # there. Without these, "setup ran and my change is missing" has no evidence
+    # either way — a stale checkout and a broken step look identical.
+    printf '  "commit": "%s",\n' "$(json_escape "${REPO_COMMIT}")"
+    printf '  "branch": "%s",\n' "$(json_escape "${REPO_BRANCH}")"
+    printf '  "self_update": "%s",\n' "$(json_escape "${SELF_UPDATE_STATUS:-not attempted}")"
+    # A partial run's step list is not a statement about the whole environment,
+    # and a reader (setup-status, a human) must be able to tell the difference.
+    printf '  "filtered": %s,\n' "$( ((FILTERED)) && echo true || echo false)"
+    printf '  "selection": "%s",\n' "$(json_escape "${SELECTION_LABEL}")"
     printf '  "total_steps": %s,\n' "${TOTAL_STEPS}"
     printf '  "steps": [\n'
     first=1
@@ -487,14 +889,28 @@ spin() {
 print_header() {
   echo ""
   echo "╔══════════════════════════════════════════════════════════════════╗"
-  echo "║                  🚀  CODESPACES SETUP START  🚀                  ║"
+  if ((FILTERED)); then
+    echo "║                 🔄  CODESPACES SETUP (PARTIAL)  🔄               ║"
+  else
+    echo "║                  🚀  CODESPACES SETUP START  🚀                  ║"
+  fi
   echo "╚══════════════════════════════════════════════════════════════════╝"
   printf "  📦 Repository : %s\n" "${REPO_URL}"
   printf "  📖 README     : %s\n" "${README_URL}"
   printf "  👤 User       : %s\n" "$(whoami)"
   printf "  🏠 Home       : %s\n" "${HOME}"
-  printf "  🔢 Steps      : %d foreground steps + Neovim preload in background\n" "${TOTAL_STEPS}"
+  if ((FILTERED)); then
+    printf "  🔢 Steps      : %d selected step(s) — %s\n" "${TOTAL_STEPS}" "${SELECTION_LABEL}"
+    printf "                  (a subset; this run does NOT verify the whole environment)\n"
+  else
+    printf "  🔢 Steps      : %d foreground steps + Neovim preload in background\n" "${TOTAL_STEPS}"
+  fi
   printf "  🆔 Run id     : %s\n" "${RUN_ID}"
+  # Which code this run is built from. "I re-ran setup and my change isn't
+  # there" is almost always a stale checkout, and nothing used to say so.
+  printf "  🔖 Commit     : %s%s\n" "${REPO_COMMIT:-unknown}" \
+    "${REPO_BRANCH:+ (${REPO_BRANCH})}"
+  printf "  🔄 Self-update: %s\n" "${SELF_UPDATE_STATUS:-not attempted}"
   printf "  🕐 Started    : %s\n" "${RUN_STARTED_AT}"
   printf "  📝 Log        : %s\n" "${SETUP_LOG}"
   printf "                  (follow from any shell: tail -f %s)\n" "${SETUP_LATEST_LOG}"
@@ -505,10 +921,19 @@ print_header() {
 # Invoke one step, under a wall clock when `timeout` is available. Exit code 124
 # is timeout(1)'s "the command ran out of time", which run_step reports as a
 # failure like any other — the point is that it REPORTS, rather than hanging.
+step_budget() {
+  local script="$1" budget="${SETUP_STEP_TIMEOUT}" spec
+  for spec in ${STEP_TIMEOUTS[@]+"${STEP_TIMEOUTS[@]}"}; do
+    [[ "${spec%%:*}" == "${script}" ]] && budget="${spec##*:}"
+  done
+  printf '%s' "${budget}"
+}
+
 run_one() {
-  local script="$1"
-  if ((SETUP_STEP_TIMEOUT > 0)) && command -v timeout >/dev/null 2>&1; then
-    timeout --foreground "${SETUP_STEP_TIMEOUT}" bash "${SCRIPTS_DIR}/${script}"
+  local script="$1" budget
+  budget="$(step_budget "${script}")"
+  if ((budget > 0)) && command -v timeout >/dev/null 2>&1; then
+    timeout --foreground "${budget}" bash "${SCRIPTS_DIR}/${script}"
   else
     bash "${SCRIPTS_DIR}/${script}"
   fi
@@ -616,8 +1041,8 @@ run_step() {
     # the remaining steps (the whole point — an unattended run must not stop dead
     # on the first flaky download).
     if ((rc == 124)); then
-      printf "✗ TIMED OUT  : %s (%ss) — exceeded SETUP_STEP_TIMEOUT=%ss\n" \
-        "${name}" "${elapsed}" "${SETUP_STEP_TIMEOUT}"
+      printf "✗ TIMED OUT  : %s (%ss) — exceeded its %ss wall clock\n" \
+        "${name}" "${elapsed}" "$(step_budget "${script}")"
     fi
     printf "✗ FAILED     : %s (%ss) — continuing with remaining steps\n" "${name}" "${elapsed}"
   fi
@@ -688,11 +1113,18 @@ fi
 CORE_ELAPSED=$(($(date +%s) - SETUP_START_TS))
 
 echo ""
-printf "▶ %s [BG] Starting Neovim plugin pre-load\n" "$(progress_bar "${TOTAL_STEPS}" "${TOTAL_STEPS}")"
 mkdir -p "${HOME}/.cache"
 NVIM_LOG="${HOME}/.cache/nvim-setup.log"
-# Guard existence: SETUP_SCRIPTS_DIR may be a test fixture without this script.
-if [[ -f "${SCRIPTS_DIR}/13-nvim-plugins.sh" ]]; then
+# The background pre-load belongs to the UNATTENDED full run only. In a selected
+# run it has either already executed as a foreground step (the nvim selection
+# appends it above, so its failure is visible while you are still watching) or
+# was not selected at all — and launching it detached here would re-run the
+# longest job in the repo as a surprise side effect of `--group claude`.
+if ((FILTERED)); then
+  printf "• Skipped    : background Neovim pre-load (selected run — nothing detached)\n"
+elif [[ -f "${SCRIPTS_DIR}/13-nvim-plugins.sh" ]]; then
+  printf "▶ %s [BG] Starting Neovim plugin pre-load\n" "$(progress_bar "${TOTAL_STEPS}" "${TOTAL_STEPS}")"
+  # Guard existence: SETUP_SCRIPTS_DIR may be a test fixture without this script.
   # Append, not truncate: `>` destroyed the previous run's evidence, so
   # re-running setup.sh to investigate a broken Neovim erased the log that
   # would have explained it.
@@ -792,7 +1224,16 @@ check_path() {
 # tools there would be a category error - it tests the runner, not the
 # installers. Unset in every real run, and scenario 5 deliberately leaves it
 # unset so this block itself stays covered.
-if [[ "${SETUP_SKIP_VERIFY:-0}" == "1" ]]; then
+#
+# A SELECTED run skips it too, for a different and stronger reason: this is a
+# whole-environment check, and a run that attempted two of seventeen steps has
+# no standing to pass or fail that verdict. Letting it run would make
+# `--group claude` report "node missing" — an answer about work this run never
+# attempted, which then decides its exit code and overwrites the failure signal.
+if ((FILTERED)); then
+  log "Selected run (${SELECTION_LABEL}) — skipping whole-environment verification."
+  log "Run 'bash ${REPO_DIR}/setup.sh' (no filter) to verify everything."
+elif [[ "${SETUP_SKIP_VERIFY:-0}" == "1" ]]; then
   log "SETUP_SKIP_VERIFY=1 - skipping tool verification (test hook)."
 else
   check_tool "zsh"        zsh        --version
@@ -860,14 +1301,38 @@ echo ""
 # reported success and the shell-start notice never fired.
 echo ""
 if ((${#FAILED_STEPS[@]} == 0 && ${#MISSING_TOOLS[@]} == 0)); then
-  echo "╔══════════════════════════════════════════════════════════════════╗"
-  echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
-  echo "╚══════════════════════════════════════════════════════════════════╝"
-  # A clean run clears any stale signal from a previous failed run, so a later
-  # success silences the shell-start warning.
-  rm -f "${SETUP_FAILURE_FILE}"
-  RUN_FINALISED=1
-  write_summary "complete"
+  if ((FILTERED)); then
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║               ✅  SELECTED STEPS COMPLETE  ✅                    ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    printf "  Ran %d step(s): %s\n" "${TOTAL_STEPS}" "${SELECTION_LABEL}"
+    # THE SUBTLE ONE. A selected run must never delete the failure signal.
+    #
+    # The signal answers "is this environment fully set up?", and only a full run
+    # can answer it. A one-step update that succeeded has learned nothing about
+    # the other sixteen, so clearing the file would silence a real, unfixed
+    # breakage on the strength of evidence about something else entirely — and
+    # the quickest, most-repeated command in the kit (`--group claude`) would be
+    # the one that hides a broken Codespace. Leave it exactly as it was found.
+    if [[ -f "${SETUP_FAILURE_FILE}" ]]; then
+      echo ""
+      printf "  ⚠️  An earlier run left a failure signal, and this partial run does\n"
+      printf "      not clear it — it did not attempt the steps that failed.\n"
+      printf "      Details : %s\n" "${SETUP_FAILURE_FILE}"
+      printf "      Fix     : bash %s/setup.sh\n" "${REPO_DIR}"
+    fi
+    RUN_FINALISED=1
+    write_summary "complete"
+  else
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║                🎉  CODESPACES SETUP COMPLETE  🎉                 ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    # A clean FULL run clears any stale signal from a previous failed run, so a
+    # later success silences the shell-start warning.
+    rm -f "${SETUP_FAILURE_FILE}"
+    RUN_FINALISED=1
+    write_summary "complete"
+  fi
 else
   echo "╔══════════════════════════════════════════════════════════════════╗"
   echo "║             ⚠️   CODESPACES SETUP INCOMPLETE  ⚠️                 ║"

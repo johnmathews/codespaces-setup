@@ -136,7 +136,8 @@ done
 #     mode-only local modification on every machine, and blocks `git pull` with a
 #     diff that looks empty.
 for path in "${REPO_DIR}/setup.sh" "${REPO_DIR}/deploy-engineering-team-skill.sh" \
-  "${REPO_DIR}/.devcontainer/post-create.sh" "${REPO_DIR}/bin/setup-status"; do
+  "${REPO_DIR}/.devcontainer/post-create.sh" "${REPO_DIR}/bin/setup-status" \
+  "${REPO_DIR}/bin/codespaces-update"; do
   [[ -f "${path}" ]] || continue
   rel="${path#"${REPO_DIR}/"}"
   mode="$(git -C "${REPO_DIR}" ls-files -s -- "${rel}" | awk '{print $1}')"
@@ -151,6 +152,50 @@ for path in "${REPO_DIR}/setup.sh" "${REPO_DIR}/deploy-engineering-team-skill.sh
     errors=$((errors + 1))
   fi
 done
+
+# 2c. Every --group member must be a real STEPS entry.
+#
+#     This is what makes "the update path is a SELECTOR over STEPS" true rather
+#     than merely intended. setup.sh's STEP_GROUPS array names subsets of STEPS
+#     for `--group`; if a member could name a script STEPS does not run, a group
+#     would be a second list of things to do that nothing keeps in sync — which
+#     is precisely the defect this linter exists to catch, one level up. Rename
+#     or drop a step and `--group nvim` would silently run fewer steps than it
+#     claims, or none.
+declare -a group_lines=()
+while IFS= read -r line; do
+  [[ -n "${line}" ]] && group_lines+=("${line}")
+done < <(
+  awk '/^STEP_GROUPS=\(/{f=1; next} f && /^\)/{f=0} f' "${SETUP}" |
+    grep -oE '"[a-z][a-z0-9-]*\|[^"]+"' | tr -d '"' || true
+)
+
+if [[ "${#group_lines[@]}" -eq 0 ]]; then
+  # A scanner that matches nothing passes loudest when it is blind.
+  log "ERROR: could not parse any entries from the STEP_GROUPS array in ${SETUP}."
+  log "       Either the array was renamed or the parse broke; both leave --group unchecked."
+  errors=$((errors + 1))
+else
+  for entry in "${group_lines[@]}"; do
+    gname="${entry%%|*}"
+    IFS=',' read -r -a members <<<"${entry#*|}"
+    if [[ "${#members[@]}" -eq 0 ]]; then
+      log "ERROR: group '${gname}' has no members."
+      errors=$((errors + 1))
+      continue
+    fi
+    for m in "${members[@]}"; do
+      [[ -n "${m}" ]] || continue
+      if ! printf '%s\n' "${step_scripts[@]}" | grep -qx "${m}"; then
+        log "ERROR: group '${gname}' names '${m}', which is not in the STEPS array."
+        log "       A group is a NAME FOR A SUBSET of STEPS, not a second list of"
+        log "       things to do. 'bash setup.sh --group ${gname}' would run fewer"
+        log "       steps than it claims, or none at all."
+        errors=$((errors + 1))
+      fi
+    done
+  done
+fi
 
 # 3. Every script in scripts/ must be COMMITTED executable (100755), because
 #    setup.sh chmods them to 755 on disk on every run. See the header.
