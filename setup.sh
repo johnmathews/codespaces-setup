@@ -80,6 +80,7 @@ EOF
 declare -a SETUP_ARGV=("$@")
 
 WANT_LIST=0
+SAW_SELECT_FLAG=0
 declare -a SELECT_RAW=()
 _kind=""
 _val=""
@@ -89,6 +90,7 @@ while (($# > 0)); do
   case "$1" in
     --only | --group)
       _kind="${1#--}"
+      SAW_SELECT_FLAG=1
       shift
       if (($# == 0)) || [[ "$1" == -* ]]; then
         echo "[setup] ERROR: --${_kind} needs at least one value." >&2
@@ -109,6 +111,7 @@ while (($# > 0)); do
     --only=* | --group=*)
       _kind="${1%%=*}"
       _kind="${_kind#--}"
+      SAW_SELECT_FLAG=1
       IFS=',' read -r -a _vals <<<"${1#*=}"
       for _val in ${_vals[@]+"${_vals[@]}"}; do
         [[ -n "${_val}" ]] && SELECT_RAW+=("${_kind}:${_val}")
@@ -130,6 +133,17 @@ while (($# > 0)); do
       ;;
   esac
 done
+
+# `--only=` and `--only ""` name nothing. Falling through to a full run here
+# would be the silent-widening failure again, reached from the other side: the
+# user asked for a subset, every word of it was empty, and the script would
+# install all seventeen steps and clear the failure signal without a word. An
+# empty selection is a malformed selection, not an absent one.
+if ((SAW_SELECT_FLAG == 1)) && ((${#SELECT_RAW[@]} == 0)); then
+  echo "[setup] ERROR: --only/--group was given, but names no step or group." >&2
+  usage >&2
+  exit 2
+fi
 
 # ---------------------------------------------------------------------------
 # What to run
@@ -581,11 +595,13 @@ declare -a SKIPPED_STEPS=()
 # Distinct from SKIPPED_STEPS: nothing failed, the platform is simply too old.
 declare -a UNSUPPORTED_STEPS=()
 declare -a RETRY_TARGETS=()
+declare -a BLOCKED_TARGETS=()
 RECOVERED=0
 entry=""
 rnum=""
 rscript=""
 rname=""
+rblocker=""
 before=0
 
 log() { echo "[setup] $*"; }
@@ -650,6 +666,14 @@ write_failure_file() {
       for entry in "${FAILED_STEPS[@]}"; do
         IFS="|" read -r n s nm <<<"${entry}"
         printf "  ✗ [%s] %s (%s)\n" "${n}" "${nm}" "${s}"
+      done
+      echo ""
+    fi
+    if ((${#SKIPPED_STEPS[@]} > 0)); then
+      echo "Never ran — something they depend on failed:"
+      for entry in "${SKIPPED_STEPS[@]}"; do
+        IFS="|" read -r n s nm t <<<"${entry}"
+        printf "  - [%s] %s (%s) — blocked by %s\n" "${n}" "${nm}" "${s}" "${t}"
       done
       echo ""
     fi
@@ -1120,6 +1144,31 @@ if [[ "${SETUP_RETRY_PASS:-1}" == "1" && ${#FAILED_STEPS[@]} -gt 0 ]]; then
 
   printf "  🔁 Retry pass : %d recovered, %d still failing\n" \
     "${RECOVERED}" "${#FAILED_STEPS[@]}"
+
+  # A step that was SKIPPED because its dependency failed has not run, and
+  # nothing else will ever run it: it is not in FAILED_STEPS, so the loop above
+  # never considered it. When its blocker recovers just above, leaving it
+  # skipped means the run finishes having silently not run a step it was asked
+  # to run — which is this runner's whole reason to exist, inverted. Re-attempt
+  # it here, in STEPS order, so a chain (A blocks B blocks C) unwinds in one
+  # pass. Still-blocked steps keep their original record and stay skipped.
+  if ((${#SKIPPED_STEPS[@]} > 0)); then
+    BLOCKED_TARGETS=("${SKIPPED_STEPS[@]}")
+    SKIPPED_STEPS=()
+    for entry in "${BLOCKED_TARGETS[@]}"; do
+      IFS="|" read -r rnum rscript rname rblocker <<<"${entry}"
+      if blocked_by "${rscript}" >/dev/null; then
+        SKIPPED_STEPS+=("${entry}")
+        continue
+      fi
+      printf "  ↻ Retrying   : %s (%s recovered)\n" "${rname}" "${rblocker}"
+      before="${#FAILED_STEPS[@]}"
+      run_step "${rnum}" "${rscript}" "${rname}"
+      if ((${#FAILED_STEPS[@]} == before)); then
+        printf "  ✅ Recovered  : %s\n" "${rname}"
+      fi
+    done
+  fi
 fi
 
 CORE_ELAPSED=$(($(date +%s) - SETUP_START_TS))
@@ -1312,7 +1361,7 @@ echo ""
 # tool and then exit 0 with the green banner, so a half-built Codespace
 # reported success and the shell-start notice never fired.
 echo ""
-if ((${#FAILED_STEPS[@]} == 0 && ${#MISSING_TOOLS[@]} == 0)); then
+if ((${#FAILED_STEPS[@]} == 0 && ${#MISSING_TOOLS[@]} == 0 && ${#SKIPPED_STEPS[@]} == 0)); then
   if ((FILTERED)); then
     echo "╔══════════════════════════════════════════════════════════════════╗"
     echo "║               ✅  SELECTED STEPS COMPLETE  ✅                    ║"
@@ -1351,6 +1400,8 @@ else
   echo "╚══════════════════════════════════════════════════════════════════╝"
   ((${#FAILED_STEPS[@]} > 0)) &&
     printf "  ❗ %d of %d step(s) failed.\n" "${#FAILED_STEPS[@]}" "${TOTAL_STEPS}"
+  ((${#SKIPPED_STEPS[@]} > 0)) &&
+    printf "  ❗ %d step(s) never ran: something they depend on failed.\n" "${#SKIPPED_STEPS[@]}"
   ((${#UNSUPPORTED_STEPS[@]} > 0)) &&
     printf "  ❗ %d step(s) skipped: this base image is too old for them.\n" "${#UNSUPPORTED_STEPS[@]}"
   if ((${#MISSING_TOOLS[@]} > 0)); then

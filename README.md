@@ -156,6 +156,14 @@ your code. A missing `origin`, a non-git directory, or an unreachable network ar
 survived: an update is an improvement to the run, never a precondition for it. `SETUP_NO_SELF_UPDATE=1`
 turns it off (the devcontainer path sets this, because that checkout is already current).
 
+> **One-time bootstrap.** A Codespace created *before* this landed is running a `setup.sh` that has no
+> self-update block, so it cannot pull itself the first time — by definition, the fix has to already be on
+> disk to run. Pull by hand once, after which `bash setup.sh` keeps itself current:
+>
+> ```bash
+> git -C /workspaces/.codespaces/.persistedshare/dotfiles pull
+> ```
+
 ### Updating just one thing
 
 The two things that change most often are the Claude assets and the Neovim config, and both have a group:

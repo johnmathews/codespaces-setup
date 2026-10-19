@@ -869,6 +869,83 @@ else
   ok "the dependent did not run inside a selection"
 fi
 
+# A step that was dependency-SKIPPED must not be forgotten when its blocker
+# recovers on the retry pass. It is not in FAILED_STEPS, so the retry loop never
+# considers it — and a FILTERED run skips the whole-environment verification that
+# would otherwise notice, so nothing else can catch it either. Left alone, the
+# run reports "SELECTED STEPS COMPLETE" and exits 0 having never run a step it
+# was explicitly asked to run: a half-built environment reporting success, which
+# is the single failure this whole runner exists to prevent.
+: >"${RAN_MARKER}"
+HOME14H="${WORK}/home_h"
+mkdir -p "${HOME14H}"
+FLAKY_MARK="${WORK}/dep-flaky.mark"
+export FLAKY_MARK
+rm -f "${FLAKY_MARK}"
+make_flaky "${WORK}/scripts3" "09-dep"
+make_fixture "${WORK}/scripts3" "18-needs-dep:0"
+DEPS="18-needs-dep.sh:09-dep.sh" \
+  run_setup "${WORK}/scripts3" \
+  "09-dep.sh|Dependency;18-needs-dep.sh|Dependent" \
+  "" "${HOME14H}" --only 09-dep.sh 18-needs-dep.sh
+if grep -qx "18-needs-dep" "${RAN_MARKER}"; then
+  ok "a dependency-skipped step is re-attempted once its blocker recovers"
+else
+  bad "the skipped step never ran even though its dependency recovered"
+fi
+if [[ "${RC}" -eq 0 ]]; then
+  ok "...and the run is then genuinely clean"
+else
+  bad "the run exited ${RC} after everything recovered"
+fi
+rm -f "${FLAKY_MARK}"
+unset FLAKY_MARK
+
+# The same situation with the retry pass DISABLED: nothing recovers, so the
+# dependent is still skipped — and the verdict must say so rather than calling
+# a run that never ran a selected step "complete".
+: >"${RAN_MARKER}"
+HOME14I="${WORK}/home_i"
+mkdir -p "${HOME14I}"
+make_fixture "${WORK}/scripts4" "09-dep:1" "18-needs-dep:0"
+DEPS="18-needs-dep.sh:09-dep.sh" RETRY_PASS=0 \
+  run_setup "${WORK}/scripts4" \
+  "09-dep.sh|Dependency;18-needs-dep.sh|Dependent" \
+  "" "${HOME14I}" --only 09-dep.sh 18-needs-dep.sh
+if [[ "${RC}" -ne 0 ]]; then
+  ok "a run with a step that never ran does not report success"
+else
+  bad "a run that silently skipped a selected step exited 0"
+fi
+assert_contains "the durable signal names the step that never ran" \
+  "${HOME14I}/.cache/codespaces-setup.failed" "Never ran"
+
+# An EMPTY selection is a malformed selection, not an absent one. `--only=` and
+# `--only ""` name nothing, and falling through to a full run would be the
+# silent-widening failure reached from the other side: the user asked for a
+# subset and got all of everything, plus a cleared failure signal, silently.
+for _empty in "--only=" "--group=" "--only=,"; do
+  : >"${RAN_MARKER}"
+  HOME14J="${WORK}/home_j"
+  rm -rf "${HOME14J}"
+  mkdir -p "${HOME14J}"
+  run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14J}" "${_empty}"
+  if [[ "${RC}" -ne 0 && ! -s "${RAN_MARKER}" ]]; then
+    ok "'${_empty}' is rejected rather than silently running everything"
+  else
+    bad "'${_empty}' ran '$(tr '\n' ' ' <"${RAN_MARKER}")' (rc=${RC})"
+  fi
+done
+: >"${RAN_MARKER}"
+HOME14K="${WORK}/home_k"
+mkdir -p "${HOME14K}"
+run_setup "${WORK}/scripts" "${STEPSPEC}" "" "${HOME14K}" --only ""
+if [[ "${RC}" -ne 0 && ! -s "${RAN_MARKER}" ]]; then
+  ok "--only '' is rejected rather than silently running everything"
+else
+  bad "--only '' ran '$(tr '\n' ' ' <"${RAN_MARKER}")' (rc=${RC})"
+fi
+
 # THE SUBTLE ONE. A successful partial run must leave an earlier failure signal
 # alone: it only knows about the steps it selected, so clearing the file would
 # silence a real, unfixed breakage on the strength of evidence about something
