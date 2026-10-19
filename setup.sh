@@ -70,6 +70,15 @@ See: ${README_URL}
 EOF
 }
 
+# The argv exactly as invoked, saved BEFORE the loop below consumes it with
+# `shift`. self_update() re-execs this script, and it must re-exec with the same
+# arguments: by the time it runs, "$@" is empty, so re-execing with "$@" turns
+# `setup.sh --group claude` on an out-of-date checkout into a silent FULL run —
+# the precise failure the unknown-argument error above exists to prevent, and it
+# would fire on the first run after every upstream change, which is to say on
+# almost every real use of --group.
+declare -a SETUP_ARGV=("$@")
+
 WANT_LIST=0
 declare -a SELECT_RAW=()
 _kind=""
@@ -452,10 +461,13 @@ self_update() {
   # continuing here would execute a splice of the old and new files.
   export SETUP_SELF_UPDATE_DONE=1
   export SETUP_SELF_UPDATE_STATUS="${SELF_UPDATE_STATUS}"
+  # "$@" here is SETUP_ARGV, forwarded by the caller — the ORIGINAL argv, not
+  # the empty remainder left by the parse loop. A selection must survive the
+  # restart or the restart silently widens it to everything.
   exec bash "${REPO_DIR}/setup.sh" "$@"
 }
 
-self_update "$@"
+self_update ${SETUP_ARGV[@]+"${SETUP_ARGV[@]}"}
 
 # Which commit this run is actually built from — the question nobody could
 # answer from inside the VM, and the first one worth asking when a change

@@ -929,6 +929,9 @@ if command -v git >/dev/null 2>&1; then
   mkdir -p "${SEED}/scripts"
   cp "${SETUP}" "${SEED}/setup.sh"
   make_marker_step "${SEED}/scripts/01-a.sh" v1
+  # A second step, so a SELECTION during a self-update is observable: with one
+  # step, "ran everything" and "ran only what I asked for" look identical.
+  make_marker_step "${SEED}/scripts/02-b.sh" b
   git -C "${SEED}" init -q
   git -C "${SEED}" symbolic-ref HEAD refs/heads/main
   git -C "${SEED}" add -A
@@ -954,18 +957,24 @@ if command -v git >/dev/null 2>&1; then
   # SETUP_SCRIPTS_DIR is deliberately NOT set: the point is that the steps come
   # from the (possibly updated) checkout itself.
   run_clone() {
-    local dir="$1" home="$2"
+    local dir="$1" home="$2" a
     shift 2
+    # Trailing arguments are split: NAME=value is an environment assignment,
+    # anything else is forwarded to setup.sh as a command-line argument.
+    local -a envs=() args=()
+    for a in "$@"; do
+      if [[ "${a}" == [A-Za-z_]*=* ]]; then envs+=("${a}"); else args+=("${a}"); fi
+    done
     mkdir -p "${home}/.cache"
     RC=0
     env -i HOME="${home}" PATH="${PATH}" \
       RAN_MARKER="${RAN_MARKER}" \
-      SETUP_STEPS="01-a.sh|Step A" \
+      SETUP_STEPS="01-a.sh|Step A;02-b.sh|Step B" \
       SETUP_REQUIRED="" SETUP_SKIP_VERIFY=1 SETUP_RETRY_PASS=0 \
       SETUP_LOG="${home}/.cache/codespaces-setup.log" \
       SETUP_LOG_DIR="${home}/.cache" \
-      "$@" \
-      bash "${dir}/setup.sh" >/dev/null 2>&1 || RC=$?
+      ${envs[@]+"${envs[@]}"} \
+      bash "${dir}/setup.sh" ${args[@]+"${args[@]}"} >/dev/null 2>&1 || RC=$?
   }
 
   # (a) A stale clone fast-forwards, re-execs, and runs the NEW steps.
@@ -1002,6 +1011,32 @@ if command -v git >/dev/null 2>&1; then
   else
     bad "the run record does not name the commit"
   fi
+
+  # (a2) A SELECTION SURVIVES THE RE-EXEC. This is the case that makes the
+  #      self-update and the selector safe together, and it is not implied by
+  #      (a): the re-exec is a fresh `bash setup.sh ...`, so if the restart drops
+  #      the arguments, `--group claude` on an out-of-date checkout silently
+  #      becomes a FULL run — the exact "silently a full run" failure the
+  #      unknown-argument error exists to prevent, firing on the first run after
+  #      every upstream change. It also wrongly clears the failure signal, since
+  #      the run now believes it was a full one.
+  SELCLONE="${WORK}/selclone"
+  git clone -q "${ORIGIN}" "${SELCLONE}"
+  git -C "${SELCLONE}" reset -q --hard HEAD~1
+  : >"${RAN_MARKER}"
+  run_clone "${SELCLONE}" "${WORK}/home_a2" --only 02-b.sh
+  if [[ "$(tr '\n' ' ' <"${RAN_MARKER}")" == "b " ]]; then
+    ok "a selection survives the self-update re-exec"
+  else
+    bad "the re-exec widened '--only 02-b.sh' to '$(tr '\n' ' ' <"${RAN_MARKER}")'"
+  fi
+  if [[ "$(git -C "${SELCLONE}" rev-parse --short HEAD)" == "${NEWEST}" ]]; then
+    ok "...and the checkout was still updated"
+  else
+    bad "the selected run did not update the checkout"
+  fi
+  assert_contains "a selected run that self-updated still reports itself PARTIAL" \
+    "${WORK}/home_a2/.cache/codespaces-setup.log" "PARTIAL"
 
   # (b) An up-to-date clone does not re-exec, and says so.
   : >"${RAN_MARKER}"
@@ -1067,6 +1102,7 @@ if command -v git >/dev/null 2>&1; then
   mkdir -p "${PLAIN}/scripts"
   cp "${SETUP}" "${PLAIN}/setup.sh"
   make_marker_step "${PLAIN}/scripts/01-a.sh" plain
+  make_marker_step "${PLAIN}/scripts/02-b.sh" b
   : >"${RAN_MARKER}"
   run_clone "${PLAIN}" "${WORK}/home_f"
   if [[ "${RC}" -eq 0 ]] && grep -qx "plain" "${RAN_MARKER}"; then
