@@ -58,7 +58,8 @@ jobs:
           sudo install -m 755 "/tmp/shellcheck-${SHELLCHECK_VERSION}/shellcheck" /usr/local/bin/shellcheck
           shellcheck --version
           shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
-            bin/setup-status .devcontainer/post-create.sh tests/setup-resilience/run.sh
+            bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
+            tests/setup-resilience/run.sh
 
       - name: shfmt
         # Pinned to match the local shfmt convention; bump in lockstep with docs.
