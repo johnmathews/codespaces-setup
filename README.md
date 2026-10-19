@@ -402,7 +402,8 @@ scripts/
   18-azure-cli.sh       # Install Azure CLI (az) via uv, symlinked into /usr/local/bin
 bin/
   setup-status          # Report what the last setup run did; deployed onto PATH
-  codespaces-update     # Thin wrapper: `codespaces-update claude` → setup.sh --group claude.
+  codespaces-update     # Thin wrapper, deployed onto PATH by 11-dotfiles.sh:
+                        # `codespaces-update claude` → setup.sh --group claude.
                         # Forwards a group name and NOTHING else — it must never
                         # learn which scripts exist, or it becomes a second STEPS list.
 ci/

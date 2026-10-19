@@ -246,7 +246,7 @@ if ((${#SELECT_RAW[@]} > 0)); then
     if [[ "${_kind}" == "group" ]]; then
       if ! group_members "${_val}" >/dev/null; then
         echo "[setup] ERROR: no such group '${_val}'." >&2
-        echo "[setup]        Known groups: $(group_names | tr '\n' ' ')" >&2
+        echo "[setup]        Known groups: $(group_names | paste -sd' ' -)" >&2
         echo "[setup]        See 'bash setup.sh --list'." >&2
         exit 2
       fi

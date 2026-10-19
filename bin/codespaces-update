@@ -31,13 +31,21 @@ set -euo pipefail
 
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Look for the checkout in the same places bin/setup-status does: next to this
-# script first (the normal case — this file ships inside the repo), then the
-# two paths a Codespace actually puts it at. CODESPACES_SETUP_DIR overrides.
+# Find the checkout. Next to this script first (running it straight out of the
+# repo is unambiguous), then the path the last run wrote down — which is the
+# only non-guess once this file has been copied onto PATH, where looking next to
+# itself finds /usr/local. The remaining two are last-resort guesses at where a
+# Codespace puts it. CODESPACES_SETUP_DIR overrides everything.
+RECORDED=""
+if [[ -f "${HOME}/.cache/codespaces-setup.dir" ]]; then
+  RECORDED="$(head -n 1 "${HOME}/.cache/codespaces-setup.dir")"
+fi
+
 CANDIDATES=()
 [[ -n "${CODESPACES_SETUP_DIR:-}" ]] && CANDIDATES+=("${CODESPACES_SETUP_DIR}")
 CANDIDATES+=(
   "$(cd "${SELF_DIR}/.." 2>/dev/null && pwd)"
+  "${RECORDED}"
   "${HOME}/codespaces-setup"
   "/workspaces/.codespaces/.persistedshare/dotfiles"
 )
