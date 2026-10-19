@@ -15,12 +15,12 @@ every check can be run locally with the same commands.
 |-------|------|-----------------|
 | Shell correctness | `shellcheck` | Quoting bugs, `set -euo pipefail` interactions, unsafe expansions |
 | Formatting | `shfmt` | Drift from the repo's formatting convention |
-| Step wiring | `ci/lint-steps.sh` | A `scripts/NN-*.sh` that isn't wired into `setup.sh`'s `STEPS` array (so it would silently never run), or a `STEPS` entry pointing at a missing script |
+| Step wiring | `ci/lint-steps.sh` | A `scripts/NN-*.sh` that isn't wired into `setup.sh`'s `STEPS` array (so it would silently never run), a `STEPS` entry pointing at a missing script, or a `--group` whose members aren't real `STEPS` entries (what keeps the update path a *selector over* `STEPS` rather than a second list of it) |
 | Skill gates | `check_report.py`, `check_run.py`, `check_plan.py` (each `--selftest`) | A malformed evaluation report; a `run.yaml` whose schema is invalid or whose `phase:` disagrees with the artifacts on disk; or an improvement plan with an invalid frontmatter index or unit IDs that don't match `run.yaml` (the `engineering-team` skill's three shipped gates; their fixtures are the test) |
 | Triggering parsers | `tests/engineering-team-triggering/run.py --selftest` | A silent bug in the triggering test's own deterministic parsers (verdict parsing, folded-description extraction) — the part that turns an LLM reply into a scored number, where a bug yields a confident wrong result. Headless; the LLM measurement itself is not in CI (the Router probes / Triggering eval rows below) |
 | Rule-ownership drift-scan | [`tests/engineering-team-drift/`](../tests/engineering-team-drift/) | The skill's rule-ownership index lying about where a rule lives (a cited home heading that no longer exists), a home that lost its canonical statement, or a worktree-idiom copy that dropped `--path-format=absolute` — the idiom check spans the skill docs **and** the vendored slash commands. Fully headless — runs the real scan in CI |
 | Command→skill link-check | [`tests/engineering-team-command-links/`](../tests/engineering-team-command-links/) | A `/done` or `/merge-push` cross-reference into the skill tree (e.g. `references/worktree.md`) left dangling by a rename or move — the commands ship separately from the skill, so the drift-scan's skill-internal scope doesn't cover them. Fully headless — runs the real check in CI |
-| Setup resilience | [`tests/setup-resilience/`](../tests/setup-resilience/) | A regression that lets one failing step abort the whole unattended run again: drives the real `setup.sh` over fake steps and asserts a non-required failure no longer stops the run, the summary names it, the exit code is non-zero, and a durable signal file is left behind — plus a unit test of the shared retry helper (`scripts/lib.sh`). Fully headless — runs the real test in CI |
+| Setup resilience | [`tests/setup-resilience/`](../tests/setup-resilience/) | A regression that lets one failing step abort the whole unattended run again: drives the real `setup.sh` over fake steps and asserts a non-required failure no longer stops the run, the summary names it, the exit code is non-zero, and a durable signal file is left behind — plus a unit test of the shared retry helper (`scripts/lib.sh`), and the update path: `--only`/`--group` selection, the refusal of a clean partial run to clear the failure signal, and the self-update (stale, current, dirty, shallow, non-git, offline). Fully headless — runs the real test in CI |
 | Router probes | [`tests/engineering-team-probes/`](../tests/engineering-team-probes/) | An edit to the skill router (`SKILL.md`) that dropped a load-bearing invariant. **Manual, LLM-in-the-loop — not in CI** (see that dir's README for why and how to run it on router edits) |
 | Triggering eval | [`tests/engineering-team-triggering/`](../tests/engineering-team-triggering/) | An edit to the skill's `description:` frontmatter that makes it mis-fire — trigger on prompts it shouldn't, or miss the ones it should. **Manual, LLM-in-the-loop — not in CI** (a frozen labelled prompt set scored by `claude -p`; see that dir's README). Its parsers *are* CI-checked — the row above. |
 
@@ -28,11 +28,13 @@ every check can be run locally with the same commands.
 
 ```bash
 # Correctness
-shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh
+shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
+  bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
+  tests/setup-resilience/run.sh
 
 # Formatting (‑d = show diff and fail if anything is unformatted; ‑w = rewrite in place)
-shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci
-shfmt -i 2 -ci -kp -w setup.sh deploy-engineering-team-skill.sh scripts ci    # auto-fix
+shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
+shfmt -i 2 -ci -kp -w setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer  # auto-fix
 
 # Step-array wiring
 bash ci/lint-steps.sh
@@ -109,8 +111,20 @@ add a step:
    `setup.sh`.
 
 `ci/lint-steps.sh` fails the build if step 2 is skipped. A script that is
-intentionally *not* in `STEPS` (like `13-nvim-plugins.sh`, which is launched in
-the background) must be listed in that linter's `EXEMPT` array with a reason.
+intentionally *not* in `STEPS` (like `13-nvim-plugins.sh`, which a full run
+launches in the background, and which `--group nvim` appends as a foreground
+step) must be listed in that linter's `EXEMPT` array with a reason.
+
+## Adding or changing a `--group`
+
+`setup.sh --group <name>` is a **selector over the existing `STEPS` array**, never
+a second list. `STEP_GROUPS` in `setup.sh` maps a name to members of `STEPS`, and
+`ci/lint-steps.sh` fails the build if a group names anything that is not a real
+`STEPS` entry. That check is the whole reason this design is safe: a standalone
+`update.sh` with its own list of commands would silently stop including new steps
+the moment one was added, which is precisely the defect `ci/lint-steps.sh` was
+written to prevent one level down. `bin/codespaces-update` forwards a group name
+and nothing else; if it ever grows a list of steps, the design has failed.
 
 ## Deploying the engineering-team skill on its own
 

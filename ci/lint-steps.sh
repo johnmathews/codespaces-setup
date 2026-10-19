@@ -42,7 +42,9 @@ SCRIPTS_DIR="${REPO_DIR}/scripts"
 
 # Scripts deliberately excluded from the STEPS array, with the reason:
 declare -a EXEMPT=(
-  "13-nvim-plugins.sh" # launched in the background at the end of setup.sh, not via run_step
+  "13-nvim-plugins.sh" # launched in the background at the end of a full setup.sh run;
+                       # appended as a FOREGROUND step by `--group nvim`, so it is run
+                       # via run_step there — but never from the literal STEPS array
   "lib.sh"             # sourced by the other scripts (shared retry helper), never run as a step
 )
 
