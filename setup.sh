@@ -137,7 +137,7 @@ done
 # `--only=` and `--only ""` name nothing. Falling through to a full run here
 # would be the silent-widening failure again, reached from the other side: the
 # user asked for a subset, every word of it was empty, and the script would
-# install all seventeen steps and clear the failure signal without a word. An
+# install all eighteen steps and clear the failure signal without a word. An
 # empty selection is a malformed selection, not an absent one.
 if ((SAW_SELECT_FLAG == 1)) && ((${#SELECT_RAW[@]} == 0)); then
   echo "[setup] ERROR: --only/--group was given, but names no step or group." >&2
@@ -160,6 +160,7 @@ STEPS=(
   "08-atuin.sh|Installing atuin (shell history)"
   "09-uv.sh|Installing uv (Python package manager)"
   "10-zsh-setup.sh|Setting up Zsh + Oh My Zsh + Powerlevel10k"
+  "19-claude-config-dir.sh|Persisting Claude Code config on /workspaces"
   "12-claude-code.sh|Installing Claude Code"
   "17-claude-skills.sh|Deploying Claude skills and slash commands"
   "15-dev-tools.sh|Installing editor CLI tools (formatters, linters, glow)"
@@ -188,7 +189,7 @@ fi
 # offered numeric group ids as group names. It failed quietly and plausibly,
 # which is the only reason it is worth a comment.
 STEP_GROUPS=(
-  "claude|17-claude-skills.sh"
+  "claude|19-claude-config-dir.sh,17-claude-skills.sh"
   "nvim|04-neovim-config.sh,03-neovim.sh"
   "shell|11-dotfiles.sh,10-zsh-setup.sh"
 )
@@ -1287,7 +1288,7 @@ check_path() {
 # unset so this block itself stays covered.
 #
 # A SELECTED run skips it too, for a different and stronger reason: this is a
-# whole-environment check, and a run that attempted two of seventeen steps has
+# whole-environment check, and a run that attempted two of eighteen steps has
 # no standing to pass or fail that verdict. Letting it run would make
 # `--group claude` report "node missing" — an answer about work this run never
 # attempted, which then decides its exit code and overwrites the failure signal.
