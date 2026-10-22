@@ -59,7 +59,7 @@ jobs:
           shellcheck --version
           shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
             bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
-            tests/setup-resilience/run.sh
+            tests/setup-resilience/run.sh tests/claude-config-dir/run.sh
 
       - name: shfmt
         # Pinned to match the local shfmt convention; bump in lockstep with docs.
@@ -136,6 +136,11 @@ jobs:
         # code is non-zero, and a durable signal file is left behind. Also
         # unit-tests the shared retry helper (scripts/lib.sh).
         run: bash tests/setup-resilience/run.sh
+
+      - name: claude-config-dir test
+        # Headless, filesystem-only: runs the real 19-claude-config-dir.sh against
+        # a throwaway HOME and asserts the merge, the links and idempotence.
+        run: bash tests/claude-config-dir/run.sh
 
   # A SEPARATE job, deliberately. It is slow and network-dependent, so keeping it
   # out of `lint` keeps the fast gates fast — and gives it its own stable status

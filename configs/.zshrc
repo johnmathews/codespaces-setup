@@ -79,6 +79,14 @@ if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
   export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 fi
 
+# Claude Code's config lives on the persisted /workspaces volume so sessions
+# survive a rebuild. scripts/19-claude-config-dir.sh links ~/.claude there; this
+# follows that link rather than restating the path, and with the variable set
+# Claude Code keeps .claude.json inside the same dir.
+if [[ -L ~/.claude && -d ~/.claude ]]; then
+  export CLAUDE_CONFIG_DIR="$(readlink -f ~/.claude)"
+fi
+
 # History configuration
 HISTFILE=~/.zsh_history
 HISTSIZE=50000

@@ -407,6 +407,7 @@ scripts/
   15-dev-tools.sh       # Install formatters/linters + glow that Neovim needs on PATH
   16-gh.sh              # Install GitHub CLI (gh) from release tarball
   17-claude-skills.sh   # Deploy configs/claude/ skills + commands into ~/.claude
+  19-claude-config-dir.sh  # Keep ~/.claude on /workspaces so sessions survive a rebuild
   18-azure-cli.sh       # Install Azure CLI (az) via uv, symlinked into /usr/local/bin
 bin/
   setup-status          # Report what the last setup run did; deployed onto PATH
