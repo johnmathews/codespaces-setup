@@ -7,9 +7,11 @@ then every component preview per theme side by side, with a switch to phone widt
 
 tokens.css is compiled the way the artifact type compiles it (its format.md: "tokens.css as
 compiled"), so previews render the same here. `--tokens-css` writes only that file, for an app
-to import before Tailwind's `@theme inline` block (references/code.md). `--dark-selector`
-changes the selector of the later themes, e.g. `.dark` for shadcn-vue and Tailwind's dark
-variant; the artifact itself uses `[data-theme="dark"]`.
+to import before Tailwind's `@theme inline` block (references/code.md). Its dark theme sits on a
+`.dark` class by default: Tailwind's dark variant, shadcn-vue and templates/a11y.spec.ts all use
+it, and Tailwind is the likely case. An app that switches themes another way passes
+`--dark-selector '[data-theme="dark"]'` (or its own selector) and changes the spec's DARK to
+match. The gallery keeps `[data-theme]`, which is what the artifact itself uses.
 
 Group order on the gallery comes from <system-dir>/checks.json "group_order" if present,
 otherwise the order groups first appear in (the cover always first).
@@ -17,11 +19,13 @@ otherwise the order groups first appear in (the cover always first).
 Stdlib only. Copy it into the project's scripts/ beside check_design_system.py.
 
 Usage: python3 design_preview.py <system-dir>                 # writes <system-dir>/preview/
-       python3 design_preview.py <system-dir> --tokens-css <out.css> [--dark-selector .dark] [--font-base <url>]
+       python3 design_preview.py <system-dir> --tokens-css <out.css> [--dark-selector <css>] [--font-base <url>]
        python3 design_preview.py --selftest
 """
 
+import contextlib
 import html
+import io
 import json
 import re
 import sys
@@ -29,6 +33,9 @@ import tempfile
 from pathlib import Path
 
 MARKER = re.compile(r"^<!-- @dsCard\b([^>]*)-->\n?")
+# --tokens-css only. Keep it equal to the class templates/a11y.spec.ts toggles, or the dark audit
+# runs against the light theme and passes.
+DEFAULT_DARK_SELECTOR = ".dark"
 
 
 PAGE_CSS = """\
@@ -252,6 +259,12 @@ def _selftest() -> int:
             "<!-- @dsCard height=288 -->\n<!doctype html><html><head></head><body>Acme</body></html>")
         index = build(project, Path(tmp) / "preview").read_text()
         page = (Path(tmp) / "preview/components/Button.dark.html").read_text()
+        app_css = Path(tmp) / "app-tokens.css"
+        with contextlib.redirect_stdout(io.StringIO()):
+            main([tmp, "--tokens-css", str(app_css)])
+        app_css_text = app_css.read_text()
+        checks.append(("--tokens-css defaults to the .dark class templates/a11y.spec.ts flips",
+                       ".dark {" in app_css_text and '[data-theme="dark"]' not in app_css_text))  # fmt: skip
         checks += [
             ("the index names the system", "<h1>Acme</h1>" in index),
             ("components appear with their summary", 'id="Button"' in index and "The button." in index),
@@ -279,7 +292,11 @@ def main(argv: list[str]) -> int:
 
     if out := option("--tokens-css"):
         tokens = json.loads((project / "tokens.json").read_text())
-        css = tokens_css(tokens, font_base=option("--font-base") or "fonts", dark_selector=option("--dark-selector"))
+        css = tokens_css(
+            tokens,
+            font_base=option("--font-base") or "fonts",
+            dark_selector=option("--dark-selector") or DEFAULT_DARK_SELECTOR,
+        )
         Path(out).write_text(f"/* {tokens.get('name', 'Design system')} — generated from tokens.json */\n{css}")
         print(out)
         return 0
