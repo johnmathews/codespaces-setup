@@ -64,8 +64,11 @@ but lost two of three on judgement, so the founder approved four changes:
 4. **Token names are fixed.** Projects with their own variables (`--color-bg`) rename them to the
    standard roles by what each is used for; a temporary alias block is allowed only mid-migration.
 
-## Not done
+## Triggering eval
 
-The skill's triggering (does its description fire on the right prompts?) is not measured yet; the
-engineering-team skill has `tests/engineering-team-triggering/` for that, and the same approach
-would work here.
+`tests/design-system-triggering/` measures whether the description fires on the right prompts,
+with the engineering-team method: 20 labelled prompts routed five times each on Opus 5.5 among
+DESIGN-SYSTEM, FRONTEND-DESIGN, DATAVIZ and NONE. The first run scored 20/20 with one soft spot:
+"pick a typeface and a colour palette for the new landing page" fired only 3/5, losing to
+frontend-design. Naming "(palette, typeface)" in the description made every prompt unanimous
+(baseline.md). CI runs the runner's `--selftest`; the measurement itself is on-demand.

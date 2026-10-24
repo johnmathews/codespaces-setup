@@ -12,7 +12,8 @@ name: ci
 #                       plan). Their fixtures are their test, and a gate whose
 #                       tests never run is the decoration that skill has a name for.
 #   5. triggering test — headless selftest of the parsers in
-#                       tests/engineering-team-triggering/run.py. The skill's
+#                       tests/engineering-team-triggering/run.py and
+#                       tests/design-system-triggering/run.py. The skill's
 #                       triggering measurement is LLM-in-the-loop and on-demand
 #                       (not here), but its deterministic parsers are testable.
 #   6. drift-scan     — tests/engineering-team-drift/drift_scan.py, fully
@@ -121,7 +122,9 @@ jobs:
         # The LLM routing in this test is on-demand (not in CI), but its
         # deterministic parsers — where a silent bug yields a confident wrong
         # number — are headless-testable. This runs only those checks.
-        run: python3 tests/engineering-team-triggering/run.py --selftest
+        run: |
+          python3 tests/engineering-team-triggering/run.py --selftest
+          python3 tests/design-system-triggering/run.py --selftest
 
       - name: rule-ownership drift-scan
         # Fully headless (pure text analysis), so unlike the probe/triggering
