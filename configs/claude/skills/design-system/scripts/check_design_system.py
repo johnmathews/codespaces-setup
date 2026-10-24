@@ -25,15 +25,72 @@ Project settings live in <system-dir>/checks.json (all keys optional):
 Paths in forbidden_words_js are relative to the repository root (the --repo argument, default
 the current directory).
 
+When the design-system skill is installed on this machine, a run also compares this copy's
+SCRIPT_VERSION with the skill's and prints a note (to stderr, never changing the exit code) when
+they differ. `--version` prints the version.
+
 Usage: python3 check_design_system.py <system-dir> [--complete] [--repo <root>]
+       python3 check_design_system.py --version
        python3 check_design_system.py --selftest
 """
 
 import json
+import os
 import re
 import sys
 import tempfile
 from pathlib import Path
+
+# Bump on every change to this file: ci/lint-skill-versions.sh (codespaces-setup) fails a change
+# that doesn't. Projects copy this script, and the number is how a copy knows it has fallen behind.
+SCRIPT_VERSION = 1
+SCRIPT_NAME = "check_design_system.py"  # the skill's copy is looked up by this name
+
+# >>> copy-version (keep byte-identical in check_design_system.py and design_preview.py;
+# ci/lint-skill-versions.sh checks it)
+VERSION_LINE = re.compile(r"^SCRIPT_VERSION = (\d+)", re.M)
+
+
+def installed_skill_dir() -> Path | None:
+    """The design-system skill on this machine, if there is one (CI usually has none)."""
+    candidates = [os.environ.get("DESIGN_SYSTEM_SKILL_DIR")]
+    if config := os.environ.get("CLAUDE_CONFIG_DIR"):
+        candidates.append(str(Path(config) / "skills/design-system"))
+    candidates.append(str(Path.home() / ".claude/skills/design-system"))
+    return next((Path(c) for c in candidates if c and (Path(c) / "SKILL.md").is_file()), None)
+
+
+def copy_note(this_file: Path, skill_dir: Path | None) -> str | None:
+    """Compare this copy with the skill's copy of the same script; None when there is nothing to say.
+
+    The skill's copy is found by SCRIPT_NAME, not this file's name, so a project that renamed its
+    copy still gets the note. Never raises: the note is advice and must not break the run.
+    """
+    if not skill_dir:
+        return None
+    skill_copy = skill_dir / "scripts" / SCRIPT_NAME
+    try:
+        if not skill_copy.is_file() or skill_copy.resolve() == this_file.resolve():
+            return None
+        theirs_text = skill_copy.read_text(encoding="utf-8")
+        same_bytes = skill_copy.read_bytes() == this_file.read_bytes()
+    except (OSError, UnicodeDecodeError):
+        return None
+    found = VERSION_LINE.search(theirs_text)
+    theirs = int(found.group(1)) if found else 0
+    if theirs > SCRIPT_VERSION:
+        return (f"note: {this_file.name} here is version {SCRIPT_VERSION}; the design-system skill has "
+                f"{theirs}. Update this copy: cp {skill_copy} {this_file}")
+    if theirs < SCRIPT_VERSION:
+        return (f"note: {this_file.name} here is version {SCRIPT_VERSION}, newer than the installed "
+                f"design-system skill ({theirs}). Update the skill: `codespaces-update claude`, or "
+                f"`bash scripts/17-claude-skills.sh` in codespaces-setup.")
+    if not same_bytes:
+        return (f"note: {this_file.name} matches the skill's version ({theirs}) but not its contents: "
+                f"edited here, or changed in the skill without a version bump. Compare with {skill_copy}")
+    return None
+# <<< copy-version
+
 
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -237,6 +294,35 @@ def _selftest() -> int:
         email = project / "email.html"
         email.write_text('<style>p{}</style><p style="color:var(--ink)">x</p><img src="a.png">')
         checks.append(("email: <style>, var() and a missing alt are caught", len(email_problems(email)) == 3))
+    with tempfile.TemporaryDirectory() as tmp:
+        here = Path(tmp) / "project" / "renamed_copy.py"  # a renamed copy must still compare
+        skill = Path(tmp) / "skill"
+        (skill / "scripts").mkdir(parents=True)
+        here.parent.mkdir()
+        source = Path(__file__).read_text(encoding="utf-8")
+        here.write_text(source, encoding="utf-8")
+        theirs = skill / "scripts" / SCRIPT_NAME
+
+        def note_with(text: str) -> str:
+            theirs.write_text(text, encoding="utf-8")
+            return copy_note(here, skill) or ""
+
+        def bumped(n: int) -> str:
+            return source.replace(f"SCRIPT_VERSION = {SCRIPT_VERSION}", f"SCRIPT_VERSION = {n}", 1)
+
+        checks += [
+            ("versions: no installed skill, no note", copy_note(here, None) is None),
+            ("versions: an identical copy, no note", note_with(source) == ""),
+            ("versions: the skill is newer, say how to update the copy (renamed copy too)",
+             "Update this copy: cp" in note_with(bumped(SCRIPT_VERSION + 1))),
+            ("versions: the copy is newer, say how to update the skill",
+             "Update the skill" in note_with(bumped(SCRIPT_VERSION - 1))),
+            ("versions: same number, different bytes, flagged", "not its contents" in note_with(source + "#\n")),
+            ("versions: the skill's own copy never compares with itself", copy_note(theirs, skill) is None),
+        ]  # fmt: skip
+        theirs.unlink()
+        theirs.mkdir()  # unreadable as a file: the note is skipped, never raised
+        checks.append(("versions: an unreadable skill copy gives no note and no crash", copy_note(here, skill) is None))
     failed = [name for name, ok in checks if not ok]
     for name, ok in checks:
         print(f"{'ok  ' if ok else 'FAIL'} {name}")
@@ -246,8 +332,13 @@ def _selftest() -> int:
 def main(argv: list[str]) -> int:
     if argv[:1] == ["--selftest"]:
         return _selftest()
+    if argv[:1] == ["--version"]:
+        print(f"{Path(__file__).name} {SCRIPT_VERSION}")
+        return 0
+    if note := copy_note(Path(__file__), installed_skill_dir()):
+        print(note, file=sys.stderr)
     if not argv or argv[0].startswith("-"):
-        print(__doc__.strip().splitlines()[-2].strip())
+        print(__doc__.strip().splitlines()[-3].strip())
         return 2
     repo = Path(argv[argv.index("--repo") + 1]) if "--repo" in argv else Path(".")
     problems = run(Path(argv[0]), complete="--complete" in argv, repo=repo)

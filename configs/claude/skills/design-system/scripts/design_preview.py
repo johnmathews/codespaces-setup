@@ -7,28 +7,89 @@ then every component preview per theme side by side, with a switch to phone widt
 
 tokens.css is compiled the way the artifact type compiles it (its format.md: "tokens.css as
 compiled"), so previews render the same here. `--tokens-css` writes only that file, for an app
-to import before Tailwind's `@theme inline` block (references/code.md). `--dark-selector`
-changes the selector of the later themes, e.g. `.dark` for shadcn-vue and Tailwind's dark
-variant; the artifact itself uses `[data-theme="dark"]`.
+to import before Tailwind's `@theme inline` block (references/code.md). Its dark theme sits on a
+`.dark` class by default: shadcn-vue and templates/a11y.spec.ts use it, Tailwind's `dark:`
+variant follows it as templates/app-theme.css configures it, and Tailwind is the likely case. An app that switches themes another way passes
+`--dark-selector '[data-theme="dark"]'` (or its own selector) and changes the spec's DARK to
+match. The gallery keeps `[data-theme]`, which is what the artifact itself uses.
 
 Group order on the gallery comes from <system-dir>/checks.json "group_order" if present,
 otherwise the order groups first appear in (the cover always first).
 
-Stdlib only. Copy it into the project's scripts/ beside check_design_system.py.
+Stdlib only. Copy it into the project's scripts/ beside check_design_system.py. Like the gate,
+it notes (on stderr) when this copy's SCRIPT_VERSION differs from the installed skill's.
 
 Usage: python3 design_preview.py <system-dir>                 # writes <system-dir>/preview/
-       python3 design_preview.py <system-dir> --tokens-css <out.css> [--dark-selector .dark] [--font-base <url>]
+       python3 design_preview.py <system-dir> --tokens-css <out.css> [--dark-selector <css>] [--font-base <url>]
+       python3 design_preview.py --version
        python3 design_preview.py --selftest
 """
 
+import contextlib
 import html
+import io
 import json
+import os
 import re
 import sys
 import tempfile
 from pathlib import Path
 
+# Bump on every change to this file: ci/lint-skill-versions.sh (codespaces-setup) fails a change
+# that doesn't. Projects copy this script, and the number is how a copy knows it has fallen behind.
+SCRIPT_VERSION = 1
+SCRIPT_NAME = "design_preview.py"  # the skill's copy is looked up by this name
+
+# >>> copy-version (keep byte-identical in check_design_system.py and design_preview.py;
+# ci/lint-skill-versions.sh checks it)
+VERSION_LINE = re.compile(r"^SCRIPT_VERSION = (\d+)", re.M)
+
+
+def installed_skill_dir() -> Path | None:
+    """The design-system skill on this machine, if there is one (CI usually has none)."""
+    candidates = [os.environ.get("DESIGN_SYSTEM_SKILL_DIR")]
+    if config := os.environ.get("CLAUDE_CONFIG_DIR"):
+        candidates.append(str(Path(config) / "skills/design-system"))
+    candidates.append(str(Path.home() / ".claude/skills/design-system"))
+    return next((Path(c) for c in candidates if c and (Path(c) / "SKILL.md").is_file()), None)
+
+
+def copy_note(this_file: Path, skill_dir: Path | None) -> str | None:
+    """Compare this copy with the skill's copy of the same script; None when there is nothing to say.
+
+    The skill's copy is found by SCRIPT_NAME, not this file's name, so a project that renamed its
+    copy still gets the note. Never raises: the note is advice and must not break the run.
+    """
+    if not skill_dir:
+        return None
+    skill_copy = skill_dir / "scripts" / SCRIPT_NAME
+    try:
+        if not skill_copy.is_file() or skill_copy.resolve() == this_file.resolve():
+            return None
+        theirs_text = skill_copy.read_text(encoding="utf-8")
+        same_bytes = skill_copy.read_bytes() == this_file.read_bytes()
+    except (OSError, UnicodeDecodeError):
+        return None
+    found = VERSION_LINE.search(theirs_text)
+    theirs = int(found.group(1)) if found else 0
+    if theirs > SCRIPT_VERSION:
+        return (f"note: {this_file.name} here is version {SCRIPT_VERSION}; the design-system skill has "
+                f"{theirs}. Update this copy: cp {skill_copy} {this_file}")
+    if theirs < SCRIPT_VERSION:
+        return (f"note: {this_file.name} here is version {SCRIPT_VERSION}, newer than the installed "
+                f"design-system skill ({theirs}). Update the skill: `codespaces-update claude`, or "
+                f"`bash scripts/17-claude-skills.sh` in codespaces-setup.")
+    if not same_bytes:
+        return (f"note: {this_file.name} matches the skill's version ({theirs}) but not its contents: "
+                f"edited here, or changed in the skill without a version bump. Compare with {skill_copy}")
+    return None
+# <<< copy-version
+
+
 MARKER = re.compile(r"^<!-- @dsCard\b([^>]*)-->\n?")
+# --tokens-css only. Keep it equal to the class templates/a11y.spec.ts toggles, or the dark audit
+# runs against the light theme and passes.
+DEFAULT_DARK_SELECTOR = ".dark"
 
 
 PAGE_CSS = """\
@@ -252,6 +313,12 @@ def _selftest() -> int:
             "<!-- @dsCard height=288 -->\n<!doctype html><html><head></head><body>Acme</body></html>")
         index = build(project, Path(tmp) / "preview").read_text()
         page = (Path(tmp) / "preview/components/Button.dark.html").read_text()
+        app_css = Path(tmp) / "app-tokens.css"
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            main([tmp, "--tokens-css", str(app_css)])
+        app_css_text = app_css.read_text()
+        checks.append(("--tokens-css defaults to the .dark class templates/a11y.spec.ts flips",
+                       ".dark {" in app_css_text and '[data-theme="dark"]' not in app_css_text))  # fmt: skip
         checks += [
             ("the index names the system", "<h1>Acme</h1>" in index),
             ("components appear with their summary", 'id="Button"' in index and "The button." in index),
@@ -260,6 +327,35 @@ def _selftest() -> int:
             ("per-theme pages drop the marker and set the theme",
              page.startswith("<!doctype html>") and '<html data-theme="dark"' in page),
         ]  # fmt: skip
+    with tempfile.TemporaryDirectory() as tmp:
+        here = Path(tmp) / "project" / "renamed_copy.py"  # a renamed copy must still compare
+        skill = Path(tmp) / "skill"
+        (skill / "scripts").mkdir(parents=True)
+        here.parent.mkdir()
+        source = Path(__file__).read_text(encoding="utf-8")
+        here.write_text(source, encoding="utf-8")
+        theirs = skill / "scripts" / SCRIPT_NAME
+
+        def note_with(text: str) -> str:
+            theirs.write_text(text, encoding="utf-8")
+            return copy_note(here, skill) or ""
+
+        def bumped(n: int) -> str:
+            return source.replace(f"SCRIPT_VERSION = {SCRIPT_VERSION}", f"SCRIPT_VERSION = {n}", 1)
+
+        checks += [
+            ("versions: no installed skill, no note", copy_note(here, None) is None),
+            ("versions: an identical copy, no note", note_with(source) == ""),
+            ("versions: the skill is newer, say how to update the copy (renamed copy too)",
+             "Update this copy: cp" in note_with(bumped(SCRIPT_VERSION + 1))),
+            ("versions: the copy is newer, say how to update the skill",
+             "Update the skill" in note_with(bumped(SCRIPT_VERSION - 1))),
+            ("versions: same number, different bytes, flagged", "not its contents" in note_with(source + "#\n")),
+            ("versions: the skill's own copy never compares with itself", copy_note(theirs, skill) is None),
+        ]  # fmt: skip
+        theirs.unlink()
+        theirs.mkdir()  # unreadable as a file: the note is skipped, never raised
+        checks.append(("versions: an unreadable skill copy gives no note and no crash", copy_note(here, skill) is None))
     for name, ok in checks:
         print(f"{'ok  ' if ok else 'FAIL'} {name}")
     return 0 if all(ok for _, ok in checks) else 1
@@ -268,8 +364,13 @@ def _selftest() -> int:
 def main(argv: list[str]) -> int:
     if argv[:1] == ["--selftest"]:
         return _selftest()
+    if argv[:1] == ["--version"]:
+        print(f"{Path(__file__).name} {SCRIPT_VERSION}")
+        return 0
+    if note := copy_note(Path(__file__), installed_skill_dir()):
+        print(note, file=sys.stderr)
     if not argv or argv[0].startswith("-"):
-        print(__doc__.strip().splitlines()[-3].strip())
+        print(__doc__.strip().splitlines()[-4].strip())
         return 2
     system = Path(argv[0])
     project = system / "project"
@@ -279,7 +380,11 @@ def main(argv: list[str]) -> int:
 
     if out := option("--tokens-css"):
         tokens = json.loads((project / "tokens.json").read_text())
-        css = tokens_css(tokens, font_base=option("--font-base") or "fonts", dark_selector=option("--dark-selector"))
+        css = tokens_css(
+            tokens,
+            font_base=option("--font-base") or "fonts",
+            dark_selector=option("--dark-selector") or DEFAULT_DARK_SELECTOR,
+        )
         Path(out).write_text(f"/* {tokens.get('name', 'Design system')} — generated from tokens.json */\n{css}")
         print(out)
         return 0

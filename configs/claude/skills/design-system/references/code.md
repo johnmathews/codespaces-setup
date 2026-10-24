@@ -1,5 +1,9 @@
 # Bringing the design system into a Vue 3 app
 
+The component advice here is Vue only. For React, Svelte or anything else, read
+`other-frameworks.md` first: it says which sections of this file still apply (the token and
+Tailwind steps, the testing notes) and what replaces the rest.
+
 ## Start from what the app already uses
 
 Before choosing anything, find out how the app is styled today and follow it:
@@ -33,9 +37,9 @@ page that plain HTML can serve.
 ## Tokens without Tailwind (scoped or plain CSS)
 
 1. Copy the scripts and `checks.json` as in step 1 below.
-2. Generate `tokens.css` with the dark selector the app already uses (`[data-theme="dark"]` is the
-   default; pass `--dark-selector .dark` or whatever the app toggles):
-   `python3 scripts/design_preview.py brand/design-system --tokens-css src/styles/tokens.css`
+2. Generate `tokens.css` with the dark selector the app already uses. The default is a `.dark`
+   class; an app that toggles `data-theme` passes `--dark-selector '[data-theme="dark"]'`:
+   `python3 scripts/design_preview.py brand/design-system --tokens-css src/styles/tokens.css --dark-selector '[data-theme="dark"]'`
 3. Import it once, before the app's own styles (`main.ts` or the global stylesheet).
 4. Rename the app's existing variables to the roles in one sweep (references/tokens.md,
    "Projects that already have tokens"), then replace raw colours in components with the roles.
@@ -50,7 +54,9 @@ page that plain HTML can serve.
    project's `scripts/`, and `templates/checks.json` to `brand/design-system/checks.json`.
 2. Generate the app's tokens (re-run whenever `tokens.json` changes; consider a check in CI that
    the generated file is current):
-   `python3 scripts/design_preview.py brand/design-system --tokens-css src/styles/tokens.css --dark-selector .dark`
+   `python3 scripts/design_preview.py brand/design-system --tokens-css src/styles/tokens.css`
+   (the dark theme lands on `.dark`, the default: what shadcn-vue toggles, and what Tailwind's
+   `dark:` variant follows once `app-theme.css` declares it with `@custom-variant`)
 3. Use `templates/app-theme.css` as the main stylesheet: it imports Tailwind and `tokens.css` and
    maps the roles to utilities (`bg-canvas`, `text-ink-secondary`, `border-control-border`, …).
 4. Dark mode is a `.dark` class on `<html>`, set before first paint (from `prefers-color-scheme`
@@ -87,8 +93,11 @@ Then:
 ## Testing the app
 
 Copy `templates/a11y.spec.ts` into the Playwright suite: axe WCAG A/AA in light and dark, no
-sideways scroll at 375px, and the focus-ring shape. Adjust its theme switch to the app's own
-mechanism (`.dark` class or `data-theme`). shadcn-vue components use `transition-all`, so
+sideways scroll at 375px, and the focus-ring shape. Set its `DARK` to match how `tokens.css`
+was generated: `{ class: 'dark' }` for the default, `{ attribute: 'data-theme' }` for
+`--dark-selector '[data-theme="dark"]'`. Its first test fails if switching
+themes leaves `--canvas` unchanged, which is what a mismatch looks like: without it, every dark
+audit silently re-runs the light theme and passes. shadcn-vue components use `transition-all`, so
 colours and outlines animate: wait for transitions to settle before measuring, or you will read
 half-way values and chase false failures. For keyboard behaviour (dialog focus trap, Escape,
 focus return, select arrows) Reka UI was correct in every case tested; test it once per app rather

@@ -3,7 +3,7 @@
  *
  * 1. tokens.css is GENERATED from the design system's tokens.json — never edit it by hand:
  *      python3 scripts/design_preview.py brand/design-system \
- *        --tokens-css src/styles/tokens.css --dark-selector .dark --font-base /fonts
+ *        --tokens-css src/styles/tokens.css --font-base /fonts
  *    It declares the standard roles (--canvas, --panel, --tile, --line, --control-border, --ink,
  *    --on-ink, --ink-secondary, --error-ink, --focus, plus the project's accents), the spacing and
  *    radius scales, --font-*, one class per type style, and @font-face for self-hosted fonts.
@@ -20,7 +20,7 @@
 @import "./tokens.css";
 
 /* Dark mode follows a .dark class on <html> (set before first paint from prefers-color-scheme or
-   a toggle). tokens.css was generated with --dark-selector .dark to match. */
+   a toggle). design_preview.py --tokens-css puts the dark theme on .dark by default to match. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

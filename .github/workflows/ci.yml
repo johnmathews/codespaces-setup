@@ -27,8 +27,12 @@ name: ci
 #                       the skill tree must still resolve to a real file.
 #   8. design-system scripts — selftests of the design-system skill's gate
 #                       (check_design_system.py) and preview builder
-#                       (design_preview.py). Projects copy both, so a regression
-#                       here would spread to every repo that uses them.
+#                       (design_preview.py), which projects copy, so a regression
+#                       here would spread to every repo that uses them; and of
+#                       render_previews.mjs and wordmark.py (via uv, for fontTools).
+#   9. skill versions — ci/lint-skill-versions.sh: every design-system script
+#                       declares SCRIPT_VERSION, and a change to one bumps it,
+#                       because copies in projects use it to tell they are behind.
 
 on:
   push:
@@ -112,11 +116,48 @@ jobs:
 
       - name: design-system scripts (selftest)
         # The skill's gate and preview builder are copied into each project that
-        # uses them, so a regression here spreads. Both are stdlib-only and carry
-        # their own fixtures; the selftests prove each check can go red.
+        # uses them, so a regression here spreads. Those two are stdlib-only and
+        # carry their own fixtures; the selftests prove each check can go red.
         run: |
           python3 configs/claude/skills/design-system/scripts/check_design_system.py --selftest
           python3 configs/claude/skills/design-system/scripts/design_preview.py --selftest
+          # No Playwright needed: it checks the page assembly and that its CSS
+          # comes from design_preview.py, not a second compiler.
+          node configs/claude/skills/design-system/scripts/render_previews.mjs --selftest
+
+      - name: set up uv (for wordmark.py's fontTools)
+        uses: astral-sh/setup-uv@v6
+
+      - name: design-system wordmark (selftest)
+        # Builds its own two-glyph font, so no font file lives in the repo.
+        run: uv run --with fonttools python3 configs/claude/skills/design-system/scripts/wordmark.py --selftest
+
+      - name: skill script versions
+        # Copies of the design-system scripts compare their SCRIPT_VERSION with
+        # the installed skill's, so a change here that forgets the bump leaves
+        # every stale copy reporting itself current. Compare against the PR's
+        # base, or the previous commit on a push. With no base (a manual run, a
+        # new branch) only presence and block identity are checked. A PR base
+        # that cannot be fetched fails the step rather than quietly skipping the
+        # bump rule; a push's `before` may be gone after a force-push, so that
+        # case warns and falls back.
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          bash ci/lint-skill-versions.sh --selftest
+          if [[ -z "${BASE}" || "${BASE}" == 0000000000000000000000000000000000000000 ]]; then
+            echo "no base commit to compare with; checking presence and block identity only"
+            bash ci/lint-skill-versions.sh
+          elif git fetch -q --depth=1 origin "${BASE}"; then
+            bash ci/lint-skill-versions.sh --base "${BASE}"
+          elif [[ "${EVENT}" == pull_request ]]; then
+            echo "::error::could not fetch the PR base ${BASE}; the version-bump rule cannot run"
+            exit 1
+          else
+            echo "::warning::could not fetch ${BASE} (force-pushed?); checking presence and block identity only"
+            bash ci/lint-skill-versions.sh
+          fi
 
       - name: triggering-eval parser selftest
         # The LLM routing in this test is on-demand (not in CI), but its
