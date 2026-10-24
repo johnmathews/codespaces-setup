@@ -5,6 +5,14 @@ conversation. Run it with superpowers:brainstorming if it is installed (it suppl
 one question per message, play back what you heard, offer the visual companion); this file adds
 what is specific to brands.
 
+## Read first
+
+Read the project's own design rules before the first question: `CLAUDE.md`/`AGENTS.md`, `docs/`
+(architecture, ADRs, accessibility or style notes), and the main stylesheet. Rules found there
+(a contrast floor, a font already chosen, "no animation", a dark-first app) are constraints on
+every direction you mock up, and saying "your architecture doc sets secondary text at 7:1, so all
+three directions keep that" shows the person you looked.
+
 ## What to find out
 
 1. **The feeling, in their words.** Ask about a moment, not adjectives in the abstract: "Picture
@@ -32,6 +40,12 @@ say what they'd change; mixing is allowed.
 
 Mockups go in the browser (the brainstorming visual companion, or an Artifact), never as text
 descriptions: people choose a brand by looking.
+
+**Don't make them wait for pictures.** If the first message already gives the feeling and the
+references ("calm, like Linear"), that is enough to mock up: send the three directions in the
+first reply, with each guess about which trait you borrowed marked as a guess, and put your
+questions underneath. Questions without pictures cost the person a round trip and get vaguer
+answers. Hold the mockups back only when you genuinely don't know the feeling yet.
 
 ## Then write it down
 

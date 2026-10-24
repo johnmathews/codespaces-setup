@@ -13,7 +13,8 @@ it works in CI and for any contributor, with or without this skill.
    CI step that regenerates it and fails on a diff.
 4. **No raw colours in components (optional but valuable).** A lint rule that rejects hex, `rgb()`
    and Tailwind palette classes (`bg-indigo-500`) in `src/` outside the generated tokens file
-   keeps everything going through the roles. A simple CI grep works:
+   keeps everything going through the roles. In a non-Tailwind app, also reject any `var(--…)`
+   colour that isn't a role or a named accent, so old token names can't creep back. A simple CI grep works:
    `! grep -rEn '#[0-9a-fA-F]{3,8}\b|\b(bg|text|border)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}\b' src --include=*.vue --include=*.ts`
 5. **docs/brand.md** (from `templates/brand-doc.md`): where the system lives and how to change it.
 6. **Project instructions.** One line in the project's CLAUDE.md: "UI work follows the design

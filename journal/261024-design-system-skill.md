@@ -42,6 +42,28 @@ Tailwind v4, and Vue components on shadcn-vue, checked for contrast, axe and pho
   375px checks pass.
 - shellcheck, shfmt, `ci/lint-conventions.sh`, `ci/lint-steps.sh` pass; the workflow YAML parses.
 
+## Revision after the first tests (same day)
+
+Three realistic requests were run with and without the skill (brand for the journal webapp, a
+"How it works" page for Parkahead, a component library for relay). The skill passed every check
+but lost two of three on judgement, so the founder approved four changes:
+
+1. **Don't assume Tailwind.** With the skill, the relay run recommended Nuxt UI, which would have
+   added Tailwind to an app of about 50 scoped-CSS components; the run without it chose headless
+   Reka UI plus TanStack Table on relay's existing styles, as law-change-tracker already does. The
+   skill now follows the app's existing styling, makes headless Reka (+ TanStack Table) the default
+   outside Tailwind, and treats adopting Tailwind as the person's decision.
+2. **Read the project's own design rules first.** The run without the skill found the journal
+   webapp's 7:1 secondary-text rule in `docs/architecture.md`; the run with it didn't look. The
+   skill now reads CLAUDE.md, docs, ADRs and lint configs before anything else, lets a stricter
+   project rule win (as an extra contrast pair in `checks.json`), and checks the person's other
+   projects for precedent.
+3. **Mock up as soon as the brief is clear.** With the skill, the journal run asked a question
+   and held the mockups back although the prompt named the feeling and the reference. Now, when
+   both are given, the three directions go in the first reply with the questions beside them.
+4. **Token names are fixed.** Projects with their own variables (`--color-bg`) rename them to the
+   standard roles by what each is used for; a temporary alias block is allowed only mid-migration.
+
 ## Not done
 
 The skill's triggering (does its description fire on the right prompts?) is not measured yet; the

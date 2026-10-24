@@ -1,18 +1,48 @@
-# Bringing the design system into a Vue 3 + Tailwind v4 app
+# Bringing the design system into a Vue 3 app
+
+## Start from what the app already uses
+
+Before choosing anything, find out how the app is styled today and follow it:
+
+- **Tailwind v4** (`@tailwindcss/vite`, `@theme` blocks): tokens into Tailwind, below.
+- **Scoped or plain CSS** (`<style scoped>`, a global stylesheet, existing CSS variables): keep it.
+  Generate `tokens.css`, rename existing variables to the standard roles (references/tokens.md),
+  and use `var(--ink)` and friends in the existing styles.
+- **Tailwind v3 or a config file**: ask whether to upgrade before mapping tokens.
+
+Don't add Tailwind to get a component library. In an app with dozens of scoped-CSS components it
+means two styling systems, or a rewrite of every component, and that is a restyle the person has
+to choose deliberately. Check the person's other projects too: if one already pairs a headless
+library with a table library, reuse that pairing.
 
 ## Choosing the component layer
 
 | Option | When |
 | --- | --- |
-| **Plain HTML + the tokens** | Marketing and landing pages, emails, anything that needs only forms, `<details>` and links. Lightest; no JS cost. |
-| **shadcn-vue** (default for apps) | Apps with dialogs, selects, menus, tabs, popovers. Copies component source into the repo (you own and restyle it), built on Reka UI's accessible behaviour and Tailwind v4. |
-| **Reka UI directly** | When only one or two complex widgets are needed and the shadcn layer isn't worth adding. |
-| **Nuxt UI** (v4, free, works in plain Vue via its Vite plugin) | Internal tools and dashboards where 125+ ready components beat a distinct look. Themed by config, not by owning the source. |
+| **Plain HTML + the tokens** | Marketing and landing pages, emails, anything that needs only forms, `<details>` and links. Lightest; no JS cost. Any styling. |
+| **shadcn-vue** (default for Tailwind apps) | Apps with dialogs, selects, menus, tabs, popovers. Copies component source into the repo (you own and restyle it), built on Reka UI's accessible behaviour and Tailwind v4. |
+| **Reka UI, headless** (default for non-Tailwind apps) | The same accessible behaviour as shadcn-vue without its styling layer: unstyled parts you style with the tokens in scoped CSS. Also for a Tailwind app that needs only one or two complex widgets. |
+| **TanStack Table** (`@tanstack/vue-table`) | Data tables (sorting, filtering, pagination) in any app: headless, so it renders your markup and styles. |
+| **Nuxt UI** (v4, free, works in plain Vue via its Vite plugin) | Only for internal tools already on Tailwind, where 125+ ready components beat a distinct look. Themed by config, not by owning the source. |
 | Not: PrimeVue, Vuetify, Quasar, Element Plus | Strong built-in looks that fight a bespoke brand. |
 
 Measured once (2026-10-24): button, input, dialog, select and accordion from shadcn-vue added about
 67 KB of gzipped JS over a bare Vue app (24 KB → 91 KB). Fine for an app; too much for a landing
 page that plain HTML can serve.
+
+## Tokens without Tailwind (scoped or plain CSS)
+
+1. Copy the scripts and `checks.json` as in step 1 below.
+2. Generate `tokens.css` with the dark selector the app already uses (`[data-theme="dark"]` is the
+   default; pass `--dark-selector .dark` or whatever the app toggles):
+   `python3 scripts/design_preview.py brand/design-system --tokens-css src/styles/tokens.css`
+3. Import it once, before the app's own styles (`main.ts` or the global stylesheet).
+4. Rename the app's existing variables to the roles in one sweep (references/tokens.md,
+   "Projects that already have tokens"), then replace raw colours in components with the roles.
+5. Style Reka UI parts in the component's scoped CSS through their state attributes
+   (`[data-state="open"]`, `[data-highlighted]`, `[data-disabled]`), using only `var(--…)` tokens.
+   Keep the solid 2px focus ring: `:focus-visible { outline: 2px solid var(--focus);
+   outline-offset: 2px; }` in the global stylesheet.
 
 ## Tokens into Tailwind
 
@@ -28,7 +58,7 @@ page that plain HTML can serve.
 5. The type styles arrive as plain classes (`.display`, `.body`, `.caption`, `.label`, `.code`).
    If an app already uses those class names, rename the styles in `tokens.json` with a prefix.
 
-## shadcn-vue setup (Vite)
+## shadcn-vue setup (Vite, Tailwind apps only)
 
 ```
 pnpm dlx shadcn-vue@latest init --base-color stone --icon-library lucide -y
@@ -57,7 +87,8 @@ Then:
 ## Testing the app
 
 Copy `templates/a11y.spec.ts` into the Playwright suite: axe WCAG A/AA in light and dark, no
-sideways scroll at 375px, and the focus-ring shape. shadcn-vue components use `transition-all`, so
+sideways scroll at 375px, and the focus-ring shape. Adjust its theme switch to the app's own
+mechanism (`.dark` class or `data-theme`). shadcn-vue components use `transition-all`, so
 colours and outlines animate: wait for transitions to settle before measuring, or you will read
 half-way values and chase false failures. For keyboard behaviour (dialog focus trap, Escape,
 focus return, select arrows) Reka UI was correct in every case tested; test it once per app rather

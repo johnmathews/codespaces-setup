@@ -383,7 +383,7 @@ configs/
   .gitconfig_managed    # Git aliases + portable settings (included from ~/.gitconfig)
   claude/               # Personal Claude Code assets, deployed into ~/.claude
     skills/engineering-team/   # /engineering-team skill (SKILL.md + phases/ + references/)
-    skills/design-system/      # /design-system skill: brand → claude.ai design system → Vue/Tailwind code (SKILL.md + references/ + scripts/ + templates/)
+    skills/design-system/      # /design-system skill: brand → claude.ai design system → Vue code (Tailwind or plain CSS) (SKILL.md + references/ + scripts/ + templates/)
     commands/done.md           # /done slash command
     commands/merge-push.md     # /merge-push slash command
     commands/prompt.md         # /prompt slash command

@@ -1,7 +1,9 @@
 # Tokens: the standard roles and the rules they follow
 
 Every project uses the **same role names** with its own values. That is what lets the gate, the
-Tailwind mapping and the shadcn-vue adapter be shared across projects unchanged.
+CSS, the Tailwind mapping and the shadcn-vue adapter be shared across projects unchanged, and
+what lets someone moving between projects read any stylesheet. The names are fixed; only values
+and accents vary.
 
 ## Colour roles (every project defines all of these)
 
@@ -23,10 +25,31 @@ roles (e.g. Parkahead's `free-surface` / `free-ink`, meaning a free parking bay)
 `checks.json` `extra_contrast_pairs`, with a usage note that says what the accent means and
 where it may never appear.
 
+A project with a stricter rule of its own (say, secondary text at 7:1) keeps it: add the pairs at
+the stricter ratio to `extra_contrast_pairs` (`["ink-secondary", "canvas", 7.0]`), and the gate
+checks both.
+
 The pairs that most often fail: `ink-secondary` on `tile` (the mockup grey usually lands just
 under 4.5:1; move it one step darker and say so), and any faded state. A label faded to 40%
 opacity fails, so a "Sending…" button keeps full colour and uses `aria-busy`; only truly disabled
 controls fade.
+
+## Projects that already have tokens
+
+Many apps already have semantic variables (`--color-bg`, `--color-surface`, `--text-muted`).
+Rename them to the roles; don't alias them permanently, because two names for one colour is the
+inconsistency this standard exists to remove.
+
+1. Map each existing variable to a role by what it is **used for**, not what it is called: grep
+   its uses. A `--color-border` used on inputs is `control-border`; one used on dividers is
+   `line`. If one variable does both jobs, split it. Something with no role (a brand accent) stays
+   as a named accent with its usage note.
+2. Write the mapping into the brand design or the PR description as a table (old → role).
+3. Put the values into `tokens.json` under the role names, check contrast with the gate (old
+   values often miss on `tile`), and generate `tokens.css`.
+4. Replace every use in one change (`sed` over `src/`, then read the diff). If the app is too big
+   for one change, keep the old names temporarily as `--color-bg: var(--canvas);` in a clearly
+   marked block, and remove the block before the work is called done.
 
 ## The rest of tokens.json
 
