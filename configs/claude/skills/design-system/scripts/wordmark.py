@@ -15,6 +15,7 @@ Needs fontTools (and brotli for .woff2), so run it through uv:
       --out assets/Wordmark/acme-wordmark-light.svg:#f5f5f3
 
   uv run --with fonttools python3 wordmark.py --selftest   # builds its own font; no file needed
+  python3 wordmark.py --version
 """
 
 import argparse
@@ -60,8 +61,9 @@ def _selftest() -> int:
 
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.ttGlyphPen import TTGlyphPen
+    from fontTools.ttLib.tables._g_l_y_f import Glyph
 
-    def box(width: int, height: int):
+    def box(width: int, height: int) -> Glyph:
         pen = TTGlyphPen(None)
         if width and height:
             pen.moveTo((0, 0))

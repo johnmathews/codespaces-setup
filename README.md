@@ -429,6 +429,7 @@ docs/
 tests/
   setup-resilience/             # The runner's behaviour: failure accounting, timeouts,
                                 # interrupts, the retry pass (headless, in CI)
+  claude-config-dir/            # ~/.claude -> /workspaces/.claude-config merge + links (headless, in CI)
   engineering-team-probes/      # Manual, LLM-in-the-loop regression probes for the skill router
   engineering-team-triggering/  # Does the skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
   engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
@@ -490,7 +491,7 @@ locally:
 # shell correctness and formatting
 shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
   bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
-  tests/setup-resilience/run.sh
+  tests/setup-resilience/run.sh tests/claude-config-dir/run.sh
 shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
 
 # structural gates

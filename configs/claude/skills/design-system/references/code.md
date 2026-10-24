@@ -1,7 +1,8 @@
 # Bringing the design system into a Vue 3 app
 
-Vue only. For React, Svelte or anything else, read `other-frameworks.md` instead: it says which
-parts of this file carry over unchanged and what replaces the rest.
+The component advice here is Vue only. For React, Svelte or anything else, read
+`other-frameworks.md` first: it says which sections of this file still apply (the token and
+Tailwind steps, the testing notes) and what replaces the rest.
 
 ## Start from what the app already uses
 
@@ -54,7 +55,8 @@ page that plain HTML can serve.
 2. Generate the app's tokens (re-run whenever `tokens.json` changes; consider a check in CI that
    the generated file is current):
    `python3 scripts/design_preview.py brand/design-system --tokens-css src/styles/tokens.css`
-   (the dark theme lands on `.dark`, the default, which is what Tailwind and shadcn-vue follow)
+   (the dark theme lands on `.dark`, the default: what shadcn-vue toggles, and what Tailwind's
+   `dark:` variant follows once `app-theme.css` declares it with `@custom-variant`)
 3. Use `templates/app-theme.css` as the main stylesheet: it imports Tailwind and `tokens.css` and
    maps the roles to utilities (`bg-canvas`, `text-ink-secondary`, `border-control-border`, …).
 4. Dark mode is a `.dark` class on `<html>`, set before first paint (from `prefers-color-scheme`
@@ -91,8 +93,9 @@ Then:
 ## Testing the app
 
 Copy `templates/a11y.spec.ts` into the Playwright suite: axe WCAG A/AA in light and dark, no
-sideways scroll at 375px, and the focus-ring shape. Set its `DARK` to the selector `tokens.css`
-was generated with (`.dark` by default, or `data-theme`). Its first test fails if switching
+sideways scroll at 375px, and the focus-ring shape. Set its `DARK` to match how `tokens.css`
+was generated: `{ class: 'dark' }` for the default, `{ attribute: 'data-theme' }` for
+`--dark-selector '[data-theme="dark"]'`. Its first test fails if switching
 themes leaves `--canvas` unchanged, which is what a mismatch looks like: without it, every dark
 audit silently re-runs the light theme and passes. shadcn-vue components use `transition-all`, so
 colours and outlines animate: wait for transitions to settle before measuring, or you will read

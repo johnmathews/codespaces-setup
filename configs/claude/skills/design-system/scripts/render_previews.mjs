@@ -8,7 +8,7 @@
 // and in the gallery are styled by one compiler, not two that drift apart.
 //
 // Usage: node render_previews.mjs <system-dir> <out-dir> [--width 375] [--playwright <path/to/playwright/index.mjs>]
-//        node render_previews.mjs --selftest
+//        node render_previews.mjs --selftest | --version
 // Prints "OVERFLOW <Component> <theme>" per offender (the cover overflows by design: it is a
 // fixed 960px layout the page scales down). Then look at the PNGs.
 import { spawnSync } from 'node:child_process'
@@ -25,7 +25,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 
 // tokens.css as design_preview.py compiles it, with the dark theme on [data-theme], which is how
 // themedDoc switches themes (and how the artifact page does).
-export function tokensCss(system) {
+function tokensCss(system) {
   const scratch = mkdtempSync(join(tmpdir(), 'render-previews-'))
   try {
     const out = join(scratch, 'tokens.css')
@@ -41,7 +41,7 @@ export function tokensCss(system) {
 }
 
 // One preview as a standalone page in one theme.
-export function themedDoc(preview, css, theme) {
+function themedDoc(preview, css, theme) {
   return preview
     .replace(/^<!-- @dsCard\b[^>]*-->\n?/, '') // a comment before <!doctype> means quirks mode
     .replace('<head>', `<head><style>${css}</style>`)
@@ -80,7 +80,7 @@ async function render(args) {
   const option = (flag, fallback) => (args.includes(flag) ? args[args.indexOf(flag) + 1] ?? fallback : fallback)
   const [system, out] = args
   if (!system || !out || system.startsWith('-')) {
-    console.error('usage: node render_previews.mjs <system-dir> <out-dir> [--width 375] [--playwright <index.mjs>]')
+    console.error('usage: node render_previews.mjs <system-dir> <out-dir> [--width 375] [--playwright <index.mjs>] | --selftest | --version')
     return 2
   }
   const project = resolve(system, 'project')
@@ -109,8 +109,9 @@ async function render(args) {
   return 0
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const args = process.argv.slice(2)
-  if (args[0] === '--version') console.log(`render_previews.mjs ${SCRIPT_VERSION}`)
-  else process.exitCode = args[0] === '--selftest' ? selftest() : await render(args)
-}
+// Always dispatch: this is a command, not a module. An "only when run directly" guard that
+// compares process.argv[1] with import.meta.url fails through a symlink (Node resolves the
+// module URL, not argv), and in a Codespace ~/.claude is one, so every mode silently did nothing.
+const args = process.argv.slice(2)
+if (args[0] === '--version') console.log(`render_previews.mjs ${SCRIPT_VERSION}`)
+else process.exitCode = args[0] === '--selftest' ? selftest() : await render(args)

@@ -75,8 +75,9 @@ rules.
   `scripts/`, `templates/checks.json` → `brand/design-system/checks.json`. Run it after every
   change; it fails on unreadable token shapes, contrast misses in any theme, banned words, missing
   components and an email that uses `<style>` or `var()`.
-- **Copies carry a version.** Each script declares `SCRIPT_VERSION`, and a copy prints a `note:`
-  when it differs from this skill's (`--version` shows it). In a project that already has copies,
+- **Copies carry a version.** Every script declares `SCRIPT_VERSION` (`--version` shows it), and
+  the two that projects copy (the gate and `design_preview.py`) print a `note:` when theirs
+  differs from this skill's. In a project that already has copies,
   act on that note before anything else: update the copy, or update the skill if the copy is newer.
 - Every component gets a README (first sentence = summary; use, states, what the consumer
   provides) and a preview in real copy, in every language the product ships. The cover has no README.
@@ -99,7 +100,7 @@ Offer the local gallery: `scripts/design_preview.py <system-dir>` writes an offl
 | --- | --- |
 | `vue` or `nuxt` | `references/code.md` (the worked path; the rest of this step) |
 | `react`, `next`, `svelte`, `@sveltejs/kit`, `solid-js`, … | `references/other-frameworks.md` |
-| No JS framework (static HTML, Astro without islands, server templates) | Plain HTML + `tokens.css`: the first two bullets below |
+| No JS framework (static HTML, Astro without islands, server templates) | Plain HTML + `tokens.css`: the first and the "No Tailwind" bullets below |
 
 The component advice below is worked out for **Vue 3 only**. For any other framework, say so to
 the person in one line before recommending a library ("this skill's component guidance was built
@@ -112,9 +113,10 @@ Read `references/code.md`. **Don't assume Tailwind**: follow the styling the app
 Adding Tailwind to a project that styles with scoped CSS is a restyle of every component, so it
 is the person's decision, never a side effect of picking a component library. The short version:
 
-- Generate `tokens.css` from `tokens.json` (`design_preview.py --tokens-css …`, with
-  `--dark-selector` matching how the app switches themes). Every app gets the same variables:
-  `var(--ink)`, `var(--canvas)`.
+- Generate `tokens.css` from `tokens.json` (`design_preview.py --tokens-css …`). Dark lands on a
+  `.dark` class by default; an app that toggles `data-theme` passes
+  `--dark-selector '[data-theme="dark"]'` and sets `templates/a11y.spec.ts`'s `DARK` to match.
+  Every app gets the same variables: `var(--ink)`, `var(--canvas)`.
 - **Tailwind v4 app:** use `templates/app-theme.css` as the main stylesheet, so utilities are named
   after the roles (`bg-canvas`, `text-ink-secondary`) and shadcn's variables map onto them.
 - **No Tailwind (scoped CSS, plain CSS):** import `tokens.css` and use the variables directly in
@@ -141,8 +143,8 @@ from `templates/brand-doc.md`, and a line in the project's CLAUDE.md pointing at
 | --- | --- |
 | `scripts/check_design_system.py` | The gate. Stdlib only; `--selftest`, `--version`. Copy into each project. |
 | `scripts/design_preview.py` | Offline gallery, and `--tokens-css` for the app (Tailwind or not). Stdlib only; `--selftest`, `--version`. Copy into each project. |
-| `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`); `--selftest`. |
-| `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright, and python3 for `design_preview.py` beside it, which compiles its CSS); `--selftest`. |
+| `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`); `--selftest`, `--version`. |
+| `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright, and python3 for `design_preview.py` beside it, which compiles its CSS); `--selftest`, `--version`. |
 | `templates/checks.json`, `app-theme.css` (Tailwind apps), `a11y.spec.ts`, `brand-doc.md` | Starting points to copy into a project. |
 | `references/*.md` | brand-discovery, tokens, artifact, code (Vue), other-frameworks, enforcement. |
 

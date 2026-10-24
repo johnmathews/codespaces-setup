@@ -12,8 +12,10 @@ These don't depend on the framework, so use them exactly as `code.md` describes:
 - `tokens.css` from `design_preview.py --tokens-css` (dark theme on `.dark` by default), and the
   standard role names: `var(--ink)`, `var(--canvas)`.
 - `templates/app-theme.css` in a Tailwind v4 app, for the role-named utilities (`bg-canvas`,
-  `text-ink-secondary`). Its shadcn adapter block maps `--background`, `--primary` and the rest,
-  and shadcn/ui (React) and shadcn-svelte read the same variable names as shadcn-vue. Keep the
+  `text-ink-secondary`). Its shadcn adapter block maps the Tailwind theme names
+  (`--color-background`, `--color-primary` and the rest) onto the roles, and shadcn/ui (React)
+  and shadcn-svelte use the same names as shadcn-vue. A component that reads a raw variable
+  instead (`var(--sidebar)`, `var(--chart-1)`) needs that variable mapped as well. Keep the
   imports their `init` writes; drop the two marked `shadcn-vue only`.
 - The solid 2px focus ring, the "wait for transitions to settle" rule, and
   `templates/a11y.spec.ts`, which is plain Playwright and knows nothing about the framework.

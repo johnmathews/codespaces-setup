@@ -18,7 +18,7 @@ every check can be run locally with the same commands.
 | Step wiring | `ci/lint-steps.sh` | A `scripts/NN-*.sh` that isn't wired into `setup.sh`'s `STEPS` array (so it would silently never run), a `STEPS` entry pointing at a missing script, or a `--group` whose members aren't real `STEPS` entries (what keeps the update path a *selector over* `STEPS` rather than a second list of it) |
 | Skill gates | `check_report.py`, `check_run.py`, `check_plan.py` (each `--selftest`) | A malformed evaluation report; a `run.yaml` whose schema is invalid or whose `phase:` disagrees with the artifacts on disk; or an improvement plan with an invalid frontmatter index or unit IDs that don't match `run.yaml` (the `engineering-team` skill's three shipped gates; their fixtures are the test) |
 | design-system scripts | `check_design_system.py`, `design_preview.py`, `render_previews.mjs`, `wordmark.py` (each `--selftest`) | A regression in the scripts the `design-system` skill ships. Projects copy the gate and the preview builder, so a bug there spreads to every repo that uses them. `wordmark.py` runs through `uv` for fontTools and builds its own test font |
-| Skill script versions | `ci/lint-skill-versions.sh` (`--selftest`, then `--base <ref>`) | A design-system script without exactly one `SCRIPT_VERSION`, or one changed since the PR base without a bump. Copies in projects compare that number with the installed skill's, so a missed bump leaves stale copies reporting themselves current |
+| Skill script versions | `ci/lint-skill-versions.sh` (`--selftest`, then `--base <ref>`) | A design-system script without exactly one `SCRIPT_VERSION`, one changed since the PR base without a bump, or the two copied scripts' `# >>> copy-version` blocks (the duplicated compare code) no longer byte-identical. Copies in projects compare that number with the installed skill's, so a missed bump leaves stale copies reporting themselves current |
 | Triggering parsers | `tests/engineering-team-triggering/run.py --selftest`, `tests/design-system-triggering/run.py --selftest` | A silent bug in the triggering test's own deterministic parsers (verdict parsing, folded-description extraction) — the part that turns an LLM reply into a scored number, where a bug yields a confident wrong result. Headless; the LLM measurement itself is not in CI (the Router probes / Triggering eval rows below) |
 | Rule-ownership drift-scan | [`tests/engineering-team-drift/`](../tests/engineering-team-drift/) | The skill's rule-ownership index lying about where a rule lives (a cited home heading that no longer exists), a home that lost its canonical statement, or a worktree-idiom copy that dropped `--path-format=absolute` — the idiom check spans the skill docs **and** the vendored slash commands. Fully headless — runs the real scan in CI |
 | Command→skill link-check | [`tests/engineering-team-command-links/`](../tests/engineering-team-command-links/) | A `/done` or `/merge-push` cross-reference into the skill tree (e.g. `references/worktree.md`) left dangling by a rename or move — the commands ship separately from the skill, so the drift-scan's skill-internal scope doesn't cover them. Fully headless — runs the real check in CI |
@@ -32,7 +32,7 @@ every check can be run locally with the same commands.
 # Correctness
 shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
   bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
-  tests/setup-resilience/run.sh
+  tests/setup-resilience/run.sh tests/claude-config-dir/run.sh
 
 # Formatting (‑d = show diff and fail if anything is unformatted; ‑w = rewrite in place)
 shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
@@ -79,15 +79,16 @@ CI also exercises the account-wide dotfiles environment with `universal:6`.
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace
 itself already installs `shfmt` via `scripts/15-dev-tools.sh`).
 
-Two checks are not commands here — both are on-demand, model-in-the-loop
-regression tests for the `engineering-team` skill, run when the relevant part of
-`SKILL.md` changes, and neither can live in headless CI:
+Some checks are not commands here — they are on-demand, model-in-the-loop
+regression tests for the skills, run when the relevant part of a `SKILL.md`
+changes, and none can live in headless CI:
 
 - The **router probe test** (`tests/engineering-team-probes/`) — run when the
   router body changes, to confirm no load-bearing invariant was dropped.
 - The **triggering eval** (`tests/engineering-team-triggering/`) — run when the
   `description:` frontmatter changes, to confirm the skill still fires on the
-  right prompts and not the wrong ones. `python3 tests/engineering-team-triggering/run.py`.
+  right prompts and not the wrong ones. `python3 tests/engineering-team-triggering/run.py`,
+  and for the `design-system` skill `python3 tests/design-system-triggering/run.py`.
   Its *deterministic parsers* have a headless `--selftest` that **does** run in CI
   (the table above); only the `claude -p` routing measurement is on-demand.
 
@@ -165,3 +166,7 @@ compares its `SCRIPT_VERSION` with the installed skill's on every run, printing 
 `configs/claude/skills/design-system/scripts/` bumps that file's
 `SCRIPT_VERSION`**; `ci/lint-skill-versions.sh` fails the PR otherwise. A copy
 that has fallen behind then says so the next time someone runs it locally.
+
+The compare code itself lives in both copied scripts, between `# >>> copy-version`
+and `# <<< copy-version`, because each copy has to stand alone in a project. Edit
+one and make the other match: the same lint fails when the two blocks differ.

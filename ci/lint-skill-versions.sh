@@ -10,12 +10,17 @@
 # reports itself current. That forgotten bump is the mistake nothing else would
 # catch, so this lint makes it red.
 #
-# Two rules, over every file in VERSIONED_DIRS:
+# Three rules, over every file in VERSIONED_DIRS:
 #   1. The file declares exactly one `SCRIPT_VERSION = <n>` at the start of a
 #      line (`const SCRIPT_VERSION = <n>` in JavaScript).
 #   2. With --base <ref>: a file that exists at <ref> with a version, and whose
 #      contents differ from <ref>, has a strictly higher version than at <ref>.
 #      A file new since <ref>, or one that had no version there, passes rule 2.
+#      (A rename looks like a new file, so it passes too; rename deliberately.)
+#   3. Each pair in IDENTICAL_BLOCKS holds a byte-identical `# >>> copy-version`
+#      ... `# <<< copy-version` block. The version check itself is duplicated
+#      because each copied script must stand alone in a project, so this is what
+#      stops the two copies drifting apart.
 #
 # Run:      bash ci/lint-skill-versions.sh [--base <git-ref>]
 # Selftest: bash ci/lint-skill-versions.sh --selftest
@@ -29,12 +34,17 @@ SELF="${REPO_DIR}/ci/lint-skill-versions.sh"
 # Space-separated, relative to the repo root. SKILL_VERSIONED_DIRS overrides it
 # (read per call, not here, so the selftest can point lint at its fixture tree).
 VERSIONED_DIRS="configs/claude/skills/design-system/scripts"
+# "a b" pairs, relative to the repo root; SKILL_IDENTICAL_BLOCKS overrides it.
+IDENTICAL_BLOCKS="configs/claude/skills/design-system/scripts/check_design_system.py:configs/claude/skills/design-system/scripts/design_preview.py"
 VERSION_RE='^(const )?SCRIPT_VERSION = [0-9]+'
 
 # The version declared in text on stdin, or nothing.
 version_of() {
   grep -E "${VERSION_RE}" | head -n 1 | sed -E 's/^(const )?SCRIPT_VERSION = ([0-9]+).*/\2/' || true
 }
+
+# The copy-version block of a file, markers included, or nothing.
+block_of() { sed -n '/^# >>> copy-version/,/^# <<< copy-version/p' "$1"; }
 
 # lint <root> <base-ref or empty>; prints one line per problem, returns 1 if any.
 lint() {
@@ -67,6 +77,17 @@ lint() {
       fi
     done
   done
+  local pair a b
+  for pair in ${SKILL_IDENTICAL_BLOCKS-${IDENTICAL_BLOCKS}}; do
+    a="${pair%%:*}" b="${pair#*:}"
+    if [[ -z "$(block_of "${root}/${a}")" ]]; then
+      log "FAIL ${a}: no '# >>> copy-version' ... '# <<< copy-version' block"
+      problems=1
+    elif [[ "$(block_of "${root}/${a}")" != "$(block_of "${root}/${b}")" ]]; then
+      log "FAIL ${a} and ${b}: their copy-version blocks differ; make them identical"
+      problems=1
+    fi
+  done
   return "${problems}"
 }
 
@@ -76,7 +97,7 @@ selftest() {
   trap 'rm -rf "${work}"' RETURN
   expect() { # expect <pass|fail> <description> <base or empty>
     local want="$1" desc="$2" base="$3" got=pass
-    SKILL_VERSIONED_DIRS=s lint "${work}" "${base}" >/dev/null || got=fail
+    SKILL_VERSIONED_DIRS=s SKILL_IDENTICAL_BLOCKS="${pairs:-}" lint "${work}" "${base}" >/dev/null || got=fail
     if [[ "${got}" == "${want}" ]]; then echo "  ok   ${desc}"; else
       echo "  FAIL ${desc} (wanted ${want}, got ${got})"
       fail=1
@@ -110,6 +131,14 @@ selftest() {
   git -C "${work}" commit -qam unversioned
   printf 'SCRIPT_VERSION = 1\nx = 1\n' >"${work}/s/a.py"
   expect pass "introducing the first version passes" HEAD
+  local pairs="s/a.py:s/c.py"
+  printf 'SCRIPT_VERSION = 1\n# >>> copy-version\nshared = 1\n# <<< copy-version\nmine = 1\n' >"${work}/s/a.py"
+  printf 'SCRIPT_VERSION = 1\n# >>> copy-version\nshared = 1\n# <<< copy-version\nmine = 2\n' >"${work}/s/c.py"
+  expect pass "identical copy-version blocks pass; the rest of each file may differ" ""
+  printf 'SCRIPT_VERSION = 1\n# >>> copy-version\nshared = 2\n# <<< copy-version\n' >"${work}/s/c.py"
+  expect fail "copy-version blocks that differ fail" ""
+  printf 'SCRIPT_VERSION = 1\nshared = 1\n' >"${work}/s/a.py"
+  expect fail "a missing copy-version block fails" ""
   return "${fail}"
 }
 
