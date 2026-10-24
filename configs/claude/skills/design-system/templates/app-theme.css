@@ -1,0 +1,74 @@
+/*
+ * The app side of a design system: Tailwind v4 theme + the shadcn-vue adapter.
+ *
+ * 1. tokens.css is GENERATED from the design system's tokens.json — never edit it by hand:
+ *      python3 scripts/design_preview.py brand/design-system \
+ *        --tokens-css src/styles/tokens.css --dark-selector .dark --font-base /fonts
+ *    It declares the standard roles (--canvas, --panel, --tile, --line, --control-border, --ink,
+ *    --on-ink, --ink-secondary, --error-ink, --focus, plus the project's accents), the spacing and
+ *    radius scales, --font-*, one class per type style, and @font-face for self-hosted fonts.
+ * 2. This file maps those roles onto Tailwind utilities (bg-canvas, text-ink, rounded-lg …) and onto
+ *    the variable names shadcn-vue's components use (--background, --primary …).
+ *
+ * Replace the src/style.css that `shadcn-vue init` writes with this file (keep its two imports
+ * if you use shadcn-vue: tw-animate-css and shadcn-vue/tailwind.css). Rename the accent block to
+ * the project's accent roles.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";          /* shadcn-vue only */
+@import "shadcn-vue/tailwind.css"; /* shadcn-vue only */
+@import "./tokens.css";
+
+/* Dark mode follows a .dark class on <html> (set before first paint from prefers-color-scheme or
+   a toggle). tokens.css was generated with --dark-selector .dark to match. */
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Tailwind utilities named after the design system's roles. */
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-tile: var(--tile);
+  --color-line: var(--line);
+  --color-control-border: var(--control-border);
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-error-ink: var(--error-ink);
+  --color-focus: var(--focus);
+  /* Project accents, e.g.:
+  --color-free-surface: var(--free-surface);
+  --color-free-ink: var(--free-ink); */
+
+  /* No --font-sans or --radius-* lines here: tokens.css declares --font-sans (from the "sans"
+     family) and --radius-sm/md/lg itself, and as unlayered :root rules they override Tailwind's
+     defaults, so font-sans and rounded-lg already follow the tokens. Mapping a name to itself
+     (--font-sans: var(--font-sans)) would be a cycle. */
+
+  /* shadcn-vue adapter: its components read these names. Map, don't redefine. */
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--panel);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--panel);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--on-ink);
+  --color-secondary: var(--tile);
+  --color-secondary-foreground: var(--ink);
+  --color-muted: var(--tile);
+  --color-muted-foreground: var(--ink-secondary);
+  --color-accent: var(--tile);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--error-ink);
+  --color-border: var(--line);
+  --color-input: var(--control-border);
+  --color-ring: var(--focus);
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans; }
+  /* The focus ring is a solid 2px outline at a 2px offset everywhere (references/tokens.md).
+     shadcn's default is a translucent 3px ring, which can fail 3:1. */
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+}
