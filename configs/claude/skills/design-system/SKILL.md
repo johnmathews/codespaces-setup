@@ -141,8 +141,8 @@ from `templates/brand-doc.md`, and a line in the project's CLAUDE.md pointing at
 | --- | --- |
 | `scripts/check_design_system.py` | The gate. Stdlib only; `--selftest`, `--version`. Copy into each project. |
 | `scripts/design_preview.py` | Offline gallery, and `--tokens-css` for the app (Tailwind or not). Stdlib only; `--selftest`, `--version`. Copy into each project. |
-| `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`). |
-| `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright). |
+| `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`); `--selftest`. |
+| `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright, and python3 for `design_preview.py` beside it, which compiles its CSS); `--selftest`. |
 | `templates/checks.json`, `app-theme.css` (Tailwind apps), `a11y.spec.ts`, `brand-doc.md` | Starting points to copy into a project. |
 | `references/*.md` | brand-discovery, tokens, artifact, code (Vue), other-frameworks, enforcement. |
 
