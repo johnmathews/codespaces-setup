@@ -8,6 +8,7 @@
 #
 # Vendored here (keep in sync with the local ~/.claude copies):
 #   - skills/engineering-team  -> /engineering-team
+#   - skills/design-system     -> /design-system
 #   - commands/done.md         -> /done
 #   - commands/merge-push.md   -> /merge-push
 #   - commands/prompt.md       -> /prompt
@@ -109,6 +110,7 @@ deploy_skill() {
 reap_stale_backups
 
 deploy_skill "${SRC_DIR}/skills/engineering-team" "${SKILLS_DIR}/engineering-team"
+deploy_skill "${SRC_DIR}/skills/design-system" "${SKILLS_DIR}/design-system"
 
 deploy_file "${SRC_DIR}/commands/done.md"       "${COMMANDS_DIR}/done.md"
 deploy_file "${SRC_DIR}/commands/merge-push.md" "${COMMANDS_DIR}/merge-push.md"

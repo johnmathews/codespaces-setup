@@ -1,0 +1,10 @@
+{
+  "required_components": [
+    "Button", "TextLink", "Header", "Footer", "Panel",
+    "Cover"
+  ],
+  "extra_contrast_pairs": [],
+  "forbidden_words": [],
+  "group_order": ["Basics", "Forms", "Content", "Email"],
+  "email_preview": "components/EmailLayout/preview.html"
+}

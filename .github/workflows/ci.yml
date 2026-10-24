@@ -24,6 +24,10 @@ name: ci
 #                       also fully headless, runs the REAL check here: every
 #                       cross-reference the /done + /merge-push commands make into
 #                       the skill tree must still resolve to a real file.
+#   8. design-system scripts — selftests of the design-system skill's gate
+#                       (check_design_system.py) and preview builder
+#                       (design_preview.py). Projects copy both, so a regression
+#                       here would spread to every repo that uses them.
 
 on:
   push:
@@ -104,6 +108,14 @@ jobs:
           python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_board.py --selftest
+
+      - name: design-system scripts (selftest)
+        # The skill's gate and preview builder are copied into each project that
+        # uses them, so a regression here spreads. Both are stdlib-only and carry
+        # their own fixtures; the selftests prove each check can go red.
+        run: |
+          python3 configs/claude/skills/design-system/scripts/check_design_system.py --selftest
+          python3 configs/claude/skills/design-system/scripts/design_preview.py --selftest
 
       - name: triggering-eval parser selftest
         # The LLM routing in this test is on-demand (not in CI), but its
