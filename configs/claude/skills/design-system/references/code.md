@@ -1,5 +1,8 @@
 # Bringing the design system into a Vue 3 app
 
+Vue only. For React, Svelte or anything else, read `other-frameworks.md` instead: it says which
+parts of this file carry over unchanged and what replaces the rest.
+
 ## Start from what the app already uses
 
 Before choosing anything, find out how the app is styled today and follow it:
