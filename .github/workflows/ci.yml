@@ -29,6 +29,9 @@ name: ci
 #                       (check_design_system.py) and preview builder
 #                       (design_preview.py). Projects copy both, so a regression
 #                       here would spread to every repo that uses them.
+#   9. skill versions — ci/lint-skill-versions.sh: every design-system script
+#                       declares SCRIPT_VERSION, and a change to one bumps it,
+#                       because copies in projects use it to tell they are behind.
 
 on:
   push:
@@ -117,6 +120,24 @@ jobs:
         run: |
           python3 configs/claude/skills/design-system/scripts/check_design_system.py --selftest
           python3 configs/claude/skills/design-system/scripts/design_preview.py --selftest
+
+      - name: skill script versions
+        # Copies of the design-system scripts compare their SCRIPT_VERSION with
+        # the installed skill's, so a change here that forgets the bump leaves
+        # every stale copy reporting itself current. Compare against the PR's
+        # base, or the previous commit on a push; with neither (a manual run,
+        # a new branch) only the presence rule is checked.
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          bash ci/lint-skill-versions.sh --selftest
+          if [[ -n "${BASE}" && "${BASE}" != 0000000000000000000000000000000000000000 ]] \
+            && git fetch -q --depth=1 origin "${BASE}"; then
+            bash ci/lint-skill-versions.sh --base "${BASE}"
+          else
+            echo "no base commit to compare with; checking presence only"
+            bash ci/lint-skill-versions.sh
+          fi
 
       - name: triggering-eval parser selftest
         # The LLM routing in this test is on-demand (not in CI), but its

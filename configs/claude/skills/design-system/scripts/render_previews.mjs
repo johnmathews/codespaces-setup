@@ -12,6 +12,10 @@ import { mkdirSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
+// Bump on every change to this file: ci/lint-skill-versions.sh (codespaces-setup) fails a change
+// that doesn't.
+const SCRIPT_VERSION = 1
+
 const args = process.argv.slice(2)
 const option = (flag, fallback) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : fallback)
 const [system, out] = args

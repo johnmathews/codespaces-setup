@@ -23,6 +23,10 @@ from fontTools.pens.svgPathPen import SVGPathPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 
+# Bump on every change to this file: ci/lint-skill-versions.sh (codespaces-setup) fails a change
+# that doesn't.
+SCRIPT_VERSION = 1
+
 
 def wordmark_svg(font: Path, text: str, fill: str, tracking_em: float = -0.02) -> str:
     tt = TTFont(font)

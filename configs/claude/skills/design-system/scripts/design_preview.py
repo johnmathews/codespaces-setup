@@ -16,10 +16,12 @@ match. The gallery keeps `[data-theme]`, which is what the artifact itself uses.
 Group order on the gallery comes from <system-dir>/checks.json "group_order" if present,
 otherwise the order groups first appear in (the cover always first).
 
-Stdlib only. Copy it into the project's scripts/ beside check_design_system.py.
+Stdlib only. Copy it into the project's scripts/ beside check_design_system.py. Like the gate,
+it notes (on stderr) when this copy's SCRIPT_VERSION differs from the installed skill's.
 
 Usage: python3 design_preview.py <system-dir>                 # writes <system-dir>/preview/
        python3 design_preview.py <system-dir> --tokens-css <out.css> [--dark-selector <css>] [--font-base <url>]
+       python3 design_preview.py --version
        python3 design_preview.py --selftest
 """
 
@@ -27,10 +29,45 @@ import contextlib
 import html
 import io
 import json
+import os
 import re
 import sys
 import tempfile
 from pathlib import Path
+
+# Bump on every change to this file: ci/lint-skill-versions.sh (codespaces-setup) fails a change
+# that doesn't. Projects copy this script, and the number is how a copy knows it has fallen behind.
+SCRIPT_VERSION = 1
+VERSION_LINE = re.compile(r"^SCRIPT_VERSION = (\d+)", re.M)
+
+
+def installed_skill_dir() -> Path | None:
+    """The design-system skill on this machine, if there is one (CI usually has none)."""
+    candidates = [os.environ.get("DESIGN_SYSTEM_SKILL_DIR")]
+    if config := os.environ.get("CLAUDE_CONFIG_DIR"):
+        candidates.append(str(Path(config) / "skills/design-system"))
+    candidates.append(str(Path.home() / ".claude/skills/design-system"))
+    return next((Path(c) for c in candidates if c and (Path(c) / "SKILL.md").exists()), None)
+
+
+def copy_note(this_file: Path, skill_dir: Path | None) -> str | None:
+    """Compare this copy with the skill's own copy of the same script; None when there is nothing to say."""
+    skill_copy = skill_dir / "scripts" / this_file.name if skill_dir else None
+    if not skill_copy or not skill_copy.exists() or skill_copy.resolve() == this_file.resolve():
+        return None
+    found = VERSION_LINE.search(skill_copy.read_text())
+    theirs = int(found.group(1)) if found else 0
+    if theirs > SCRIPT_VERSION:
+        return (f"note: {this_file.name} here is version {SCRIPT_VERSION}; the design-system skill has "
+                f"{theirs}. Update this copy: cp {skill_copy} {this_file}")
+    if theirs < SCRIPT_VERSION:
+        return (f"note: {this_file.name} here is version {SCRIPT_VERSION}, newer than the installed "
+                f"design-system skill ({theirs}). Update the skill: `codespaces-update claude`, or "
+                f"`bash scripts/17-claude-skills.sh` in codespaces-setup.")
+    if skill_copy.read_bytes() != this_file.read_bytes():
+        return (f"note: {this_file.name} matches the skill's version ({theirs}) but not its contents: "
+                f"edited here, or changed in the skill without a version bump. Compare with {skill_copy}")
+    return None
 
 MARKER = re.compile(r"^<!-- @dsCard\b([^>]*)-->\n?")
 # --tokens-css only. Keep it equal to the class templates/a11y.spec.ts toggles, or the dark audit
@@ -260,7 +297,7 @@ def _selftest() -> int:
         index = build(project, Path(tmp) / "preview").read_text()
         page = (Path(tmp) / "preview/components/Button.dark.html").read_text()
         app_css = Path(tmp) / "app-tokens.css"
-        with contextlib.redirect_stdout(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             main([tmp, "--tokens-css", str(app_css)])
         app_css_text = app_css.read_text()
         checks.append(("--tokens-css defaults to the .dark class templates/a11y.spec.ts flips",
@@ -273,6 +310,32 @@ def _selftest() -> int:
             ("per-theme pages drop the marker and set the theme",
              page.startswith("<!doctype html>") and '<html data-theme="dark"' in page),
         ]  # fmt: skip
+    with tempfile.TemporaryDirectory() as tmp:
+        here = Path(tmp) / "project" / Path(__file__).name
+        skill = Path(tmp) / "skill"
+        (skill / "scripts").mkdir(parents=True)
+        here.parent.mkdir()
+        source = Path(__file__).read_text()
+        here.write_text(source)
+        theirs = skill / "scripts" / here.name
+
+        def note_with(text: str) -> str:
+            theirs.write_text(text)
+            return copy_note(here, skill) or ""
+
+        def bumped(n: int) -> str:
+            return source.replace(f"SCRIPT_VERSION = {SCRIPT_VERSION}", f"SCRIPT_VERSION = {n}", 1)
+
+        checks += [
+            ("versions: no installed skill, no note", copy_note(here, None) is None),
+            ("versions: an identical copy, no note", note_with(source) == ""),
+            ("versions: the skill is newer, say how to update the copy",
+             "Update this copy: cp" in note_with(bumped(SCRIPT_VERSION + 1))),
+            ("versions: the copy is newer, say how to update the skill",
+             "Update the skill" in note_with(bumped(SCRIPT_VERSION - 1))),
+            ("versions: same number, different bytes, flagged", "not its contents" in note_with(source + "#\n")),
+            ("versions: the skill's own copy never compares with itself", copy_note(theirs, skill) is None),
+        ]  # fmt: skip
     for name, ok in checks:
         print(f"{'ok  ' if ok else 'FAIL'} {name}")
     return 0 if all(ok for _, ok in checks) else 1
@@ -281,8 +344,13 @@ def _selftest() -> int:
 def main(argv: list[str]) -> int:
     if argv[:1] == ["--selftest"]:
         return _selftest()
+    if argv[:1] == ["--version"]:
+        print(f"{Path(__file__).name} {SCRIPT_VERSION}")
+        return 0
+    if note := copy_note(Path(__file__), installed_skill_dir()):
+        print(note, file=sys.stderr)
     if not argv or argv[0].startswith("-"):
-        print(__doc__.strip().splitlines()[-3].strip())
+        print(__doc__.strip().splitlines()[-4].strip())
         return 2
     system = Path(argv[0])
     project = system / "project"

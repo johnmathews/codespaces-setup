@@ -75,6 +75,9 @@ rules.
   `scripts/`, `templates/checks.json` → `brand/design-system/checks.json`. Run it after every
   change; it fails on unreadable token shapes, contrast misses in any theme, banned words, missing
   components and an email that uses `<style>` or `var()`.
+- **Copies carry a version.** Each script declares `SCRIPT_VERSION`, and a copy prints a `note:`
+  when it differs from this skill's (`--version` shows it). In a project that already has copies,
+  act on that note before anything else: update the copy, or update the skill if the copy is newer.
 - Every component gets a README (first sentence = summary; use, states, what the consumer
   provides) and a preview in real copy, in every language the product ships. The cover has no README.
 - Upload SVGs first, write the index last, publish with `root`.
@@ -136,8 +139,8 @@ from `templates/brand-doc.md`, and a line in the project's CLAUDE.md pointing at
 
 | Path | Use |
 | --- | --- |
-| `scripts/check_design_system.py` | The gate. Stdlib only; `--selftest`. Copy into each project. |
-| `scripts/design_preview.py` | Offline gallery, and `--tokens-css` for the app (Tailwind or not). Stdlib only; `--selftest`. |
+| `scripts/check_design_system.py` | The gate. Stdlib only; `--selftest`, `--version`. Copy into each project. |
+| `scripts/design_preview.py` | Offline gallery, and `--tokens-css` for the app (Tailwind or not). Stdlib only; `--selftest`, `--version`. Copy into each project. |
 | `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`). |
 | `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright). |
 | `templates/checks.json`, `app-theme.css` (Tailwind apps), `a11y.spec.ts`, `brand-doc.md` | Starting points to copy into a project. |
