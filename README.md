@@ -383,7 +383,7 @@ configs/
   .gitconfig_managed    # Git aliases + portable settings (included from ~/.gitconfig)
   claude/               # Personal Claude Code assets, deployed into ~/.claude
     skills/engineering-team/   # /engineering-team skill (SKILL.md + phases/ + references/)
-    skills/design-system/      # /design-system skill: brand → claude.ai design system → Vue code (Tailwind or plain CSS) (SKILL.md + references/ + scripts/ + templates/)
+    skills/design-system/      # /design-system skill: brand → claude.ai design system → app code (Vue worked; other frameworks mapped), Tailwind or plain CSS (SKILL.md + references/ + scripts/ + templates/)
     commands/done.md           # /done slash command
     commands/merge-push.md     # /merge-push slash command
     commands/prompt.md         # /prompt slash command
@@ -420,6 +420,8 @@ ci/
   lint-steps.sh         # Assert every scripts/NN-*.sh is wired into setup.sh's STEPS,
                         # and that every --group member is a real entry in STEPS
   lint-conventions.sh   # Assert the per-script conventions (strict mode, log(), retry)
+  lint-skill-versions.sh  # Assert each design-system script declares SCRIPT_VERSION and
+                        # bumps it when changed (projects' copies compare against it)
 .github/workflows/
   ci.yml                # shellcheck + shfmt + lint-steps + skill gates on push/PR
 docs/
@@ -431,6 +433,7 @@ tests/
   engineering-team-triggering/  # Does the skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
   engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
   engineering-team-command-links/ # Link-check: the /done + /merge-push commands' cross-references into the skill tree still resolve (headless, in CI)
+  design-system-triggering/     # Does the design-system skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
 journal/                # Dated development-journal entries
 setup.sh                # Main entry point AND the update path – self-updates its own
                         # checkout, then runs the ordered STEPS array (or a subset of
@@ -462,7 +465,8 @@ directly still works and is the fastest loop when you are editing the repo in pl
   `configs/claude/skills/<name>/` or `configs/claude/commands/<name>.md` and wire it into the deploy calls in
   `scripts/17-claude-skills.sh`. For the common case of just re-pushing the `engineering-team` skill after an
   edit, run `bash deploy-engineering-team-skill.sh` — it deploys *only* that skill and overwrites the local
-  copy unconditionally (no commands, no diff-skip)
+  copy unconditionally (no commands, no diff-skip). Changing a `design-system` script means bumping its
+  `SCRIPT_VERSION` ([docs/development.md](docs/development.md#changing-a-design-system-script))
 - **Neovim**: the config lives in [johnmathews/neovim](https://github.com/johnmathews/neovim); pull it and
   re-sync the plugins with `bash setup.sh --group nvim` (the plugin sync runs in the foreground here, so you
   see it finish or fail)
