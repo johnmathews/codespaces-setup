@@ -27,7 +27,12 @@ three directions keep that" shows the person you looked.
    they picture someone noticing the quality.
 4. **Current state.** Is today's look deliberate or a template? Read the code's styles first so
    you can say what exists (e.g. "the colours are the Tailwind template's indigo and pink").
-5. **Anti-goals.** What would make them wince? If they skip it, propose the usual ones (looks like
+5. **The voice.** Ask how the product should sound in a moment that matters: "Someone's
+   payment failed. What should the message say?" Then the choices in `voice.md` §1.2: who
+   speaks ("we", or nobody), how formal each language is, whether it ever uses an exclamation
+   mark. Rewrite two or three of the product's real strings in the direction you heard, and let
+   them correct the rewrite.
+6. **Anti-goals.** What would make them wince? If they skip it, propose the usual ones (looks like
    a template or like generated "AI design", busy, the rejected direction) and let them edit.
 
 ## Show, don't describe
@@ -35,7 +40,8 @@ three directions keep that" shows the person you looked.
 Once the feeling and references are clear, mock up **three directions** that differ in how much
 of the references they lean on, each as a small real hero (headline, sentence, button, a product
 visual), with palette swatches and a named typeface. Use real copy from the project, not lorem
-ipsum. Typical spread: one quiet/minimal, one bold/technical, one in between. Ask them to pick and
+ipsum, and write that copy in each direction's voice, so the person chooses how it sounds as
+well as how it looks. Typical spread: one quiet/minimal, one bold/technical, one in between. Ask them to pick and
 say what they'd change; mixing is allowed.
 
 Mockups go in the browser (the brainstorming visual companion, or an Artifact), never as text

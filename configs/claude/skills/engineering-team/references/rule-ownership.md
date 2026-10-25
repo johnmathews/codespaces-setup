@@ -78,7 +78,7 @@ should point here.
 | Documentation is never written in the first person, meaning no "I", "we", "our" or "us". A quoted phrase may contain one | §"The two hard rules" rule 1 | `SKILL.md` §"Writing documentation" (one-line application); `voice-registers.md` §"Person, and the first-person carve-out" (the register that may relax it) |
 | Active voice, with the actor named. A sentence that only works in the passive is missing its actor | §"The two hard rules" rule 2 | `SKILL.md` §"Writing documentation"; `voice-registers.md` §"What no register changes" |
 | Anything the reader is meant to do takes the imperative mood, and a precondition comes before the step it governs | §"Mood: imperative for steps" | nothing else |
-| No em dashes and no semicolons in documentation prose | §"Rhythm" | nothing else |
+| No em dashes and no semicolons in documentation prose, and one idea per sentence (no colon bolting on a second clause) | §"Rhythm" | nothing else |
 | A read-through document carries a length budget; ratchet it down, never raise it to turn a red document green | §"Length, and the detail budget" | `documentation-model.md` §8 (the status-stamp budget this follows); `SKILL.md` §"Writing documentation" |
 | What a document must contain where the doc model does not say, such as a README purpose in two sentences and troubleshooting grouped by error message | §"What a document must contain" | nothing else. `documentation-model.md` §1 decides *which* type to write, and stops there |
 
