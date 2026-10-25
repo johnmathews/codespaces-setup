@@ -68,3 +68,10 @@ repository's HEAD, which in a worktree or CI's detached checkout is not the comm
 the first CI run showed that a push fails too: the skill-versions step fetches with `--depth=1`,
 which leaves the checkout shallow, and a shallow repository can't push. No case needs the history.
 29 checks pass in about 40 seconds.
+
+## Every run fast-forwards the checkout
+
+A run that found nothing to push left the main checkout behind `origin/main`; only the push path
+fast-forwarded it. All three endings (pushed, pulled only, already in sync) now call one
+`ff_main_checkout`, which moves a clean `main` forward and leaves anything else alone, saying why.
+The test checks both halves.

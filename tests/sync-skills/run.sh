@@ -14,8 +14,9 @@
 #   3. Both sides changed the same place: stops (exit 2), changes nothing, saves
 #      the merge attempt with conflict markers.
 #   4. Only the repo changed: pulls into ~/.claude with backups, moves the base,
-#      creates no worktree.
-#   5. In sync, using the recorded base: nothing to do.
+#      creates no worktree, fast-forwards the checkout.
+#   5. In sync, using the recorded base: nothing to do, and the checkout still
+#      fast-forwards to origin/main (a dirty one is left alone).
 #   6. Push path: merges into ~/.claude, passes the checks, pushes its branch,
 #      then stops at the PR (exit 1).
 #   7. The repo holds a newer sync-skills.sh: the running copy pulls it and
@@ -99,6 +100,7 @@ run() {
 }
 rc_is() { [[ "$(cat "${WORK}/rc")" == "$1" ]]; }
 out_has() { grep -qE "$1" "${WORK}/out"; }
+head_is_origin() { [[ "$(git -C "${WORK}/repo" rev-parse HEAD)" == "$(git -C "${WORK}/repo" rev-parse origin/main)" ]]; }
 base_is_origin() { [[ "$(git -C "${WORK}/repo" rev-parse refs/sync-skills/base)" == "$(git -C "${WORK}/repo" rev-parse origin/main)" ]]; }
 
 echo "1. no recorded base"
@@ -137,10 +139,19 @@ check "the repo's new file is pulled" test -f "${WORK}/home/.claude/skills/desig
 check "the old copy is backed up" bash -c "ls '${WORK}'/state/sync-skills/backups/*/skills/design-system/SKILL.md >/dev/null"
 check "the base moves to origin/main" base_is_origin
 check "no worktree was made" test "$(git -C "${WORK}/repo" worktree list | wc -l)" -eq 1
+check "the checkout fast-forwards to origin/main" head_is_origin
 
 echo "5. in sync"
+git -C "${WORK}/repo" reset -q --hard "${B}"
 run
 check "exit 0, nothing to do" bash -c "grep -q 'already in sync' '${WORK}/out'"
+check "the checkout still fast-forwards to origin/main" head_is_origin
+git -C "${WORK}/repo" reset -q --hard "${B}"
+touch "${WORK}/repo/uncommitted"
+run
+check "a checkout with local changes is left alone" test "$(git -C "${WORK}/repo" rev-parse HEAD)" == "${B}"
+check "and says so" out_has "not on a clean main"
+rm "${WORK}/repo/uncommitted"
 
 echo "6. push path"
 fresh_home
