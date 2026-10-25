@@ -38,6 +38,18 @@ already named as tokens, component folders.
 | A brand, but no design system | 3. Build the design system |
 | A design system, but the app doesn't use it | 5. Bring it into the code |
 | All of it exists, and the task is a page or component | Read the system's README, then build from it (step 5 rules) |
+| Any of the above, and the person will see something new: a colour, size, spacing, type, a mark, a new component, screen or layout | **Mock it up first** (below), then the row above |
+
+## Mock up before you build
+
+A visual change is decided on a picture, so it starts as a mockup, not as code. Read
+`references/mockups.md` and follow its loop: `scripts/mockup.py new` starts a page in
+`brand/design-system/mockups/` built from the system's own tokens and fonts, with two to four
+options in their real place, both themes side by side and contrast measured on the page;
+`mockup.py build` and `scripts/render_mockup.mjs` render it for you to look at first; then it is
+published as a private Artifact for the person to pick from and comment on, and their pick is
+recorded before any code changes. Skip it only for the cases that reference lists (a bug that
+restores the system, a look they already picked, an invisible change).
 
 ## 1. Discover the brand
 
@@ -141,7 +153,8 @@ is the person's decision, never a side effect of picking a component library. Th
 
 Read `references/enforcement.md`: the gate in CI, `templates/a11y.spec.ts` in the e2e suite, a
 check that generated tokens are current, optionally a lint against raw colours, `docs/brand.md`
-from `templates/brand-doc.md`, and a line in the project's CLAUDE.md pointing at it all.
+from `templates/brand-doc.md`, and lines in the project's CLAUDE.md pointing at it all and
+making visual changes start as a mockup.
 
 ## What this skill ships
 
@@ -151,8 +164,11 @@ from `templates/brand-doc.md`, and a line in the project's CLAUDE.md pointing at
 | `scripts/design_preview.py` | Offline gallery, and `--tokens-css` for the app (Tailwind or not). Stdlib only; `--selftest`, `--version`. Copy into each project. |
 | `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`); `--selftest`, `--version`. |
 | `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright, and python3 for `design_preview.py` beside it, which compiles its CSS); `--selftest`, `--version`. |
+| `scripts/mockup.py` | Starts a mockup (`new`) and builds it for rendering and publishing (`build`). Stdlib only, uses `design_preview.py` beside it; `--selftest`, `--version`. Run from the skill; not copied. |
+| `scripts/render_mockup.mjs` | A built mockup at desktop and phone width in light and dark, with overflow, console-error and failed-load lines (needs Playwright); `--selftest`, `--version`. Run from the skill. |
 | `templates/checks.json`, `app-theme.css` (Tailwind apps), `a11y.spec.ts`, `brand-doc.md` | Starting points to copy into a project. |
-| `references/*.md` | brand-discovery, tokens, artifact, code (Vue), other-frameworks, enforcement, voice (how the brand writes, surface by surface). |
+| `templates/mockup.html`, `mockup-readme.md` | What `mockup.py new` copies: the page skeleton and the decision record. |
+| `references/*.md` | brand-discovery, tokens, artifact, code (Vue), other-frameworks, enforcement, voice (how the brand writes, surface by surface), mockups (show it before you build it). |
 
 ## Principles that earned their place
 

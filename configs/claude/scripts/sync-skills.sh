@@ -386,6 +386,8 @@ for s in check_report check_run check_plan check_board; do run_check python3 "$E
 run_check python3 "$DS/check_design_system.py" --selftest
 run_check python3 "$DS/design_preview.py" --selftest
 run_check node "$DS/render_previews.mjs" --selftest
+run_check python3 "$DS/mockup.py" --selftest
+run_check node "$DS/render_mockup.mjs" --selftest
 if command -v uv >/dev/null; then
   run_check uv run -q --with fonttools --with brotli python3 "$DS/wordmark.py" --selftest
 else
