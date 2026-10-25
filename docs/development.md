@@ -1,6 +1,6 @@
 # Development
 
-**Status:** active. **Last updated:** 2026-10-24. **Last verified:** 2026-10-24 (the design-system and skill-version commands below executed; the rest last executed 2026-09-01). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `tests/setup-resilience/**`, `configs/claude/skills/design-system/scripts/**`.
+**Status:** active. **Last updated:** 2026-10-25. **Last verified:** 2026-10-25 (the sync-skills test, shellcheck and shfmt below executed; the design-system and skill-version commands 2026-10-24; the rest last executed 2026-09-01). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `tests/setup-resilience/**`, `configs/claude/skills/design-system/scripts/**`, `configs/claude/scripts/**`, `tests/sync-skills/**`.
 
 
 This repo is a set of provisioning shell scripts — there is no application code,
@@ -32,11 +32,12 @@ every check can be run locally with the same commands.
 # Correctness
 shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
   bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
-  tests/setup-resilience/run.sh tests/claude-config-dir/run.sh
+  tests/setup-resilience/run.sh tests/claude-config-dir/run.sh \
+  configs/claude/scripts/sync-skills.sh tests/sync-skills/run.sh
 
 # Formatting (‑d = show diff and fail if anything is unformatted; ‑w = rewrite in place)
-shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
-shfmt -i 2 -ci -kp -w setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer  # auto-fix
+shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer configs/claude/scripts tests/sync-skills
+shfmt -i 2 -ci -kp -w setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer configs/claude/scripts tests/sync-skills  # auto-fix
 
 # Step-array wiring
 bash ci/lint-steps.sh
@@ -66,6 +67,10 @@ python3 tests/engineering-team-drift/drift_scan.py
 
 # setup resilience + retry helper (also run in CI; fully headless)
 bash tests/setup-resilience/run.sh
+
+# /sync-skills against a bare clone standing in for GitHub (also run in CI; needs gh
+# signed in, node and uv). Commit first: it tests this checkout's HEAD.
+bash tests/sync-skills/run.sh
 ```
 
 The resilience suite also exercises the Neovim bootstrap/sync wrappers over fake

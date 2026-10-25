@@ -12,6 +12,12 @@
 #   - commands/done.md         -> /done
 #   - commands/merge-push.md   -> /merge-push
 #   - commands/prompt.md       -> /prompt
+#   - commands/sync-skills.md  -> /sync-skills, which runs
+#   - scripts/sync-skills.sh   -> ~/.claude/scripts/sync-skills.sh
+#
+# /sync-skills keeps this tree and a machine's ~/.claude equal in both
+# directions (it pulls before it pushes), so an edit made in ~/.claude reaches
+# here and every later Codespace. It syncs its own two files too.
 #
 # Idempotent: a skill dir / command file is only (re)written when it differs
 # from what is already on disk.
@@ -42,7 +48,8 @@ log() { echo "[claude-skills] $*"; }
 CLAUDE_DIR="${HOME}/.claude"
 SKILLS_DIR="${CLAUDE_DIR}/skills"
 COMMANDS_DIR="${CLAUDE_DIR}/commands"
-mkdir -p "${SKILLS_DIR}" "${COMMANDS_DIR}"
+SCRIPTS_DIR="${CLAUDE_DIR}/scripts"
+mkdir -p "${SKILLS_DIR}" "${COMMANDS_DIR}" "${SCRIPTS_DIR}"
 
 # Remove backup artifacts left by older versions of this script.
 #
@@ -115,5 +122,11 @@ deploy_skill "${SRC_DIR}/skills/design-system" "${SKILLS_DIR}/design-system"
 deploy_file "${SRC_DIR}/commands/done.md"       "${COMMANDS_DIR}/done.md"
 deploy_file "${SRC_DIR}/commands/merge-push.md" "${COMMANDS_DIR}/merge-push.md"
 deploy_file "${SRC_DIR}/commands/prompt.md"     "${COMMANDS_DIR}/prompt.md"
+deploy_file "${SRC_DIR}/commands/sync-skills.md" "${COMMANDS_DIR}/sync-skills.md"
+
+# The command runs this script by path, so it must be executable. cp keeps an
+# existing file's mode, which may predate the +x; set it every time.
+deploy_file "${SRC_DIR}/scripts/sync-skills.sh" "${SCRIPTS_DIR}/sync-skills.sh"
+chmod +x "${SCRIPTS_DIR}/sync-skills.sh"
 
 log "Claude skills and commands deployed."

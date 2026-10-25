@@ -357,7 +357,7 @@ The script is idempotent – safe to run multiple times.
 | **atuin**                   | latest   | Shell history (local, no sync in Codespaces)                                                                                |
 | **uv**                      | latest   | Python package manager                                                                                                      |
 | **Claude Code**             | latest   | AI coding assistant CLI                                                                                                     |
-| **Claude skills/commands**  | —        | Personal `/engineering-team` and `/design-system` skills + `/done`, `/merge-push`, and `/prompt` slash commands, deployed into `~/.claude` |
+| **Claude skills/commands**  | —        | Personal `/engineering-team` and `/design-system` skills + `/done`, `/merge-push`, `/prompt` and `/sync-skills` slash commands (and the script `/sync-skills` runs), deployed into `~/.claude` |
 | **GitHub CLI** (`gh`)       | v2.95.0  | GitHub from the terminal; also used as git's credential helper                                                              |
 | **Azure CLI** (`az`)        | v2.68.0  | Azure from the terminal; installed via `uv` (isolated env; works behind the TLS-intercepting proxy)                         |
 | **Zsh** + **Oh My Zsh**     | —        | Shell                                                                                                                       |
@@ -387,6 +387,8 @@ configs/
     commands/done.md           # /done slash command
     commands/merge-push.md     # /merge-push slash command
     commands/prompt.md         # /prompt slash command
+    commands/sync-skills.md    # /sync-skills: keeps ~/.claude and this tree equal (pulls before it pushes)
+    scripts/sync-skills.sh     # the script /sync-skills runs, deployed to ~/.claude/scripts/
 scripts/
   01-apt-packages.sh    # Install CLI tools via apt
   02-nodejs.sh          # Install Node.js 22 (official tarball into /usr/local)
@@ -492,8 +494,9 @@ locally:
 # shell correctness and formatting
 shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
   bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
-  tests/setup-resilience/run.sh tests/claude-config-dir/run.sh
-shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
+  tests/setup-resilience/run.sh tests/claude-config-dir/run.sh \
+  configs/claude/scripts/sync-skills.sh tests/sync-skills/run.sh
+shfmt -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer configs/claude/scripts tests/sync-skills
 
 # structural gates
 bash ci/lint-steps.sh                    # every scripts/NN-*.sh is wired into STEPS,
