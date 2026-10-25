@@ -29,7 +29,8 @@ name: ci
 #                       (check_design_system.py) and preview builder
 #                       (design_preview.py), which projects copy, so a regression
 #                       here would spread to every repo that uses them; and of
-#                       render_previews.mjs and wordmark.py (via uv, for fontTools).
+#                       render_previews.mjs and wordmark.py (via uv, for fontTools),
+#                       and of the mockup tools (mockup.py, render_mockup.mjs).
 #   9. skill versions — ci/lint-skill-versions.sh: every design-system script
 #                       declares SCRIPT_VERSION, and a change to one bumps it,
 #                       because copies in projects use it to tell they are behind.
@@ -125,6 +126,11 @@ jobs:
           # No Playwright needed: it checks the page assembly and that its CSS
           # comes from design_preview.py, not a second compiler.
           node configs/claude/skills/design-system/scripts/render_previews.mjs --selftest
+          # The mockup tools run from the skill (never copied), but every project's
+          # mockups go through them: the builder's theme contract and folder rules,
+          # and the renderer's shot list.
+          python3 configs/claude/skills/design-system/scripts/mockup.py --selftest
+          node configs/claude/skills/design-system/scripts/render_mockup.mjs --selftest
 
       - name: set up uv (for wordmark.py's fontTools)
         uses: astral-sh/setup-uv@v6
