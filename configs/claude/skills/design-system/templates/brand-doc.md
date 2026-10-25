@@ -46,3 +46,12 @@ git-ignored `brand/design-system/preview/`.
 
 Edits made on the artifact page itself are not in the repository: read the changed files back
 before editing here.
+
+## 4. Mockups
+
+A visual change starts as a mockup and waits for a pick before any code. Each question gets a
+folder in `brand/design-system/mockups/<yymmdd>-<slug>/`: `index.html` (the options, built from
+the tokens, both themes side by side) and `README.md` (the question, the options, the decision and
+the link to the private artifact it was published as). The design-system skill's
+`references/mockups.md` has the loop and its commands. `dist/` folders are builds and are not
+committed.
