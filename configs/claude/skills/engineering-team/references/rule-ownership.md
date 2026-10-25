@@ -41,6 +41,7 @@
 | `SKILL.md` (router) | the **concurrent-sessions premise** (assume other sessions; main checkout read-only; touch only what you created); `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
+| `references/local-stack.md` | **see it running before CI**: a user-visible change runs locally in front of the user before `/done` pushes it; the login and the data survive restarts and worktrees (data outside the worktree, never reset unasked); demo data seeded wherever the project allows |
 
 ## 3. Cross-cutting invariants → canonical home
 
@@ -141,6 +142,13 @@ should point here.
 | The plan is tracked only while the run is live, and retired at closeout; run bookkeeping is never tracked | §"The run directory" | phase 2 (pointer); phase 4 (the retire step); `multi-session.md` §10 |
 | Closing a run: four steps, in the main checkout, then the session-closable verdict | §"Closing a run" | phases 1, 2, 4 |
 | Announce the phase in one plain-prose line | §"Announce phase transitions" | phases 1–4 (four parallel copies — **see §4**) |
+
+### Homed in `local-stack.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| A user-visible change runs locally for the user before `/done` pushes it | §"1. When it applies" | phase 3 (pointer); phase 4 Step 0 (pointer) |
+| The local login and data survive restarts, rebuilds and worktree removal | §"3. Keep the login and the data" | phase 4 Step 0 (pointer) |
 
 ### Homed in `team-structure.md`
 

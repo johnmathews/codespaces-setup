@@ -51,6 +51,34 @@ published as a private Artifact for the person to pick from and comment on, and 
 recorded before any code changes. Skip it only for the cases that reference lists (a bug that
 restores the system, a look they already picked, an invisible change).
 
+## See it running locally
+
+The mockup decides the look; the person then checks the build in the real app, on their own
+machine, before anything is committed or pushed. A reload is faster than a CI round trip, and
+fast iteration loops matter more to them than almost anything else here.
+
+- **When:** every visual change, once the code is written and the checks pass, and before
+  commit, push or PR. During a run of small tweaks, keep the stack up so each one shows on a
+  reload. Skip it only when the project has no runnable app, or the person says to go straight to
+  CI.
+- **Bring it up the project's way:** read its README and development docs for the commands (dev
+  server, API, database, Compose). Check the ports first: a server already running from another
+  checkout serves the wrong code. Start each process in the background, wait until it answers,
+  then hand over the URL, how to sign in, and two or three things to try that show the change.
+  Point at the style guide or component gallery too when the project has one, since it needs no
+  sign-in.
+- **Keep the login and the data.** Never delete or reset the local database, run
+  `git clean -x`, or drop a Compose volume unless asked. A git worktree has no copy of the
+  git-ignored data folder, so point the project's data setting at the main checkout's folder (or
+  a stable path such as `~/.local/share/<project>/dev`), and use the same one every time. Reuse an
+  existing account; when one has to be made, prefer a local demo account and note how to sign in
+  in a git-ignored file. Never commit credentials.
+- **Seed demo data wherever possible.** An empty screen hides the change. Use the project's seed
+  script or fixtures; if it has none, offer to add one: idempotent, local-only, one demo account,
+  and enough data to show every state the screens draw. Seed only what is missing, never over
+  what the person made by hand.
+- Leave the stack running and say so; stop it when they ask.
+
 ## 1. Discover the brand
 
 A conversation, not a form: the person's taste and the product's job are not in the code. Read
