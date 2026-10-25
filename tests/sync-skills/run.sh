@@ -49,7 +49,9 @@ ORIGIN="${WORK}/johnmathews/codespaces-setup.git"
 # takes the repository's HEAD, which in a worktree or CI's detached checkout is
 # another commit, and a push is refused from a shallow checkout (CI's skill-versions
 # step fetches with --depth=1). No case needs the repo's history.
-git init -q --bare "${ORIGIN}"
+# -b main on both: CI's git defaults to master, and a bare repo whose HEAD names a
+# missing branch clones empty.
+git init -q --bare -b main "${ORIGIN}"
 mkdir -p "${WORK}/seed"
 git -C "${REPO_DIR}" archive HEAD | tar -x -C "${WORK}/seed"
 git -C "${WORK}/seed" init -q -b main
