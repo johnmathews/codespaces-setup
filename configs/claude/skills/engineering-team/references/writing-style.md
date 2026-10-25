@@ -92,8 +92,22 @@ explainer describing how something works stays descriptive.
 The register is plain and unhurried. Precise does not require severe, and a
 document that reads as if it resents being written is one a reader puts down.
 
-- **Lead with the thing.** First sentence, first paragraph. No preamble and no
-  "this document describes".
+- **Lead with the thing.** First sentence, first paragraph. No preamble, and no
+  "this document describes" standing in for the thing itself. A scope statement
+  is different, and welcome. Once the thing is named, say in two or three short
+  sentences what this document does and what it does not. Keep what the thing
+  *is* and what the document *does* in separate paragraphs.
+- **Name the subject instead of leaving a pronoun to resolve.** Write "this
+  document", "this design system" or "the app" wherever "it" could point at more
+  than one thing, and always when a new sentence changes the subject. "That
+  set", "the former" and "the above" are pronouns in disguise.
+- **Concrete nouns over abstract ones.** "The data model" and "the code
+  itself", not "its data". "Shows each part in light and dark", not "defines
+  that set". A catch-all noun ("parts", "things", "aspects", "elements") holds
+  the place of a word not yet found. Find it.
+- **End on the point.** A closing pointer elsewhere ("those live in the
+  repository's docs") stays only if the reader needs to go there next.
+  Otherwise cut it, and let the sentence end on the claim.
 - **Mark a judgement as a judgement, without a narrator.** "This is the weakest
   part of the design" beats "in our opinion this is the weakest part". If a claim
   is contestable, say what it rests on.
@@ -111,6 +125,15 @@ document that reads as if it resents being written is one a reader puts down.
   comfortable reading, not a performance of being human. An exclamation mark is
   not forbidden outright, but one per document is already plenty.
 
+A worked example, from an owner's rewrite of a design system's opening. The
+rewrite splits the joined clauses, names its subject, swaps the abstract nouns
+for concrete ones and drops the closing pointer:
+
+| Before | After |
+|---|---|
+| This document defines that set for Fitness Planner and shows each part in light and dark; new screens are built from it and the app is checked against it. | This document shows each part of the Fitness Planner web app in light and dark. New screens are built off of this design system, and the app is checked against it. |
+| It does not describe how the app works, its data or its code, and it is not a picture of every screen: those live in the repository's docs and in the app itself. | This document does not describe how the app works, the data model or the code itself. It is also not a picture of every screen. |
+
 ## 5. Rhythm
 
 - **Vary sentence length**, and let a long sentence run where the thought needs
@@ -118,6 +141,9 @@ document that reads as if it resents being written is one a reader puts down.
 - **No em dashes.** Use a full stop, a comma, or brackets. A sentence that needs
   an em dash is two sentences.
 - **No semicolons.** Use a full stop.
+- **One idea per sentence.** A sentence that joins two claims of different kinds
+  with "and", or bolts a second clause on with a colon, is two sentences. A
+  colon introduces a list, an example or a quotation, never a second clause.
 - **Bold sparingly.** A few per section, not a few per paragraph. If a point only
   lands because it is bold, rewrite the sentence instead.
 - **Paragraphs run two to five sentences** and carry one idea each.

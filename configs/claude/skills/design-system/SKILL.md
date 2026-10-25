@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: Give a web project a deliberate brand and a design system, and keep its UI on it. Covers the whole path — reading the project's own design rules, finding the brand direction with the person (references like "Apple meets Stripe", mockups), publishing a claude.ai Design System artifact whose source and checks live in the repo, wiring its tokens into the styling the app already uses (Tailwind v4 or plain CSS), and building Vue components on Reka UI (shadcn-vue in Tailwind apps, headless Reka plus TanStack Table elsewhere) with contrast, axe and phone-width checks. Use it whenever someone wants a brand, a visual identity (palette, typeface), a "proper" look instead of a template, a design system, design tokens, a redesign or reskin of a site or app, consistent UI across projects, or asks which component library to use (shadcn, shadcn-vue, Nuxt UI, Reka UI, Tailwind) — and before designing or building any page, screen or email in a project that already has a brand/design-system folder, so the work follows it.
+description: Give a web project a deliberate brand and a design system, and keep its UI on it. Covers the whole path — reading the project's own design rules, finding the brand direction with the person (references like "Apple meets Stripe", mockups), publishing a claude.ai Design System artifact whose source and checks live in the repo, wiring its tokens into the styling the app already uses (Tailwind v4 or plain CSS), and building Vue components on Reka UI (shadcn-vue in Tailwind apps, headless Reka plus TanStack Table elsewhere) with contrast, axe and phone-width checks. Use it whenever someone wants a brand, a visual identity (palette, typeface), a "proper" look instead of a template, a design system, design tokens, a redesign or reskin of a site or app, consistent UI across projects, a brand's voice or the copy for a page, screen, settings page, landing page, email or docs (how the product writes), or asks which component library to use (shadcn, shadcn-vue, Nuxt UI, Reka UI, Tailwind) — and before designing or building any page, screen or email in a project that already has a brand/design-system folder, so the work follows it.
 ---
 
 # Design system
@@ -58,6 +58,8 @@ in the abstract.
 A short spec: intent and references, the layers (a sparse first impression and a denser depth
 layer), the chosen direction as concrete rules, voice, the component list (the full scope),
 non-goals, anti-goals, constraints, and every call you made. Nothing gets built before approval.
+The voice gets the same care as the palette: the person's words for it, and the choices in
+`references/voice.md` §1.2 (who speaks, formality, numbers) made and recorded.
 
 ## 3. Build the design system
 
@@ -81,6 +83,10 @@ rules.
   act on that note before anything else: update the copy, or update the skill if the copy is newer.
 - Every component gets a README (first sentence = summary; use, states, what the consumer
   provides) and a preview in real copy, in every language the product ships. The cover has no README.
+- Write `project/voice.md` from `references/voice.md`: the voice in one paragraph, the rules, an
+  "Instead of / Write" table from the product's real strings, and banned words mirrored into
+  `checks.json`. The README opens by saying it is the design system, what a design system is,
+  and what this document does and doesn't do (`references/voice.md` §3.6).
 - Upload SVGs first, write the index last, publish with `root`.
 
 ## 4. Verify it
@@ -146,9 +152,14 @@ from `templates/brand-doc.md`, and a line in the project's CLAUDE.md pointing at
 | `scripts/wordmark.py` | A name in the brand font as SVG outlines, one file per theme ink (`uv run --with fonttools --with brotli`); `--selftest`, `--version`. |
 | `scripts/render_previews.mjs` | Every preview at phone width in every theme, with overflow report (needs Playwright, and python3 for `design_preview.py` beside it, which compiles its CSS); `--selftest`, `--version`. |
 | `templates/checks.json`, `app-theme.css` (Tailwind apps), `a11y.spec.ts`, `brand-doc.md` | Starting points to copy into a project. |
-| `references/*.md` | brand-discovery, tokens, artifact, code (Vue), other-frameworks, enforcement. |
+| `references/*.md` | brand-discovery, tokens, artifact, code (Vue), other-frameworks, enforcement, voice (how the brand writes, surface by surface). |
 
 ## Principles that earned their place
+
+- **Copy is part of the design.** Every string follows `voice.md`, written for its surface
+  (`references/voice.md` §3): a button is a verb and its object, an error says what happened and
+  what to do, a headline says what the product does for the reader. One idea per sentence,
+  concrete nouns, no hype.
 
 - **Contrast is measured, not eyeballed**, in every theme. The mockup's grey usually fails on a
   tile by a hair; fix it by one step and record the change.

@@ -18,8 +18,8 @@ type's own instructions arrive in the create result and in `artifact-type/refere
 
 | Path | Notes |
 | --- | --- |
-| `project/README.md` | The brand book's front page, written as usage rules that name tokens. No title. |
-| `project/foundations.md`, `voice.md` | Further sections (any `*.md` outside `components/`). |
+| `project/README.md` | The brand book's front page, written as usage rules that name tokens. No title. It opens by saying what it is (`references/voice.md` §3.6). |
+| `project/foundations.md`, `voice.md` | Further sections (any `*.md` outside `components/`). `voice.md` follows `references/voice.md` §1.1. |
 | `project/tokens.json` | See tokens.md. |
 | `project/components/<Name>/README.md` | First sentence is the summary; then use, states, what the consumer provides. |
 | `project/components/<Name>/preview.html` | Line 1 `<!-- @dsCard group="…" height=N -->`, then a complete small HTML document using only `var(--token)` and the style classes. |
