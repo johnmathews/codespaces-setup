@@ -43,3 +43,28 @@ the first recorded base.
 
 The sync also refuses an asset that `scripts/17-claude-skills.sh` doesn't deploy, because a
 Codespace would never install it.
+
+## The sync is vendored here too
+
+The command and its script lived only in `~/.claude` on the main machine, so they had no history,
+no backup and no way to run in a Codespace. They are now `configs/claude/commands/sync-skills.md`
+and `configs/claude/scripts/sync-skills.sh`, installed by `17-claude-skills.sh` (which sets the
+script's `+x` every time, because `cp` keeps an existing file's mode). Both are in the script's own
+`ASSETS`, so it keeps itself current like any skill.
+
+Syncing itself raised one hazard: bash reads a running script lazily, so pulling a newer copy over
+the running file would execute a splice of the two. Pulled files are now written beside their
+target and renamed into place, so the running process keeps the old file, and when the script
+pulls a newer copy of itself it restarts once on that copy (guarded by `SYNC_SKILLS_RESTARTED`).
+`setup.sh`'s self-update re-execs for the same reason.
+
+The checkout is found at `~/projects/codespaces`, `/workspaces/codespaces-setup` or the dotfiles
+clone, unless `CODESPACES_SETUP_DIR` says otherwise.
+
+`tests/sync-skills/run.sh` turns the sandbox cases into a CI test, with a seventh: the repo holds a
+newer `sync-skills.sh`, and the running copy pulls it, stays executable and restarts on it. The test
+seeds its stand-in origin from a `git archive` of HEAD, one fresh commit. A clone takes the
+repository's HEAD, which in a worktree or CI's detached checkout is not the commit under test, and
+the first CI run showed that a push fails too: the skill-versions step fetches with `--depth=1`,
+which leaves the checkout shallow, and a shallow repository can't push. No case needs the history.
+29 checks pass in about 40 seconds.

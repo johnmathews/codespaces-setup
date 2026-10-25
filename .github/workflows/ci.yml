@@ -68,7 +68,8 @@ jobs:
           shellcheck --version
           shellcheck setup.sh deploy-engineering-team-skill.sh scripts/*.sh ci/*.sh \
             bin/setup-status bin/codespaces-update .devcontainer/post-create.sh \
-            tests/setup-resilience/run.sh tests/claude-config-dir/run.sh
+            tests/setup-resilience/run.sh tests/claude-config-dir/run.sh \
+            configs/claude/scripts/sync-skills.sh tests/sync-skills/run.sh
 
       - name: shfmt
         # Pinned to match the local shfmt convention; bump in lockstep with docs.
@@ -76,7 +77,7 @@ jobs:
         with:
           # Keep these flags in sync with docs/development.md and the local
           # convention: 2-space indent, indent switch cases, keep alignment.
-          args: -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer
+          args: -i 2 -ci -kp -d setup.sh deploy-engineering-team-skill.sh scripts ci bin .devcontainer configs/claude/scripts tests/sync-skills
 
       - name: steps-array wiring
         run: bash ci/lint-steps.sh
@@ -197,6 +198,16 @@ jobs:
         # Headless, filesystem-only: runs the real 19-claude-config-dir.sh against
         # a throwaway HOME and asserts the merge, the links and idempotence.
         run: bash tests/claude-config-dir/run.sh
+
+      - name: sync-skills test
+        # The /sync-skills script, run as a machine would, against a bare clone
+        # standing in for GitHub: the three-way plan, a conflict, a pull, the
+        # push path up to the PR, and a restart on a newer copy of itself. Runs
+        # the skill checks too, so it needs node and uv (set up above). gh only
+        # has to report itself signed in.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tests/sync-skills/run.sh
 
   # A SEPARATE job, deliberately. It is slow and network-dependent, so keeping it
   # out of `lint` keeps the fast gates fast — and gives it its own stable status
