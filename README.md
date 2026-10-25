@@ -461,8 +461,9 @@ directly still works and is the fastest loop when you are editing the repo in pl
 - **Aliases**: edit `configs/.zsh_aliases` then re-run `bash setup.sh --group shell`
 - **Git aliases**: edit `configs/.gitconfig_managed` then re-run `bash setup.sh --group shell`
 - **Git identity**: `scripts/11-dotfiles.sh` sets global Git user details for the Codespace
-- **Claude skills/commands**: edit the files under `configs/claude/` then re-run
-  `bash setup.sh --group claude`. To add another skill or command, drop it into
+- **Claude skills/commands**: edit them in `~/.claude` on the main machine, then run `/sync-skills` there. It
+  copies them into `configs/claude/`, runs the skill checks, and merges a PR into `main` (see CLAUDE.md for its
+  guard). A Codespace picks them up with `bash setup.sh --group claude`. To add another skill or command, drop it into
   `configs/claude/skills/<name>/` or `configs/claude/commands/<name>.md` and wire it into the deploy calls in
   `scripts/17-claude-skills.sh`. For the common case of just re-pushing the `engineering-team` skill after an
   edit, run `bash deploy-engineering-team-skill.sh` — it deploys *only* that skill and overwrites the local
