@@ -187,6 +187,22 @@ else
 fi
 if [[ -n "$BASE" ]]; then log "base: ${BASE:0:7}, origin/main: ${REMOTE:0:7}"; fi
 
+# Bring the main checkout to origin/main, but only when that can't disturb
+# anything: it is on main, clean, and main can fast-forward. Every real run
+# ends here, whether it pushed, only pulled, or found nothing to do.
+ff_main_checkout() {
+  git -C "$REPO_DIR" fetch -q --prune origin
+  if [[ "$(git -C "$REPO_DIR" branch --show-current)" != main || -n "$(git -C "$REPO_DIR" status --porcelain)" ]]; then
+    log "main checkout not on a clean main: left as it is"
+  elif [[ "$(git -C "$REPO_DIR" rev-parse HEAD)" == "$(git -C "$REPO_DIR" rev-parse origin/main)" ]]; then
+    :
+  elif git -C "$REPO_DIR" merge -q --ff-only origin/main 2>/dev/null; then
+    log "main checkout fast-forwarded to $(git -C "$REPO_DIR" rev-parse --short HEAD)"
+  else
+    log "main checkout has commits origin/main doesn't: left as it is"
+  fi
+}
+
 # === PLAN ===
 #
 # One line per file that differs: "<action> <path>", action one of
@@ -249,7 +265,10 @@ done >"$PLAN"
 count() { grep -c "^$1 " "$PLAN" || true; }
 if [[ ! -s "$PLAN" ]]; then
   log "already in sync: ~/.claude and the repo's configs/claude match."
-  if [[ "$DRY_RUN" == 0 ]]; then git -C "$REPO_DIR" update-ref "$BASE_REF" "$REMOTE"; fi
+  if [[ "$DRY_RUN" == 0 ]]; then
+    git -C "$REPO_DIR" update-ref "$BASE_REF" "$REMOTE"
+    ff_main_checkout
+  fi
   exit 0
 fi
 
@@ -321,6 +340,7 @@ fi
 if ! grep -qE '^(push|merge) ' "$PLAN"; then
   git -C "$REPO_DIR" update-ref "$BASE_REF" "$REMOTE"
   log "nothing to push. Base is now ${REMOTE:0:7}."
+  ff_main_checkout
   exit 0
 fi
 
@@ -417,9 +437,5 @@ git -C "$REPO_DIR" fetch -q --prune origin
 if [[ "$(git -C "$REPO_DIR" rev-parse "origin/main:$DEST_PREFIX")" != "$(git -C "$REPO_DIR" rev-parse "$SYNCED:$DEST_PREFIX")" ]]; then
   log "note: main gained another change to $DEST_PREFIX while this sync ran; the next sync pulls it."
 fi
-if [[ "$(git -C "$REPO_DIR" branch --show-current)" == main && -z "$(git -C "$REPO_DIR" status --porcelain)" ]]; then
-  git -C "$REPO_DIR" merge -q --ff-only origin/main && log "main checkout fast-forwarded"
-else
-  log "main checkout not on a clean main: left as it is"
-fi
+ff_main_checkout
 log "done. Base is now ${SYNCED:0:7}."
