@@ -44,12 +44,18 @@ check() {
 }
 
 ORIGIN="${WORK}/johnmathews/codespaces-setup.git"
-# The origin holds this checkout's HEAD as main. Pushed rather than cloned: a clone
-# takes the repository's HEAD, which in a worktree or CI's detached checkout is not
-# the commit under test. Pushing needs full history (CI checks out fetch-depth 0).
+# The origin's main is one commit holding the tree of this checkout's HEAD, the
+# commit under test. Seeded from `git archive` rather than cloned or pushed: a clone
+# takes the repository's HEAD, which in a worktree or CI's detached checkout is
+# another commit, and a push is refused from a shallow checkout (CI's skill-versions
+# step fetches with --depth=1). No case needs the repo's history.
 git init -q --bare "${ORIGIN}"
-git -C "${REPO_DIR}" push -q "${ORIGIN}" HEAD:refs/heads/main
-git -C "${ORIGIN}" symbolic-ref HEAD refs/heads/main
+mkdir -p "${WORK}/seed"
+git -C "${REPO_DIR}" archive HEAD | tar -x -C "${WORK}/seed"
+git -C "${WORK}/seed" init -q -b main
+git -C "${WORK}/seed" add -A
+git -C "${WORK}/seed" commit -q -m "the commit under test"
+git -C "${WORK}/seed" push -q "${ORIGIN}" main
 git clone -q "${ORIGIN}" "${WORK}/repo"
 B="$(git -C "${WORK}/repo" rev-parse origin/main)"
 DS=configs/claude/skills/design-system

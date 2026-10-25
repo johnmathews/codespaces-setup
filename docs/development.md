@@ -69,7 +69,7 @@ python3 tests/engineering-team-drift/drift_scan.py
 bash tests/setup-resilience/run.sh
 
 # /sync-skills against a bare clone standing in for GitHub (also run in CI; needs gh
-# signed in, node and uv). Commit first: it tests this checkout's HEAD.
+# signed in, node and uv). Commit first: it tests the tree of this checkout's HEAD.
 bash tests/sync-skills/run.sh
 ```
 

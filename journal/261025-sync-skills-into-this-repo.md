@@ -63,6 +63,8 @@ clone, unless `CODESPACES_SETUP_DIR` says otherwise.
 
 `tests/sync-skills/run.sh` turns the sandbox cases into a CI test, with a seventh: the repo holds a
 newer `sync-skills.sh`, and the running copy pulls it, stays executable and restarts on it. The test
-pushes the commit under test into an empty bare repo rather than cloning, because a clone takes the
-repository's HEAD, which in a worktree or CI's detached checkout is not that commit. That needs full
-history, so the lint job now checks out with `fetch-depth: 0`. 29 checks pass in about 40 seconds.
+seeds its stand-in origin from a `git archive` of HEAD, one fresh commit. A clone takes the
+repository's HEAD, which in a worktree or CI's detached checkout is not the commit under test, and
+the first CI run showed that a push fails too: the skill-versions step fetches with `--depth=1`,
+which leaves the checkout shallow, and a shallow repository can't push. No case needs the history.
+29 checks pass in about 40 seconds.

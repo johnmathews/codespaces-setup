@@ -48,10 +48,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          # Full history: tests/sync-skills pushes the commit under test into a
-          # bare clone, which a shallow checkout refuses.
-          fetch-depth: 0
 
       - name: shellcheck
         # PINNED, like shfmt below. `apt-get install shellcheck` floats with the
