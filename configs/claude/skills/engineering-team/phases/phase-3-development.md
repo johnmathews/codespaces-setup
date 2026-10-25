@@ -154,6 +154,10 @@ still needs to be merged, the cumulative commit still needs to land on
 `main`, and the run needs a summary.
 
 Announce the transition, load `phase-4-wrap-up.md`, and follow its steps.
+Its Step 0 shows a user-visible change running locally before anything is
+pushed (`../references/local-stack.md`); when the user is iterating on
+something they can see, keep that stack running through Phase 3 as well, so
+each unit shows on a reload.
 **Step 1 is to run `/done` — that step is mandatory regardless of how
 light wrap-up looks.** Writing a journal entry manually and merging
 without `/done` is a contract violation, even if the work is fully

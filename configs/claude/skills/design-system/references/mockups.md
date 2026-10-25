@@ -56,6 +56,10 @@ Go straight to code only when one of these is true:
    words, the date, the link) and add the decision to the project's decisions log. Only now write
    the code and the system changes (tokens, cards), then screenshot the real app at the same
    widths and check it against the chosen option before calling it done.
+8. **Show it running.** Before commit or push, bring up the project's local stack, keep the
+   person's login and data, seed demo data where the project allows it, and hand them the URL
+   and what to try (SKILL.md §"See it running locally"). Their look at the real app is the
+   last check before CI.
 
 Commit the mockup folder (`index.html`, `README.md`, any data or images) with the code it led
 to; `dist/` and the renders are never committed (`mockups/.gitignore`). A mockup that was dropped

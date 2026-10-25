@@ -42,6 +42,16 @@ of Phase 1 or Phase 2, via "Closing a run" in `../SKILL.md`. Do not read "Phase
 what left worktrees, branches, and live `current.txt` pointers behind after
 an evaluation-only run — no step existed anywhere that would remove them.
 
+### Step 0: Show it running locally (user-visible changes)
+
+Before `/done` pushes anything, bring up the project's local stack from the
+worktree and give the user the link, how to sign in, and what to try. Wait for
+their look before Step 1, unless they said to go ahead. Keep their login and
+data: the data folder lives outside the worktree and is never reset unasked.
+The rule, its exceptions and how to seed demo data are in
+`../references/local-stack.md`; load it now. A change with nothing to see skips
+this step in one line.
+
 ### Step 1: Run `/done` (mandatory)
 
 Run the `/done` skill to get all quality checks: CI/CD verification, documentation updates, tests,
@@ -349,6 +359,7 @@ user declined `git init`. Evaluation-only runs are *not* on this path — they w
 like everything else (see "Always work in a worktree" in `../SKILL.md`) and they never reach
 Phase 4 at all; they close themselves at the end of Phase 1 via "Closing a run" in `../SKILL.md`.
 
+0. **Show it running locally first**, as Step 0 above says, when the change is user-visible.
 1. **If this is a git repo:** Run the `/done` skill normally (it handles tests, lint, security scan,
    code review, docs, journal, commit, and the PR). Adapt it to the project type as described above.
 2. **If this is NOT a git repo:**

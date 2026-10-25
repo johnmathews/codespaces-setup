@@ -519,6 +519,11 @@ Load these on demand when their topic becomes relevant:
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for
   urgent reports.
+- `references/local-stack.md` — **see it running before CI**: bring up the
+  project's local stack for any user-visible change before `/done` pushes it,
+  keep the login and data across restarts and worktrees, and seed demo data.
+  Phase 4's Step 0 applies it; load it then, and in Phase 3 when the user is
+  iterating on something they can see.
 - `references/wide-survey.md` — the Workflow fan-out for Phase 1
   reconnaissance on large projects. Loaded only after the user agrees to
   one; Phase 1's Step 2 decides whether to offer it.
