@@ -37,7 +37,17 @@ Go straight to code only when one of these is true:
      rules included) into the stage, so the mockup draws what the product draws, then change
      only the candidate values;
    - a measure for every new colour pairing (`data-fg`, `data-bg`, `data-min`), so contrast is
-     on the page, misses included.
+     on the page, misses included;
+   - **a live prototype when the question is about layout or behaviour** (a bar that hides, a
+     page that snaps or sprints between sections, a grid that folds on a phone). Stills can't
+     show those. Write the screen once as a small script and stylesheet beside `index.html`
+     (`proto.js`, `proto.css`; `mockup.py build` copies them) that draws into any element and
+     sizes everything from that element's own box: make it `container-type: size` and use `cqw`,
+     `cqh` and a scale like `--u: min(100cqw / 1280, 100cqh / 800)`. The same code then draws
+     scaled desktops, iPads and phones on the page (a real-size frame with `transform: scale`),
+     and a full-size `try.html` the person opens on a real device. The scaled frames stay live:
+     hover, scroll and press work in them. Give `try.html` a small switch for option and theme,
+     and link it from each option.
 4. **Build and look.** `python3 <skill>/scripts/mockup.py build <mockup-dir>`, then
    `node <skill>/scripts/render_mockup.mjs <mockup-dir>/dist <out-dir> --playwright <project>/node_modules/playwright/index.mjs`.
    Read all four PNGs and the problem lines yourself. Fix overflow, errors and anything that
@@ -51,7 +61,13 @@ Go straight to code only when one of these is true:
 6. **Iterate on the same link.** Change `index.html`, build, render, look, and publish again:
    the same `file_path` in the same session, otherwise the README's link as `url` (read it with
    the Artifact tool first). Add a line under Rounds in the README. Keep options they ruled out off the
-   page unless they ask to compare again.
+   page unless they ask to compare again. Mark each question that is settled ("1. The bar
+   (decided: A)") and put the open one at the top, so the page says what is still being asked.
+   **Comments on the page are rounds too.** A comment like "remove this column" is an instruction:
+   apply it to the mockup, and to the app as well when that part is already built; record a
+   decision for it; republish; then reply on the thread saying what changed and where, and
+   resolve it. When an automatic reply on the thread has asked the person a question, wait for
+   their answer before acting on that part.
 7. **Record, then build.** When they pick, fill the README (Status `decided`, the option, their
    words, the date, the link) and add the decision to the project's decisions log. Only now write
    the code and the system changes (tokens, cards), then screenshot the real app at the same
@@ -60,6 +76,11 @@ Go straight to code only when one of these is true:
    person's login and data, seed demo data where the project allows it, and hand them the URL
    and what to try (SKILL.md §"See it running locally"). Their look at the real app is the
    last check before CI.
+9. **Check for open picks before shipping.** "Build and push" ships what is built; it does not
+   answer a question still open on the mockup. If one is open, ask it in a line before the
+   commit, rather than recording the recommended option as their choice. In one project a
+   pending "bar or sidebar" was taken as "bar", and the person then looked for the sidebar in
+   the app.
 
 Commit the mockup folder (`index.html`, `README.md`, any data or images) with the code it led
 to; `dist/` and the renders are never committed (`mockups/.gitignore`). A mockup that was dropped
@@ -83,3 +104,5 @@ exists.
 | A new mockup link each round | One Artifact per question, republished |
 | Contrast "looks fine" | A measure on the page for every new pairing |
 | Rendering and not looking | Read every PNG before the link goes out |
+| Stills for a layout that moves (a hidden bar, snapping, folding) | A live prototype, scaled frames plus a full-size `try.html` |
+| Treating "build and push" as the answer to an open question | Ask the open question first |
