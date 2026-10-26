@@ -34,6 +34,29 @@ under 4.5:1; move it one step darker and say so), and any faded state. A label f
 opacity fails, so a "Sending…" button keeps full colour and uses `aria-busy`; only truly disabled
 controls fade.
 
+## Removing a role or a component
+
+Removing one is a sweep, not an edit: the name lives in more places than the token. Remove it
+from all of these in the same change, then grep the whole repo for the name and for the words that
+described it (the feature's own vocabulary, like "Picked row" or "today's band"), and fix every
+hit outside point-in-time records (journal, decision log, specs, mockups):
+
+| Place | What goes |
+| --- | --- |
+| `tokens.json` | the token |
+| `checks.json` | its `extra_contrast_pairs`, or the component in `required_components` |
+| the app's stylesheet | its `--color-…` mapping and its print value |
+| generated tokens | regenerate (`npm run tokens` or the project's equivalent) |
+| cards | `components/<Name>/` for a component; every README and preview that names a role |
+| `foundations.md`, `README.md`, `voice.md` | the role table, rules and examples that use it |
+| the project's docs | brand, architecture and development docs, and its decision log's superseded rows |
+| the app | the primitive, its style guide section and its tests |
+| the artifact | `null` for the removed paths on the next publish (artifact.md) |
+
+In one project, removing a role, two components and a feature row this way still left about
+twenty stale mentions for a later audit to find, because the sweep was done from memory rather
+than by grep.
+
 ## Projects that already have tokens
 
 Many apps already have semantic variables (`--color-bg`, `--color-surface`, `--text-muted`).

@@ -37,6 +37,22 @@ type's own instructions arrive in the create result and in `artifact-type/refere
   `files: {"project/x": "project/x", …}` for every other text and font file (not the uploaded SVGs).
 - Later changes: publish only the changed files the same way; leave the index out unless an asset
   record or the title changed.
+- **Republishing is part of shipping.** After every merge that changes `brand/design-system/`,
+  publish the changed files. A system left alone drifts: one project's live artifact was four
+  releases behind its repo, and its voice page predated a whole email feature. The order:
+  1. `list` the artifact's files (`scope: files`) and `read` the text files you will send. The
+     service refuses a publish to an artifact this conversation has not read; a plain `read` of
+     the url is what it counts.
+  2. Compare each live file with the repo's copy at the last release (`git show <commit>:…`),
+     by hash. A difference that the repo's history explains is just an old copy. One it doesn't
+     explain is an edit made on the page: bring it into the repo first.
+  3. Publish the changed files with `root`, and `null` for each removed component's
+     `components/<Name>/…` and its generated `api/components/<Name>.md`.
+  4. Never send `api/…`, `manifest.json` or `tokens.css`: the page generates them on its next
+     save or open, so they can lag a publish until someone opens the page.
+  5. The index (`design-system.json`) goes in the same or the last call, built from the live
+     copy you just read, with `lastChange` updated and every other key kept; save the same file
+     in the repo.
 
 ## Verify before calling it done
 

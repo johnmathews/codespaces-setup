@@ -175,7 +175,11 @@ is the person's decision, never a side effect of picking a component library. Th
 - With shadcn-vue: replace its generated stylesheet and font, restyle the dense defaults in the
   copied source, and make the focus ring the solid 2px one.
 - Build only from tokens and the system's components. If something is missing, add it to the
-  system first (preview + README), then use it.
+  system first (preview + README), then use it. Removing one is a sweep across tokens, gate,
+  styles, cards, docs and tests: `references/tokens.md`, "Removing a role or a component".
+- After the change merges, republish the system's changed files to the artifact
+  (`references/artifact.md`, Publishing): the repo is the source, but the artifact is what
+  people and agents read.
 
 ## 6. Make it stick
 

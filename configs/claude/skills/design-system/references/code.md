@@ -90,6 +90,39 @@ Then:
 5. **Wrapper attributes.** Attributes on some parts land on a wrapper, not the control: on
    `AccordionTrigger` they go to the `<h3>`, so target `[data-…] button` in tests.
 
+## Tailwind v4 traps
+
+- A `@custom-variant` written in the shorthand, with a comma in its media query, compiles to a
+  broken selector: Tailwind reads the comma as a selector list, and the variant silently never
+  applies. Use the block form:
+  `@custom-variant folded { @media screen and (orientation: portrait) and (width < 1000px), screen and (width < 760px) { @slot; } }`.
+- A `<table>` laid out as `display: grid` (row groups and rows `display: contents`, so explicit
+  roles keep the table's meaning and keyboard code still walks `table.rows`) makes its
+  `<colgroup>` a grid item, which shifts every cell by one. Hide it on screen
+  (`screen:hidden`) and let the grid template set the widths; paper keeps the table.
+- In a grid, an item placed with explicit lines is placed first. A neighbour told only to span
+  (`col-span-7`) on the same row then can't fit and moves into new implicit columns. Give both
+  explicit lines (`col-[1/-1]`); overlapping explicit items are allowed.
+- Rows sized `minmax(min, fixed max)` in a section whose height is a minimum grow to their max,
+  because the minimum doesn't make the height definite. Use `1fr` rows and cap the grid with a
+  `max-height` instead.
+
+## Full-screen layouts
+
+- **`scroll-snap-type: y mandatory` traps a mouse wheel** at the end of a section taller than the
+  window: each notch snaps back to the end, and the next section is never reached. Trackpad flicks
+  travel far enough to hide it. If sections must never rest side by side, do it in script: once a
+  scroll has been still for about 120ms across the line between two sections, scroll on in the
+  direction of travel; after a resize or rotation, to the section that fills more of the window.
+  Test it with a section taller than the window and wheel steps one notch at a time, both ways,
+  and with a rotation (`setViewportSize`); check the test fails without the fix.
+- **Hide an overlay bar with a transform** (`-translate-y-[110%]`), never `visibility: hidden` or
+  `display: none`: hidden controls can't take focus, so `:focus-within` can never bring the bar
+  back for the keyboard. Give a touch handle `tabindex="-1"` and let focus reveal the bar instead.
+- **Measure colours on combined grounds.** A pen colour that passes on the page can fail on a band
+  or tint under it (green text on a grey today band was 4.25:1). Add each such pair to the gate,
+  or let axe in light and dark find it.
+
 ## Testing the app
 
 Copy `templates/a11y.spec.ts` into the Playwright suite: axe WCAG A/AA in light and dark, no

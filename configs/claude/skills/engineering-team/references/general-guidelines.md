@@ -291,6 +291,16 @@ that the bypass doesn't exist.
   earned the grade — see "Grade every finding, and name what earned the grade" above.
   The distinction tells the user what to act on now vs. investigate, and the named
   evidence is what lets them check it without asking you.
+- **Run CI's commands, not your own.** Before pushing, read the CI workflow and run its test
+  steps as written (`npm run test:coverage`, not `vitest run`). A coverage threshold, a stricter
+  type config or a format check lives in those steps, and a local run that skips them reports
+  green on a change CI will fail. In one session a 100% line-coverage gate failed the first PR
+  because the local run had no coverage.
+- **Removing a feature includes its words.** In the same change, grep the docs, READMEs and
+  design cards for the removed feature's vocabulary (its name, its UI strings, the behaviour it
+  described) and fix every hit outside point-in-time records. Left to the wrap-up audit, this
+  turned into about twenty stale claims in one project, written by someone who believed the
+  docs were updated.
 - Describe what tests **cover**, not just that they pass. For changes touching
   persistent data, IO, or unexercised code paths, name what's covered AND what isn't.
   "All tests pass" is verification of the destination, not the journey.
