@@ -11,25 +11,34 @@
 
 ## 1. Scope
 
-This governs prose written for a human reader. Project documentation, reports,
-runbooks and explainers all count.
+**The goal everywhere: no reader can tell a model wrote it.** That covers
+documentation, emails, PR and commit bodies, chat replies, code comments, and the
+copy on a web page, a dashboard or any other UI.
 
-**It governs the Reference register specifically**: prose for an engineer who
-arrives with a question. Two other registers exist and this file does not govern
-them. `voice-registers.md` owns the audience axis and defines the **Briefing**
-register (a reader who does not write code) and the **Product** register (copy
-inside the thing being used). Register follows the file path, so check there
-before writing anything a non-engineer reads. §2 rule 1 in particular differs by
-register.
+So three sections of this file apply to everything the skill produces, in every
+register:
+
+- §4, the voice
+- §5, the rhythm
+- §7, the machine-generated tells
+
+§8 (scannable by default) applies to everything except web pages and UIs, which
+have a layout of their own to do that job.
+
+The rest of this file governs the **Reference register**: prose for an engineer
+who arrives with a question. `voice-registers.md` owns the audience axis and
+defines the other two, the **Briefing** register (a reader who does not write
+code) and the **Product** register (copy inside the thing being used). Register
+follows the file path, so check there before writing anything a non-engineer
+reads. §2 rule 1 in particular differs by register.
 
 Two things are outside all of it. A machine-read format such as a status stamp
 keeps its required shape even where that shape breaks a rule below. And a project
 with its own written style guide outranks this file, per the project-conventions
 rule in `worktree.md`.
 
-This skill's own reference files, commit messages and PR bodies are in scope for
-§2 only. Both of its rules are greppable, and neither depends on a reader
-arriving with a question.
+This skill's own reference files are in scope for §2 only. Both of its rules are
+greppable, and neither depends on a reader arriving with a question.
 
 ## 2. The two hard rules
 
@@ -45,10 +54,11 @@ that can relax it.
    complaint reproduced in quotation marks. Nothing else may.
 
    **This rule is the Reference register's.** A reference document has no
-   speaker, which is the whole of the reason. Where a speaker genuinely exists —
-   a company addressing a customer, a team briefing a stakeholder — `we` is
-   carved out by register in `voice-registers.md` §2. "I" stays banned in every
-   register except a UI label the reader is choosing.
+   speaker, which is the whole of the reason. Where a real speaker exists,
+   `voice-registers.md` §2 carves out the first person: `we` for a team briefing
+   a stakeholder, and `I` in an email the user will send as their own. Product
+   copy and system emails stay out of the first person entirely and name the
+   product instead.
 2. **Use the active voice, and name the actor.** The actor is almost always the
    thing itself. The gate rejects the change. The suite runs in four minutes. The
    deployment stops. If a sentence only works in the passive, the actor is
@@ -89,8 +99,11 @@ explainer describing how something works stays descriptive.
 
 ## 4. Voice
 
-The register is plain and unhurried. Precise does not require severe, and a
-document that reads as if it resents being written is one a reader puts down.
+Assume the reader is speed-reading. **Write the shortest text that still states
+each fact.** If a word or clause carries no new information then cut it.
+
+The register is plain. Precise does not require severe, and a document that reads
+as if it resents being written is one a reader puts down.
 
 - **Lead with the thing.** First sentence, first paragraph. No preamble, and no
   "this document describes" standing in for the thing itself. A scope statement
@@ -105,9 +118,24 @@ document that reads as if it resents being written is one a reader puts down.
   itself", not "its data". "Shows each part in light and dark", not "defines
   that set". A catch-all noun ("parts", "things", "aspects", "elements") holds
   the place of a word not yet found. Find it.
+- **Use the plain, literal word.** A turn of phrase makes the reader translate
+  it. A literal word just means what it says.
+
+  | Do not write | Write |
+  |---|---|
+  | straight away | immediately |
+  | get to the bottom of | find the cause of |
+  | at the end of the day | finally |
+
+- **Cut emphasis words that add nothing.** "Every", "all", "fully", "really",
+  "actually", "completely". Keep one only if removing it changes the meaning.
+  "Lists every result" becomes "lists the results".
 - **End on the point.** A closing pointer elsewhere ("those live in the
   repository's docs") stays only if the reader needs to go there next.
   Otherwise cut it, and let the sentence end on the claim.
+- **Don't point at what the reader can already see.** If the results heading
+  sits right below, "the next email lists the results" is enough. Naming the
+  section the reader is about to reach adds length and no information.
 - **Mark a judgement as a judgement, without a narrator.** "This is the weakest
   part of the design" beats "in our opinion this is the weakest part". If a claim
   is contestable, say what it rests on.
@@ -136,13 +164,21 @@ for concrete ones and drops the closing pointer:
 
 ## 5. Rhythm
 
+- **Write the way a person talks.** Read aloud, the text should sound like a
+  colleague explaining something across a desk. Join related clauses with "and",
+  "but", "so" or "because", as speech does. Avoid a run of short fragments, and
+  avoid the punchy one-line closer ("That's the point.").
+- **Say the order or the condition with a word.** Join steps with "then":
+  "deploys each approved upgrade then checks it". Write a condition as "if …
+  then": "If a check fails then the advisor emails you". A comma leaves the
+  reader to work out the link, and the word states it outright.
 - **Vary sentence length**, and let a long sentence run where the thought needs
   it. **Nothing past forty words.**
 - **No em dashes.** Use a full stop, a comma, or brackets. A sentence that needs
   an em dash is two sentences.
 - **No semicolons.** Use a full stop.
-- **One idea per sentence.** A sentence that joins two claims of different kinds
-  with "and", or bolts a second clause on with a colon, is two sentences. A
+- **One claim per sentence.** Two claims of different kinds are two sentences.
+  Two parts of the same thought can share a sentence, joined by a plain word. A
   colon introduces a list, an example or a quotation, never a second clause.
 - **Bold sparingly.** A few per section, not a few per paragraph. If a point only
   lands because it is bold, rewrite the sentence instead.
@@ -158,11 +194,11 @@ expect more of the reader.
 
 | Kind | Examples | Read how | Budget |
 | --- | --- | --- | --- |
-| **Read-through** | ADR, RFC, explainer, README, briefing | start to finish, once | **yes, below** |
+| **Read-through** | ADR, RFC, explainer, README, briefing | skimmed start to finish, once | **yes, below** |
 | **Lookup** | spec, configuration reference, API surface, runbook, troubleshooting | searched, never read whole | **none** — completeness is the job |
 
-§8's "developers scan rather than read" describes lookup surfaces. It is not a
-licence for a read-through document to sprawl.
+Every document is speed-read (§8). For a read-through document that raises the
+bar: a reader skimming it should still reach the end with the answer.
 
 ### 6.1 Budgets
 
@@ -211,9 +247,21 @@ Then the blunt one: **would you read this to the end?**
 
 ## 7. Do not write
 
-These read as machine generated:
+These read as machine generated, so they are banned in everything the skill
+produces (§1):
 
-- "It's not just X, it's Y", and every variant.
+- **Contrast framing, in every form.** The text describes a thing by what it
+  is not, then corrects itself:
+  - "It's not just X, it's Y."
+  - "This is X, not Y."
+  - ", not Y" tacked onto the end of a claim.
+  - "Not X. Y."
+  - "It isn't about X, it's about Y."
+  - "X rather than Y" when nobody suggested Y.
+
+  Say what the thing is. If a reader would genuinely assume the wrong thing then
+  add a separate plain sentence about the thing itself: "It doesn't retry."
+  A do/don't table, or a real choice between named options, is fine.
 - Rule-of-three flourishes.
 - A rhetorical question you then answer.
 - "Let's dive in", "Here's the thing", "The reality is", "In conclusion".
@@ -221,20 +269,32 @@ These read as machine generated:
   announce that something matters. "Most importantly" is fine when genuinely
   ranking things.
 - The previous paragraph restated in different words.
+- Emphasis words that add nothing, and pointers to what the reader can already
+  see (§4).
 
-## 8. Skimmability, and how it squares with §5
+## 8. Scannable by default
 
-Developers scan documentation rather than reading it through, so a reader has to
-find an answer by eye. **Structure carries that load, and bold does not.** That
-is the reconciliation with the bold rule in §5, which still holds.
+**Assume everything is speed-read.** Readers skim emails, docs, PR bodies, chat
+replies and briefings, and many never read past the skim. Write so the skim is
+enough.
 
-- Put the answer in a heading someone can find without reading the paragraph
+- **Lists before prose.** Wherever the content is a set of facts, steps, options
+  or findings, use a list or a table. Keep prose for a chain of reasoning that a
+  list would break apart.
+- **Numbered when order matters or someone will refer to an item.** Steps, ranked
+  findings and questions get numbers. Everything else gets bullets.
+- **One short lead sentence, then the list.** The lead says what the list is.
+- **A bullet may be a phrase**, as long as it makes sense without the line above
+  it. Don't glue a fragment to a colon and leave the reader to join them.
+- **Put the answer in a heading** someone can find without reading the paragraph
   under it.
-- Prefer a table or a list wherever the content is a set of parallel things.
-  Prose is for arguments, not for inventories.
-- A bullet is a sentence. Do not glue a fragment to a colon and call it a point.
-- A heading exists because a reader needs to find something, not because three
-  paragraphs have gone by. A short piece needs none.
+- **Structure carries the emphasis.** Bold doesn't, and the bold rule in §5 still
+  holds.
+- **A heading earns its place by helping a reader find something.** A short piece
+  needs none.
+
+Web pages and UIs are exempt from this section, because their layout does the
+job. §4, §5 and §7 still apply to their copy.
 
 ## 9. What a document must contain
 
@@ -278,9 +338,9 @@ Read it aloud. If you run out of breath, cut the sentence. If every sentence is
 the same length, break one. If the emphasis lives in the bold rather than in the
 words, delete the bold and rewrite.
 
-Then check the two hard rules mechanically, because both are greppable. Each
-pattern also matches quotations and fenced code, which §2 and §5 allow, so
-discount those hits by eye rather than editing them out:
+Then check the two hard rules and the contrast framing mechanically, because all
+three are greppable. Each pattern also matches quotations, fenced code and
+legitimate uses, so judge each hit by eye rather than editing blindly:
 
 ```bash
 # §2 rule 1: first person outside a quotation. The capitals matter, because
@@ -288,4 +348,6 @@ discount those hits by eye rather than editing them out:
 grep -nE '\b(I|[Ww]e|[Oo]ur|[Uu]s)\b' <file>
 # §5: the two banned marks
 grep -nE '—|;' <file>
+# §7: contrast framing ("This is X, not Y", "not just", "isn't about")
+grep -nE ", not |[Nn]ot just|(isn't|is not) about" <file>
 ```
