@@ -190,6 +190,11 @@ it deliberately excludes as by what it includes.
   seams (e.g. a coherent migration that can't be half-shipped). If a unit is "too big to
   estimate confidently," that itself is a finding — say so and propose a spike instead
   of a plan.
+- **Findings:** The evaluation report's finding IDs this unit addresses
+  (`F3`, `F7`). An implementing subagent reads those findings for the reason
+  behind its unit, so a unit that cites none sends it in without one. A unit
+  with no finding behind it, such as one the user asked for, says so:
+  "none (requested by the user)".
 - **Changes:** Specific files and modifications (code, tests, docs).
 - **Files (footprint):** The actual paths this unit touches, as paths —
   `src/auth/**`, `tests/test_auth.py`, `pyproject.toml`. Not a description: "the auth

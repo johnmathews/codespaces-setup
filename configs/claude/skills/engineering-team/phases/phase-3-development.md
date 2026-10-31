@@ -330,8 +330,54 @@ but do not over-read it:
 > (Phase 2's Step 3.5 and `../references/multi-session.md`), not nested worktrees
 > and not subagents. Nested worktrees are wrong in both cases.
 
+**What every implementing subagent reads.** A subagent starts with an empty
+context and knows only what its brief points it at. A brief that points only at
+its unit sends it in without the goal, without the user's rules, and without
+knowing what the neighbouring units change. Each brief lists these, by
+**absolute path**: `$RUN_DIR` is in the main checkout and the subagent works in
+the worktree, so a relative path finds nothing.
+
+1. **`$RUN_DIR/request.md`**: what the user asked for, in their own words.
+2. **The whole improvement plan**, including its non-goals and the
+   constraints, open questions and lessons sections at the end. Its own unit
+   is the task; the rest tells it what other units own, so it neither redoes
+   nor breaks them. On a plan of more than about ten units, point it instead
+   at its own unit, the frontmatter index, the sections at the end, and any
+   unit whose footprint overlaps or sits next to its own.
+3. **The definition of done**: `done_when:` from `run.yaml`, quoted in the
+   brief.
+4. **The project's own rules**: `CLAUDE.md` or `AGENTS.md`, and any ADR or doc
+   that covers the unit's footprint.
+5. **The evaluation report's summary and the findings its unit cites** (the
+   unit's **Findings** field). It may read the rest of the report when the
+   unit turns out to reach further.
+6. **The lead's notes**, in the brief itself.
+
+**What goes in the plan and what goes only in the brief.** Writing a brief is
+when the lead notices what exists only in its head. A fact that will still be
+true for later units, or for a session after a hand-over, goes **into the plan
+first**, then the brief quotes it. Examples: a contract another file depends on
+("the nightly job expects a list of dicts"), which unit owns which file, what
+an earlier unit changed that this one builds on, a dependency between units.
+A one-off note for this dispatch only ("report back before you touch the
+migration") goes in the brief alone.
+
+**Never the conversation transcript.** It is large and mostly irrelevant, and
+anything in it that matters belongs in the plan or `request.md` by the rule
+above.
+
+**The brief also states the limits**: edit, test and create files only in the
+worktree; read the main checkout and `$RUN_DIR` but never write to them; don't
+commit, push or open a PR, because the lead reviews the diff and `/done` commits
+it in Phase 4; and stop and report, rather than decide, when the unit can't be
+done inside its footprint or without breaking a constraint.
+
+**Before the first dispatch, check the run's files**: `scripts/check_run.py
+"$RUN_DIR"` and `scripts/check_plan.py`. A plan whose unit list disagrees with
+`run.yaml` sends every subagent in with a wrong picture of who owns what.
+
 Each implementing subagent should:
-- Read the specific work unit from the improvement plan
+- Read the files listed above, then its own unit in full
 - Follow the doc → test → code order strictly
 - Do not assume how existing code works — read it before modifying it
 - Do not assume tests will pass — run them and check the actual output
@@ -339,10 +385,15 @@ Each implementing subagent should:
   (see the "Stable element ids" rule in `../references/general-guidelines.md`)
   so elements can be discussed and tested precisely
 - Run tests after implementation
-- Report back: what was done, what tests pass/fail, any issues encountered
+- Report back: what was done, what tests pass/fail, any issues encountered,
+  which of the files above it read, and how the change keeps to the plan's
+  constraints and the user's request
 
 As Lead Engineer, review each completed unit before marking it done. Check:
 - Does the implementation match the plan?
+- Does it keep to the plan's constraints and the user's request in
+  `request.md`? Check this against the files, not memory: a rule the lead
+  forgot is a rule the review misses.
 - Are the tests meaningful (testing behavior, not implementation)?
 - Is the documentation accurate and clear?
 - Were any unnecessary changes introduced?

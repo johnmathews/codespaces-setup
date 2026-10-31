@@ -48,6 +48,16 @@ Phase 4 reads it to decide whether it may merge anything. Write `done_when:` in
 the same write, the definition of done in one plain line, for the same reason
 (`../SKILL.md` §"The run directory", rule 3).
 
+Also write `$RUN_DIR/request.md`: the date, the user's request **word for word**,
+and, once the clarifying questions (Step 0) are answered, those questions and the
+user's answers, also word for word. Don't summarise or tidy it. `scope:` and
+`done_when:` are the lead's summaries of the request; this file is the request
+itself, and it is the only copy that survives the conversation. Phase 3's
+implementing subagents and every hand-over read it. Write it once. A later change
+of direction from the user goes in the plan's constraints section, not here.
+When resuming a run that has no `request.md`, write what is known and mark it
+"reconstructed from the plan, not the user's words".
+
 ---
 
 The goal is to produce a thorough, honest assessment of the project. This is not a rubber stamp — the team

@@ -148,6 +148,12 @@ should point here.
 | Closing a run: four steps, in the main checkout, then the session-closable verdict | §"Closing a run" | phases 1, 2, 4 |
 | Announce the phase in one plain-prose line | §"Announce phase transitions" | phases 1–4 (four parallel copies — **see §4**) |
 
+### Homed in `phase-3-development.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| An implementing subagent's brief points, by absolute path, at `request.md`, the whole plan (constraints included), the definition of done, the project's rules, and the report's summary plus the unit's cited findings, plus the lead's own notes; never the conversation transcript. The review checks the work against the constraints and `request.md` | §"Implementation" | `SKILL.md` §"The run directory" (`request.md` is created with the run); phase 1 (writes `request.md`); phase 2 (the unit's **Findings** field); `commands/prompt.md` (hand-overs carry `request.md`) |
+
 ### Homed in `local-stack.md`
 
 | Invariant | Canonical home | Also stated in |
