@@ -357,7 +357,7 @@ The script is idempotent – safe to run multiple times.
 | **atuin**                   | latest   | Shell history (local, no sync in Codespaces)                                                                                |
 | **uv**                      | latest   | Python package manager                                                                                                      |
 | **Claude Code**             | latest   | AI coding assistant CLI                                                                                                     |
-| **Claude skills/commands**  | —        | Personal `/engineering-team` and `/design-system` skills + `/done`, `/merge-push`, `/prompt` and `/sync-skills` slash commands (and the script `/sync-skills` runs), deployed into `~/.claude` |
+| **Claude skills/commands**  | —        | Personal `/engineering-team`, `/design-system` and `/sitrep` skills + `/done`, `/merge-push`, `/prompt` and `/sync-skills` slash commands (and the script `/sync-skills` runs), deployed into `~/.claude` |
 | **GitHub CLI** (`gh`)       | v2.95.0  | GitHub from the terminal; also used as git's credential helper                                                              |
 | **Azure CLI** (`az`)        | v2.68.0  | Azure from the terminal; installed via `uv` (isolated env; works behind the TLS-intercepting proxy)                         |
 | **Zsh** + **Oh My Zsh**     | —        | Shell                                                                                                                       |
@@ -383,6 +383,7 @@ configs/
   .gitconfig_managed    # Git aliases + portable settings (included from ~/.gitconfig)
   claude/               # Personal Claude Code assets, deployed into ~/.claude
     skills/engineering-team/   # /engineering-team skill (SKILL.md + phases/ + references/)
+    skills/sitrep/             # /sitrep skill: a fixed-shape status update in any session (shape lives in engineering-team's references/status-updates.md)
     skills/design-system/      # /design-system skill: brand → claude.ai design system → app code (Vue worked; other frameworks mapped), Tailwind or plain CSS (SKILL.md + references/ + scripts/ + templates/)
     commands/done.md           # /done slash command
     commands/merge-push.md     # /merge-push slash command
@@ -435,7 +436,7 @@ tests/
   engineering-team-probes/      # Manual, LLM-in-the-loop regression probes for the skill router
   engineering-team-triggering/  # Does the skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
   engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
-  engineering-team-command-links/ # Link-check: the /done + /merge-push commands' cross-references into the skill tree still resolve (headless, in CI)
+  engineering-team-command-links/ # Link-check: the commands' and other skills' (/sitrep) cross-references into the engineering-team skill still resolve (headless, in CI)
   design-system-triggering/     # Does the design-system skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
 journal/                # Dated development-journal entries
 setup.sh                # Main entry point AND the update path – self-updates its own

@@ -80,6 +80,31 @@ def check_command_links(skill: Path, commands: Path) -> list[str]:
     return failures
 
 
+# Other vendored skills that point into engineering-team (the `sitrep` skill reads
+# its status-update rules and its context_usage.py). Only references carrying the
+# full deployed prefix count: a bare `SKILL.md` in another skill means that
+# skill's own file. Any extension counts, so a moved script is caught too.
+SKILLS_ROOT = REPO / "configs/claude/skills"
+PREFIXED = re.compile(r"~/\.claude/skills/engineering-team/([A-Za-z0-9_./-]+\.[a-z]+)")
+
+
+def check_skill_links(skill: Path, skills_root: Path) -> list[str]:
+    """One HARD failure per prefixed engineering-team path, in any other vendored
+    skill, that does not resolve under the skill."""
+    failures: list[str] = []
+    for doc in sorted(skills_root.glob("*/**/*.md")):
+        if skill in doc.parents:
+            continue
+        for i, ln in enumerate(doc.read_text().splitlines(), 1):
+            for m in PREFIXED.finditer(ln):
+                rel = m.group(1).rstrip(".")
+                if not (skill / rel).is_file():
+                    failures.append(
+                        f"{doc.relative_to(skills_root)}:{i}: cross-reference "
+                        f"`{DEPLOYED_PREFIX}{rel}` does not resolve under the skill")
+    return failures
+
+
 def selftest() -> int:
     """Prove the check catches a dangling ref and passes a real one, against a
     temporary command dir so it never depends on the real commands' contents."""
@@ -113,6 +138,20 @@ def selftest() -> int:
     expect(not check_command_links(SKILL, COMMANDS),
            f"real commands have dangling refs: {check_command_links(SKILL, COMMANDS)}")
 
+    # Other skills: a prefixed dangling ref (any extension) reds; a resolving one and
+    # a bare SKILL.md (the other skill's own file) pass; the real skills are clean.
+    with tempfile.TemporaryDirectory() as td:
+        other = Path(td) / "other"
+        other.mkdir()
+        (other / "SKILL.md").write_text(
+            "Read SKILL.md, then ~/.claude/skills/engineering-team/references/worktree.md.\n")
+        expect(not check_skill_links(SKILL, Path(td)), "resolving skill ref false-flagged")
+        (other / "SKILL.md").write_text(
+            "Run ~/.claude/skills/engineering-team/scripts/gone.py now.\n")
+        expect(bool(check_skill_links(SKILL, Path(td))), "dangling skill ref not caught")
+    expect(not check_skill_links(SKILL, SKILLS_ROOT),
+           f"real skills have dangling refs: {check_skill_links(SKILL, SKILLS_ROOT)}")
+
     if fails:
         print("COMMAND-LINK SELFTEST FAILED:", file=sys.stderr)
         for f in fails:
@@ -131,7 +170,7 @@ def main() -> int:
     if args.selftest:
         return selftest()
 
-    failures = check_command_links(SKILL, COMMANDS)
+    failures = check_command_links(SKILL, COMMANDS) + check_skill_links(SKILL, SKILLS_ROOT)
     for f in failures:
         print(f"[FAIL] {f}", file=sys.stderr)
     if failures:
