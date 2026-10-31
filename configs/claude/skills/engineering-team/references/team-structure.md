@@ -117,7 +117,7 @@ They are independent choices.
 ### Choosing a model
 
 **Omit `model` by default.** The agent then inherits the lead's model, and
-every brief in this skill assumes that model. Override it in only the five
+every brief in this skill assumes that model. Override it in only the four
 dispatches below. Each is bounded or mechanical, or its output is checked
 again before anything rests on it.
 
@@ -131,12 +131,13 @@ omit `model` and dispatch as usual.
 **Never go below the mid tier.** No dispatch in this skill uses the
 smallest tier (`haiku` today). The tool's list also holds tiers below the
 mid tier, so "a cheaper tier" alone does not say which one is meant. The
-five dispatches below are judged safe on the mid tier only.
+four dispatches below are judged safe on the mid tier only. A job too
+mechanical to need the mid tier gets a script instead: the footprint check
+in `coordination-protocol.md` §3.3 is `scripts/check_footprint.py`.
 
 | Dispatch | Where | Why the mid tier is safe |
 | --- | --- | --- |
 | Wide-survey surveyors (Stage 1) | `wide-survey.md` §"The script" | One lens on one area, with schema-bound output. The lead regrades every finding and disconfirms the load-bearing ones. |
-| Footprint check | `coordination-protocol.md` §3.3 | A mechanical comparison of the diff's paths against the declared footprint. |
 | Acceptance-criteria check | `coordination-protocol.md` §3.3 | Reads only the unit spec and the diff, and answers met or unmet per criterion. |
 | `/done`'s docs cross-check | `commands/done.md` §"Phase 2 — Documentation", item 2 | Checks each doc claim against the shipped code and cites `file:line`. |
 | Implementing an S unit | `phase-3-development.md` §"Implementation" | Only when the unit is sized S, its risk is not High, and it has acceptance criteria. The review gate and CI sit behind it. |
