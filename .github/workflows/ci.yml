@@ -115,6 +115,7 @@ jobs:
           python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_board.py --selftest
+          python3 configs/claude/skills/engineering-team/scripts/context_usage.py --selftest
 
       - name: design-system scripts (selftest)
         # The skill's gate and preview builder are copied into each project that
