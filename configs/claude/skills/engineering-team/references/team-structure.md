@@ -44,7 +44,9 @@ Plus one field about the agent rather than the finding: **`covered`** — what
 it actually read, as files or globs, and what it ran out of room for. An
 honest partial answer is useful; a silent one is not.
 
-**Say this in the brief verbatim, in every dispatch:**
+**Say this in the brief verbatim, in every dispatch** (an implementation brief
+in Phase 3 carries it too: its report is mainly the diff and the test results,
+and this block covers anything unexpected it finds on the way):
 
 > Grade every finding VERIFIED (you ran something — quote the command and
 > its output), SUPPORTED (you read the code — cite `file:line`), or

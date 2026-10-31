@@ -132,8 +132,10 @@ entry is always the main worktree.)
   `.engineering-team/runs/manual-<utc-timestamp>/` (e.g.
   `.engineering-team/runs/manual-20260610T142500Z/`) in the **main
   checkout**, use it as `$RUN_DIR` for the rest of the run, write
-  `run.yaml` (below), and write the directory's basename to
-  `.engineering-team/current.txt` so later sessions can find it.
+  `run.yaml` (below) and `request.md` (the user's request, word for word;
+  `phases/phase-1-evaluation.md` says what goes in it), and write the
+  directory's basename to `.engineering-team/current.txt` so later sessions
+  can find it.
 - **Housekeeping:** run directories accumulate — one repo reached 21 with
   no owner. When starting fresh, if there are more than ~10 completed runs
   under `.engineering-team/runs/`, say so and offer to delete the oldest.

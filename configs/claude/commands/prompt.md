@@ -25,7 +25,7 @@ from on-disk artifacts, running these in parallel where possible:
    not in a worktree, so resolve it with
    `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"` (keep
    `--path-format=absolute`, or you get a path relative to your cwd that the next session cannot
-   use) — and the run directory it names under `.engineering-team/runs/`. If present, read the run's artifacts (`evaluation-report.md`,
+   use) — and the run directory it names under `.engineering-team/runs/`. If present, read the run's artifacts (`request.md`, `evaluation-report.md`,
    `improvement-plan.md`, and `progress.md` / `status-*.md` if the run has lanes) to determine the
    exact phase, which work units are done, and which remain. **Reference these files by absolute path
    in the generated prompt rather than pasting their full contents** — the new session can read them.
@@ -73,7 +73,8 @@ read whole.
 
 Use absolute paths everywhere in it. The prompt must be self-contained and include, as applicable:
 
-1. **Purpose & aims** — what we are building and why; the goal of the project.
+1. **Purpose & aims** — what we are building and why; the goal of the project. In an
+   engineering-team run, point to `request.md`, which holds the user's own words.
 2. **Skill directive** — if applicable, an explicit instruction to use the `engineering-team` skill,
    addressed to the engineering-team.
 3. **Plan & phase** — the plan being followed and which phase we are in, with a pointer to the plan
@@ -118,7 +119,7 @@ the receiving session has no history to continue. Each must state:
    named it will assume it is the coordinator and start writing the plan.
 2. **The footprint it owns**, as paths, and that it owns nothing else. Touching a file outside it
    is a surprise to be reported, not a decision to be made.
-3. **Absolute paths** to the plan, the dashboard, and its own `status-<lane>.md`.
+3. **Absolute paths** to `request.md`, the plan, the dashboard, and its own `status-<lane>.md`.
 4. **Its branch and worktree name — explicitly, and distinct per lane.** Use
    `eng-<plan-short-name>-<lane>`. A worker that isn't given a name falls back to deriving one
    from the plan, and every lane reads the *same* plan — so they all compute the same name and
