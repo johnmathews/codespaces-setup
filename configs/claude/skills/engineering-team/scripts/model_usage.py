@@ -187,23 +187,35 @@ def cost(u: Usage) -> str:
     return f"{fmt_time(u.seconds)}, {fmt_tokens(u.tokens_in + u.tokens_out)} tokens"
 
 
+def short(models: str) -> str:
+    """claude-sonnet-5-5 -> sonnet-5-5; the family is what the eye looks for."""
+    return re.sub(r"\bclaude-", "", models)
+
+
+def table(headers: list[str], rows: list[list[str]], right: set[int]) -> list[str]:
+    """Plain-text columns, two spaces apart; numbers right-aligned so they line up."""
+    widths = [max(len(r[i]) for r in [headers, *rows]) for i in range(len(headers))]
+
+    def line(cells: list[str]) -> str:
+        return "  ".join(c.rjust(w) if i in right else c.ljust(w)
+                         for i, (c, w) in enumerate(zip(cells, widths))).rstrip()
+
+    return [line(headers), line(["-" * w for w in widths]), *(line(r) for r in rows)]
+
+
 def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]:
     lead_family = family(lead.models.most_common(1)[0][0]) if lead.models else ""
-    lines = [f"Lead session: {lead.ran}, {cost(lead)}"]
-    if not agents:
-        lines.append("Subagents: none")
-        return "\n".join(lines), 0
-    total = Usage()
-    for a in agents:
-        total.add(a.usage)
-    lines.append(f"Subagents: {len(agents)}, {cost(total)}")
+    second = "Type" if per_agent else "Count"
+    rows = [["lead", "-" if per_agent else "1", "-", short(lead.ran),
+             fmt_time(lead.seconds), fmt_tokens(lead.tokens_in + lead.tokens_out), ""]]
     below = 0
     if per_agent:
         for a in agents:
             f = flags(a, lead_family)
             below += "BELOW FLOOR" in f
-            lines.append(f"- {a.name} [{a.agent_type}, asked {a.requested}] ran {a.usage.ran}, {cost(a.usage)}"
-                         + (f"  <- {'; '.join(f)}" if f else ""))
+            name = a.name if len(a.name) <= 32 else a.name[:31] + "…"
+            rows.append([name, a.agent_type, a.requested, short(a.usage.ran), fmt_time(a.usage.seconds),
+                         fmt_tokens(a.usage.tokens_in + a.usage.tokens_out), "; ".join(f)])
     else:
         groups: dict[tuple[str, str, str], list[Agent]] = collections.defaultdict(list)
         for a in agents:
@@ -215,12 +227,18 @@ def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]
             group = Usage()
             for a in members:
                 group.add(a.usage)
-            lines.append(f"- {len(members)} x {atype}, asked {req}, ran {ran}, {cost(group)}"
-                         + (f"  <- {'; '.join(f)}" if f else ""))
-    by_family: collections.Counter[str] = collections.Counter()
-    for a in agents:
-        by_family.update({family(m): 1 for m in a.usage.models})
-    lines.append("By family: " + ", ".join(f"{fam} {n}" for fam, n in by_family.most_common()))
+            rows.append([atype, str(len(members)), req, short(ran), fmt_time(group.seconds),
+                         fmt_tokens(group.tokens_in + group.tokens_out), "; ".join(f)])
+    if agents:
+        total = Usage()
+        for a in agents:
+            total.add(a.usage)
+        rows.append(["all subagents", "-" if per_agent else str(len(agents)), "", "",
+                     fmt_time(total.seconds), fmt_tokens(total.tokens_in + total.tokens_out), ""])
+    lines = table(["Agent", second, "Asked", "Ran", "Time", "Tokens", "Note"], rows,
+                  right={4, 5} if per_agent else {1, 4, 5})
+    if not agents:
+        lines.append("No subagents.")
     if below:
         lines.append(f"FAIL: {below} agent(s) ran below the floor (team-structure.md, \"Choosing a model\")")
     return "\n".join(lines), 1 if below else 0
@@ -253,6 +271,14 @@ def selftest() -> int:
         if mid:
             message["id"] = mid
         return json.dumps({"type": "assistant", "isSidechain": side, "timestamp": at, "message": message})
+
+    def cells(text: str, first: str) -> list[str]:
+        """The cells of the row whose first cell is `first`."""
+        for row in text.splitlines():
+            parts = re.split(r"\s{2,}", row.strip())
+            if parts[0] == first:
+                return parts
+        return []
 
     def user(at: str) -> str:
         return json.dumps({"type": "user", "timestamp": at, "message": {"content": "hi"}})
@@ -288,9 +314,9 @@ def selftest() -> int:
         expect(lead.seconds == 120, f"lead time is first to last timestamp, sidechain excluded: {lead.seconds}")
 
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
-        expect(code == 0 and "Subagents: none" in text, "no subagents: exit 0")
-        expect(text.startswith("Lead session: claude-opus-5-5, 2m 00s, 110 tokens"),
-               f"lead line shows time and tokens: {text.splitlines()[0]}")
+        expect(code == 0 and text.splitlines()[-1] == "No subagents.", "no subagents: exit 0, said once")
+        expect(cells(text, "lead") == ["lead", "1", "-", "opus-5-5", "2m 00s", "110"],
+               f"lead row shows model, time and tokens: {cells(text, 'lead')}")
 
         agent("a1", {"agentType": "general-purpose", "description": "survey", "model": "sonnet"},
               "claude-sonnet-5-5", "claude-sonnet-5-5")
@@ -298,15 +324,25 @@ def selftest() -> int:
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
         expect(code == 0 and "<-" not in text, "sonnet as asked plus inherited opus: nothing flagged, exit 0")
         expect("floor" not in text.lower(), "a held floor is not mentioned")
-        expect("asked sonnet, ran claude-sonnet-5-5, 30s, 220 tokens" in text,
-               "a group line shows its summed time and tokens")
-        expect("Subagents: 2, 30s, 330 tokens" in text, "the subagent total sums every agent")
+        lines = text.splitlines()
+        expect(lines[0].split() == ["Agent", "Count", "Asked", "Ran", "Time", "Tokens", "Note"],
+               f"header row: {lines[0]}")
+        tok = lines[0].index("Tokens") + len("Tokens")
+        expect(all(len(row) >= tok and row[tok - 1] != " " for row in lines[2:]),
+               "every token count ends under the end of its header")
+        rows = [re.split(r"\s{2,}", row.strip()) for row in lines[2:]]
+        expect(["general-purpose", "1", "sonnet", "sonnet-5-5", "30s", "220"] in rows
+               and ["general-purpose", "1", "inherit", "opus-5-5", "0s", "110"] in rows,
+               "each group row shows its count, summed time and tokens")
+        expect(cells(text, "all subagents") == ["all subagents", "2", "30s", "330"],
+               f"the total row sums every agent: {cells(text, 'all subagents')}")
 
         agent("a3", {"agentType": "some-reviewer", "description": "review"}, "claude-sonnet-5-5")
         text, _ = report(lead, read_agents(root / "s1"), per_agent=True)
         expect("pinned by its type" in text, "inherit that ran on another family is flagged as pinned")
-        expect("- review [some-reviewer, asked inherit] ran claude-sonnet-5-5, 0s, 110 tokens" in text,
-               "a per-agent line shows its own time and tokens")
+        expect(cells(text, "review") == ["review", "some-reviewer", "inherit", "sonnet-5-5", "0s", "110",
+                                         "pinned by its type"],
+               f"a per-agent row shows its type, time, tokens and note: {cells(text, 'review')}")
 
         agent("a4", {"agentType": "general-purpose", "description": "check", "model": "sonnet"}, "claude-opus-5-5")
         text, _ = report(lead, read_agents(root / "s1"), per_agent=True)
