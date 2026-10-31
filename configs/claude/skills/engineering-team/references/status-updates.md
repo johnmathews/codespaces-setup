@@ -16,6 +16,10 @@ finish, and whether the session has grown too long to continue. Each time, an
 update arrived too late or in the wrong shape. One fixed shape answers all of
 these at once, and it is sent before the user has to ask.
 
+The user can ask for a sitrep at any time by typing `/sitrep`. The `sitrep`
+skill also answers status questions asked in words, in any session, using this
+file's shape.
+
 ## 2. Two kinds of update
 
 | Kind | Length | Sent when |
@@ -69,13 +73,16 @@ running.
 ## 3. The sitrep shape
 
 Send the sections in this order, so the user's eye lands in the same place each
-time. The definition of done comes first: a user running several sessions
-reads it to recall which one this is. Every section except "Heads-up" appears every time. A section with nothing
+time. The definition of done comes first and the stage second: a user running
+several sessions reads them to recall which one this is and where it has got
+to. Every section except "Heads-up" appears every time. A section with nothing
 to report says so in one word.
 
 ```markdown
 **Definition of done:** All seven billing fixes merged to main with CI green,
 and the deploy guide updated for the new settings.
+
+**Stage:** Implementing W4 of 7 (Phase 3 of 4). Next: waiting on CI for W3.
 
 **Status:** Waiting on you. One question holds up W5; everything else is moving.
 4 of 7 fixes are done and the tests pass.
@@ -117,6 +124,29 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   since the last sitrep, add what changed and when: "(changed 14:10: W7
   dropped, as you asked)". With no `done_when:` yet, write one from the
   user's request, show it, and save it.
+- **Stage** — where the work is right now, as one word or phrase from this
+  list, then the detail and what comes next:
+
+  | Stage | Means |
+  | --- | --- |
+  | Clarifying | asking the questions before work starts |
+  | Evaluating | reading and assessing the project (Phase 1) |
+  | Planning | turning findings into work units (Phase 2) |
+  | Implementing | writing the change for a unit |
+  | Testing | running the suite, or writing tests |
+  | Reviewing | checking a finished unit before calling it done |
+  | Waiting on CI | the change is pushed and the checks are running |
+  | Merging | the checks passed and the change is going in |
+  | Deploying | the merged change is going out |
+  | Checking it live | looking at the running result, locally or deployed |
+  | Wrapping up | journal, docs, removing the worktree (Phase 4) |
+  | Done | the definition of done is met |
+
+  Name the lead's own stage. When several things run at once, such as
+  implementing W4 while CI checks W3, the stage is the one the lead is doing
+  and the others go under "Doing now". When the work is paused on the user, the
+  stage is the one that's paused ("Implementing W5, paused") and "Status" says
+  `Waiting on you`. In an engineering-team run, add the phase as "Phase N of 4".
 - **Status** — the first matching word from this list, then the reason, with a
   number in it:
   1. `Blocked`: something other than the user is stopping all progress, such as
