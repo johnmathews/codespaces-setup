@@ -194,7 +194,7 @@ affordable.
 | Unit sized M or larger | `code-reviewer` or `/code-review` |
 
 Name agent types from the roster the session provides (`references/team-structure.md`).
-The two always-on checks run on the cheaper tier, and the conditional reviewers
+The two always-on checks run on the mid tier (never below it), and the conditional reviewers
 inherit the lead's model (`references/team-structure.md` §"Choosing a model").
 
 ### 3.4 What makes a verdict `CHANGES` — exactly four things
