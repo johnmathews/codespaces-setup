@@ -34,25 +34,44 @@ from on-disk artifacts, running these in parallel where possible:
 
 ## Step 2 — Ask if anything is unclear
 
+(When a sitrep triggered the hand-over, don't stop to ask. Write the prompt, and list what is
+uncertain in Step 5, so the user can correct it before starting the new session.)
+
+
 If, after gathering state, the aims, plan, phase, or next steps are ambiguous — or you are unsure what
 to include — **ask the user clarifying questions before generating the prompt.** Do not guess or
 fabricate context.
 
 ## Step 3 — Decide the audience
 
-- If the current session **used the `engineering-team` skill** (e.g. a `.engineering-team/` run
-  directory exists, or the skill was clearly active), the next phase very likely uses it too.
-  **Address the generated prompt to the engineering-team** and instruct the new session to invoke the
-  `engineering-team` skill and resume the in-flight run.
+- If the current session **used the `engineering-team` skill** (a `.engineering-team/` run
+  directory exists, or the skill was active in this conversation), **the new session must use it
+  too.** This is not a judgement call. A new session that starts without the skill skips the
+  worktree, `run.yaml` and the gates, and does the work outside the run it was meant to continue.
+  So:
+  1. **Start the prompt with `/engineering-team`** as its first word. Pasted as a message, that
+     loads the skill before anything else is read; an instruction later in the prompt to "use the
+     skill" can be missed.
+  2. Name the run to resume: its id and the absolute path of its `$RUN_DIR`.
+  3. Address the rest of the prompt to the engineering-team.
 - **If you are writing a lane hand-off** (the run has `progress.md` and you are the coordinator
   dispatching a parallel lane), see Step 4b — the shape is different.
 - Otherwise, address it as an ordinary continuation prompt with no skill assumption.
 
-## Step 4 — Emit the prompt
+## Step 4 — Write the prompt
 
-Output the continuation prompt inside a single fenced code block so it is trivial to copy and paste.
-Nothing else should be inside that block. The prompt must be self-contained and include, as
-applicable:
+Write the prompt to a markdown file, then show it. The file is the hand-over; the code block is a
+convenience. A long block copied out of a terminal can pick up wrapped lines, while a file can be
+read whole.
+
+**Where the file goes:**
+
+- In an engineering-team run: `$RUN_DIR/handover-<utc-timestamp>.md`, in the main checkout, next to
+  the run's other state.
+- Otherwise: `~/.claude/handovers/<repo-or-directory-name>-<utc-timestamp>.md`. Create the directory
+  if needed.
+
+Use absolute paths everywhere in it. The prompt must be self-contained and include, as applicable:
 
 1. **Purpose & aims** — what we are building and why; the goal of the project.
 2. **Skill directive** — if applicable, an explicit instruction to use the `engineering-team` skill,
@@ -64,12 +83,29 @@ applicable:
    stands relative to the plan.
 5. **What we learned/discovered this session** — either stated inline (if concise) or a pointer to
    where it is documented (journal entry, discussion file, commit messages).
-6. **Gotchas & constraints** — pitfalls, non-obvious decisions, dead ends already ruled out, and any
-   conventions the new session must respect.
+6. **Gotchas & things to remember** — pitfalls, non-obvious decisions, dead ends already ruled out
+   and why, preferences the user stated in this conversation, anything the user said not to do, and
+   conventions the new session must respect. This is the section a new session cannot rebuild from
+   the files, so spend the effort here.
 7. **Links to relevant documentation** — paths to plan/design/reference docs and any external links.
 8. **Concrete next action** — the first thing the new session should do.
 
 Keep it complete but not bloated: prefer pointing to on-disk artifacts over duplicating them.
+
+**Then show it in two forms**, so the user can pick whichever pastes more easily:
+
+1. **A one-line version** in a fenced code block, which tells the new session to read the file.
+   It is the safer paste, so it comes first:
+   - engineering-team: `/engineering-team Resume run <run-id>. Read <absolute path of the handover file> first and follow it.`
+   - otherwise: `Read <absolute path of the handover file> first and follow it.`
+2. **The full prompt** in a single fenced code block, with nothing else inside the block. It is
+   for a session that can't read the file, such as one on another machine. **When a sitrep
+   triggered the hand-over, leave this block out**: the sitrep stays one screen, and the file holds
+   the full text.
+
+If the machine has a clipboard command (`pbcopy` on macOS, `wl-copy` or `xclip` on Linux), copy the
+one-line version to the clipboard and say so. In a Codespace there usually isn't one; skip it
+silently.
 
 ## Step 4b — Lane hand-off prompts (multi-session runs)
 
@@ -114,5 +150,10 @@ cheerfully implement the stale plan.
 
 ## Step 5 — Confirm
 
-After the code block, briefly (numbered list) tell the user what you included and note anything you
-were uncertain about, in case they want to adjust before copying it.
+After the code blocks, briefly (numbered list) tell the user:
+
+1. the path of the handover file
+2. what you included
+3. anything you were uncertain about, in case they want to adjust it before starting the new session
+4. the steps: open a new Claude Code session in the same directory, then paste one of the two
+   blocks

@@ -140,6 +140,7 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   | Deploying | the merged change is going out |
   | Checking it live | looking at the running result, locally or deployed |
   | Wrapping up | journal, docs, removing the worktree (Phase 4) |
+  | Handing over | saving state and writing the prompt for a new session |
   | Done | the definition of done is met |
 
   Name the lead's own stage. When several things run at once, such as
@@ -302,15 +303,30 @@ Handing over is cheap by design. `run.yaml`, the plan and
    the open PR. Never in the middle of a unit with unrecorded changes.
 2. **At the break point, put the state on disk.** Bring `run.yaml` up to date,
    and write down every decision, open question and lesson that exists only in
-   chat: in the plan, an ADR, or a note in `$RUN_DIR`. An open question left in
+   chat. In a run, that goes in the plan, under sections at the end such as
+   "Constraints the user set", "Open questions" and "Lessons so far": the plan
+   is what a resuming session reads first. Keep unit IDs out of those
+   headings, or `check_plan.py` reads them as unit sections. A design decision
+   that will outlive the run goes in an ADR instead. An open question left in
    chat gets asked again by the next session.
 3. **Let running work land first.** Wait for background agents and Workflows
    to finish and for their results to be saved. CI and open PRs survive the
    switch, so the new session can pick those up.
-4. **Tell the user what is being carried over.** List what existed only in chat
+4. **Prepare the hand-over prompt yourself; don't just offer it.** Run the
+   `/prompt` command's procedure (the `prompt` skill, if the Skill tool lists
+   it, or `~/.claude/commands/prompt.md`). It writes the prompt to a markdown
+   file and shows it as a copyable block and as a one-line "read this file"
+   version. **If this session uses the engineering-team skill, the hand-over
+   must too**: the prompt starts with `/engineering-team` and names the run to
+   resume. `prompt.md` Step 3 owns that rule. If `/prompt` isn't available,
+   write the same file by hand to `$RUN_DIR/handover-<utc>.md` with the same
+   contents.
+5. **Tell the user what is being carried over.** List what existed only in chat
    and where it now lives, so the user can trust the hand-over.
-5. **Give the user the steps.** Run `/prompt` here if the session has it, open a
-   new session in the same directory, and paste the prompt it wrote.
+
+When the break point is now, prepare the hand-over in the same reply that
+recommends it. When it is later, say so, and prepare the hand-over when the
+break point arrives, without waiting to be asked.
 
 The Session line gives the decision, the main reason in one sentence (the
 overlap, or a warning sign from §4.3), and the size, or "size unknown":
@@ -318,8 +334,8 @@ overlap, or a warning sign from §4.3), and the size, or "size unknown":
 > **Session:** Move to a new session once W3 merges, in about 15 minutes. This
 > session has been in the auth code; W4 and W5 are the reports queries and the
 > deploy guide, which need none of it. It also holds about 170k tokens of Phase
-> 1 survey reports. At that point we save the open question to the plan, and
-> `/prompt` writes the hand-over.
+> 1 survey reports. At that point we save the open question to the plan and
+> write the hand-over prompt for you.
 
 > **Session:** Fine to continue here. W4 is the next part of the same export
 > code, and it depends on the edge cases we found in W3, which aren't written

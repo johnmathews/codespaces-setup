@@ -162,6 +162,7 @@ should point here.
 | Any status question, in any wording, gets the full sitrep in its fixed order: definition of done, stage, status, needs from you, heads-up (only when needed), done, doing now, still to do, finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
 | A long or multi-agent stretch is never silent: a pulse when agents start, when they return, before an unseen wait, and at least every ten minutes | §"When to send a pulse" | `SKILL.md` §"Progress, pausing, and completion"; phase 3 (pointer); `wide-survey.md` §"Before you run it" step 5 |
 | Continue-or-move is decided by overlap: does the work ahead need what this session holds, and is that knowledge on disk? Size and compaction only change the urgency. Checked at every unit and phase boundary; hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
+| When the decision is to move, the lead prepares the hand-over prompt itself (the `/prompt` procedure: a markdown file plus a copyable block), and a session that uses the engineering-team skill hands over to the engineering-team: the prompt starts with `/engineering-team` | §"Handing over" | `commands/prompt.md` Step 3 (owns the engineering-team rule) and Step 4 (owns the file and the two forms); the `sitrep` skill, Step 4 |
 
 ### Homed in `team-structure.md`
 

@@ -10,7 +10,13 @@ skill defines. The user runs several sessions at once and types `/sitrep`, or as
 what this one is for, where it is, and whether it needs them. The same shape every time is the point:
 the user's eye lands in the same place in every session.
 
-Report only. Don't start, stop or change any work to produce it.
+Report only. Don't start, stop or change any work to produce it. Two exceptions, both about keeping
+state safe:
+
+- A decision, user preference or open question that exists only in this conversation gets written
+  down (the plan, in a run) while you build the report. That protects it whatever the Session line
+  says.
+- When the report says to move to a new session, prepare the hand-over (Step 4).
 
 ## Step 1 — Load the shape
 
@@ -47,6 +53,11 @@ Outside an engineering-team run, nothing on disk holds the goal or the units. Th
 
 Send the sitrep exactly in the §3 shape: every section, in order, one screen, plain words. If the
 user asked a specific question, answer it in one line first.
+
+**If the Session line says to move now**, prepare the hand-over in the same reply by following §4.4
+steps 2 to 5. That runs the `/prompt` procedure, which writes the prompt to a file. In the reply, show
+the file path and the one-line paste version after the sitrep; the full text stays in the file. If this session
+uses the engineering-team skill, the hand-over prompt must start with `/engineering-team`.
 
 After it is sent, carry on with any work that was in progress, unless the report raised something the
 user has to answer first.
