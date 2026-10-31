@@ -5,11 +5,13 @@ name: ci
 #   1. shellcheck     — catch shell bugs (quoting, set -e interactions, etc.)
 #   2. shfmt          — enforce the repo's formatting convention
 #   3. lint-steps.sh  — ensure every scripts/NN-*.sh is wired into setup.sh
-#   4. skill gates    — the engineering-team skill ships three structural gates
+#   4. skill gates    — the engineering-team skill ships five structural gates
 #                       under configs/claude/skills/engineering-team/scripts/ —
 #                       check_report (evaluation reports), check_run (the
-#                       run.yaml state file), and check_plan (the improvement
-#                       plan). Their fixtures are their test, and a gate whose
+#                       run.yaml state file), check_plan (the improvement
+#                       plan), check_board (the lane dashboard) and
+#                       check_footprint (a branch's diff against its units'
+#                       declared paths). Their selftests are their test, and a gate whose
 #                       tests never run is the decoration that skill has a name for.
 #   5. triggering test — headless selftest of the parsers in
 #                       tests/engineering-team-triggering/run.py and
@@ -135,6 +137,7 @@ jobs:
           python3 configs/claude/skills/engineering-team/scripts/check_run.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/check_board.py --selftest
+          python3 configs/claude/skills/engineering-team/scripts/check_footprint.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/context_usage.py --selftest
 
       - name: design-system scripts (selftest)
