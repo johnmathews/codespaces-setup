@@ -18,9 +18,10 @@ Where it reads (the layout Claude Code writes):
 What each line reports:
 
 - **time**: first to last timestamp in the transcript. For the lead that is the
-  session's elapsed time, idle waits for the user included.
+  session's elapsed time, idle waits for the user included. The subagent total
+  adds the agents' times, so it exceeds the elapsed time when they run in parallel.
 - **tokens**: the sum, over API calls, of input + cache reads + cache writes +
-  output, with the output share in brackets. Cache reads are most of it and cost
+  output, with the output part named after it. Cache reads are most of it and cost
   far less than fresh input, so this is volume processed, not a bill. One call
   can be written as several entries that repeat its usage, so each message ID
   counts once.
@@ -184,7 +185,7 @@ def fmt_time(seconds: float) -> str:
 
 
 def cost(u: Usage) -> str:
-    return f"{fmt_time(u.seconds)}, {fmt_tokens(u.tokens_in + u.tokens_out)} tokens ({fmt_tokens(u.tokens_out)} out)"
+    return f"{fmt_time(u.seconds)}, {fmt_tokens(u.tokens_in + u.tokens_out)} tokens, {fmt_tokens(u.tokens_out)} of them output"
 
 
 def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]:
@@ -196,7 +197,7 @@ def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]
     total = Usage()
     for a in agents:
         total.add(a.usage)
-    lines.append(f"Subagents: {len(agents)}, {cost(total)} (time is the sum, not wall-clock)")
+    lines.append(f"Subagents: {len(agents)}, {cost(total)}")
     below = 0
     if per_agent:
         for a in agents:
@@ -289,7 +290,7 @@ def selftest() -> int:
 
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
         expect(code == 0 and "Subagents: none" in text, "no subagents: exit 0")
-        expect(text.startswith("Lead session: claude-opus-5-5, 2m 00s, 110 tokens (10 out)"),
+        expect(text.startswith("Lead session: claude-opus-5-5, 2m 00s, 110 tokens, 10 of them output"),
                f"lead line shows time and tokens: {text.splitlines()[0]}")
 
         agent("a1", {"agentType": "general-purpose", "description": "survey", "model": "sonnet"},
@@ -298,14 +299,14 @@ def selftest() -> int:
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
         expect(code == 0 and "<-" not in text, "sonnet as asked plus inherited opus: nothing flagged, exit 0")
         expect("floor" not in text.lower(), "a held floor is not mentioned")
-        expect("asked sonnet, ran claude-sonnet-5-5, 30s, 220 tokens (20 out)" in text,
+        expect("asked sonnet, ran claude-sonnet-5-5, 30s, 220 tokens, 20 of them output" in text,
                "a group line shows its summed time and tokens")
-        expect("Subagents: 2, 30s, 330 tokens (30 out)" in text, "the subagent total sums every agent")
+        expect("Subagents: 2, 30s, 330 tokens, 30 of them output" in text, "the subagent total sums every agent")
 
         agent("a3", {"agentType": "some-reviewer", "description": "review"}, "claude-sonnet-5-5")
         text, _ = report(lead, read_agents(root / "s1"), per_agent=True)
         expect("pinned by its type" in text, "inherit that ran on another family is flagged as pinned")
-        expect("- review [some-reviewer, asked inherit] ran claude-sonnet-5-5, 0s, 110 tokens (10 out)" in text,
+        expect("- review [some-reviewer, asked inherit] ran claude-sonnet-5-5, 0s, 110 tokens, 10 of them output" in text,
                "a per-agent line shows its own time and tokens")
 
         agent("a4", {"agentType": "general-purpose", "description": "check", "model": "sonnet"}, "claude-opus-5-5")
