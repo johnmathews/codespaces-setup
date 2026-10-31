@@ -126,6 +126,9 @@ conclusions, and summary points. The user refers to items by number, so every ac
 must be numbered. Internal implementation instructions (within this skill definition) are not affected —
 this rule applies only to what is shown to the user.
 
+The user speed-reads chat output like everything else, so `writing-style.md` §4, §5, §7 and §8 apply to it:
+lists over prose, plain literal words, a natural rhythm, and no contrast framing ("This is X, not Y").
+
 ## Asking Questions
 
 Before diving into work, you must ask the user clarifying questions. A real lead engineer

@@ -23,8 +23,8 @@ to this:
 | Path | Register |
 | --- | --- |
 | `README.md`, `docs/adr/`, `docs/rfc/`, `docs/spec/`, `docs/explainers/`, `journal/` | Reference |
-| `docs/briefings/`, status reports, anything addressed to a named non-engineer | Briefing |
-| UI strings, locale files, email and notification templates, error copy, onboarding flows | Product |
+| `docs/briefings/`, status reports, anything addressed to a named non-engineer, an email the user will send as their own | Briefing |
+| UI strings, locale files, dashboards, system emails, email and notification templates, error copy, onboarding flows | Product |
 
 This is what stops a warm-voice pass rewriting the ADR log: register follows the
 file, so that pass has nowhere to land.
@@ -40,21 +40,22 @@ This is the rule that differs most between registers, so it is stated once, here
 | Register | First person | Second person |
 | --- | --- | --- |
 | **Reference** | **Banned.** `writing-style.md` §2 rule 1 owns this and is unchanged | Encouraged |
-| **Briefing** | **"We" permitted** for the team. "I" still banned | Encouraged |
-| **Product** | **"We" preferred** over the company name. "I" only in UI labels the reader is choosing ("Remember my password") | Required |
+| **Briefing** | **"We" permitted** for the team. **"I" only in an email the user will send as their own** | Encouraged |
+| **Product** | **None.** Name the product or the feature: "the advisor emails you". "I" and "my" only in UI labels the reader is choosing ("Remember my password") | Required |
 
-**Why the registers split.** Published guides disagree, so this is a choice, not
-a consensus. Mailchimp mandates the first person everywhere, API docs included —
-*"Refer to Mailchimp as 'we,' not 'it.'"* — and Monzo makes it load-bearing in
-its apology rule: *"It's never 'We'd like to apologise', it's 'We're sorry'."*
-Microsoft discourages it everywhere, including marketing, because "we" reads as
-"a daunting corporate presence". Monzo and Mailchimp are the target, so "we" is
-carved out where a speaker exists. A reference document has no narrator, which is
-why the ban survives there.
+**"I" belongs to the user.** Write "I" only when it's certain the email goes out
+under the user's name. A system email, a notification, a dashboard or anything
+else the product sends stays out of the first person.
 
-**"We" needs a referent the reader can name** — the company in Product copy, the
-team in a Briefing. A "we" that could mean either is the corporate fog both
-guides warn about.
+**Why the registers split.** Published guides disagree. Mailchimp and Monzo use
+"we" for the company everywhere, and Microsoft discourages it because "we" reads
+as "a daunting corporate presence". This skill keeps "we" only where a real team
+speaks to a reader who knows it, which is a Briefing. Product copy names the
+product, because a system has no person behind it to say "we". A reference
+document has no narrator, so the ban holds there too.
+
+**"We" needs a referent the reader can name**, which is the team in a Briefing.
+A "we" that could mean the team or the company is corporate fog.
 
 ## 3. The Briefing register
 
@@ -67,7 +68,10 @@ product owner, a manager, a stakeholder.
   has to translate, and they will translate it wrong.
 - **Gloss every term the first time, or cut it.** Internal shorthand, service
   names and acronyms all count. One clause is enough.
-- **Use "we" for the team and "you" for the reader.**
+- **Lists over paragraphs.** The reader skims, so the outcome, the reasons and
+  the asks each go in a list (`writing-style.md` §8).
+- **Use "we" for the team and "you" for the reader.** "I" only in an email the
+  user sends as their own (§2).
 - **Contractions are the default.**
 - **One screen.** If it does not fit, the detail belongs in a Reference document
   and the briefing links to it.
@@ -76,8 +80,8 @@ product owner, a manager, a stakeholder.
 
 ## 4. The Product register
 
-For copy inside the thing being used: interface strings, errors, notifications,
-onboarding, transactional email.
+For copy inside the thing being used: interface strings, dashboards, errors,
+notifications, onboarding, system and transactional email.
 
 **Warm does not mean funny.** Monzo dials clarity and kindness to the maximum for
 operational and support copy and sets humour to **none** — "the risk of getting
@@ -85,8 +89,16 @@ it wrong is greater than the benefit of getting it right". Everything this team
 writes for a product is in that category, so warmth comes from plain words and
 respect for the reader, never from a joke in an error message.
 
-- **"We" for the company, "you" for the reader.** Never "the user" in copy the
+- **Name the product, and say "you" to the reader.** "The advisor emails you
+  when a check fails." No "we" and no "I" (§2). Never "the user" in copy the
   user is reading.
+- **Nothing should look generated.** Someone looking at the screen should not be
+  able to tell a model wrote it (`writing-style.md` §1). The common tells in UI
+  copy:
+  - emoji in headings or labels
+  - marketing adjectives such as "seamless", "powerful" or "effortless"
+  - a subtitle that repeats what its heading already says
+  - "Welcome back!" exclamations and cheerful filler
 - **Contractions are the default** — the single largest warmth lever.
 - **Keep sentences to 25 words or fewer** — Mailchimp's published number, and
   tighter than the 40-word ceiling `writing-style.md` §5 sets for Reference.
@@ -113,9 +125,9 @@ rules.
   written for.
 - **Never blame the reader.** "That card number does not look right" beats
   "You entered an invalid card number".
-- **Apologise only when the fault is yours, and only once.** Monzo draws this
-  line sharply: say sorry sincerely where the product got it wrong — "We're
-  sorry", not "We'd like to apologise" — then move straight to what happens next.
+- **Apologise only when the fault is the product's, and only once.** Monzo draws
+  this line sharply. Say sorry plainly where the product got it wrong ("Sorry,
+  that payment didn't go through"), then move straight to what happens next.
   Where the news is simply unwelcome and nothing went wrong, **do not apologise
   at all.** A sorry the reader knows you do not owe them reads as insincere.
 - **Never promise a fix the code does not make.** "Try again in a few minutes"
@@ -147,9 +159,14 @@ Warmth changes how a claim is phrased. It never changes what is claimed.
    asserting an unverified fact is still an overclaim, and the warm register is
    where that is easiest to miss. `general-guidelines.md` owns this rule.
 3. **The machine-generated tells stay banned** in all three registers.
-   `writing-style.md` §7 lists them. "It's not just X, it's Y" does not become
-   acceptable by being friendly.
+   `writing-style.md` §7 lists them, contrast framing first. "This is X, not Y"
+   does not become acceptable by being friendly.
 4. **No fabricated feeling.** Warm means plain, human and considerate. It does
    not mean enthusiastic on the reader's behalf, and in no register does it mean
    funny. §4 sets the humour dial to none for product and support copy; a
    briefing inherits the same setting for the same reason.
+5. **Speed-read by default.** Every register assumes a skimming reader, so lists
+   beat paragraphs (`writing-style.md` §8). Web pages and UIs are the exception,
+   because their layout does that job.
+6. **Plain words and a natural rhythm.** `writing-style.md` §4 and §5 apply in
+   every register, code comments and UI copy included.

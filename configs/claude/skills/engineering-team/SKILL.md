@@ -478,10 +478,21 @@ writing or auditing docs.
 That file also caps how **long** a read-through document may be (§6), because a
 document nobody finishes has failed.
 
+**Everything the skill writes must read as if a person wrote it**, and that
+includes chat replies, emails, PR bodies, code comments and UI copy
+(`writing-style.md` §1). Assume it will be speed-read:
+
+- lists over prose, except on web pages and UIs
+- the shortest text that still states each fact
+- plain literal words and a natural spoken rhythm
+- no contrast framing ("This is X, not Y")
+
 **Who is reading is a third question, owned by `references/voice-registers.md`.**
-The rules above are the Reference register's, for engineers. Copy inside a
-product and documents written for a non-engineer use a warmer register, and
-`we` is carved out there. Register follows the file path.
+The rules above are the Reference register's, for engineers. Documents written
+for a non-engineer use the Briefing register, where `we` is permitted for the
+team. Product copy (UI, dashboards, system emails) names the product and uses no
+first person. "I" appears only in an email the user will send as their own.
+Register follows the file path.
 
 ## Cross-cutting references
 
