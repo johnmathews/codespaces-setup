@@ -487,7 +487,7 @@ Record what was reaped for the Phase 9 summary.
 ## Phase 9 — Session Summary Report
 
 After the table, and before any line saying the session can be closed, run
-`python3 ~/.claude/skills/engineering-team/scripts/model_usage.py` and print its output. The rule and what each exit
+`python3 ~/.claude/skills/engineering-team/scripts/model_usage.py` and print its output in a code block. The rule and what each exit
 code means are in `~/.claude/skills/engineering-team/SKILL.md`, "Closing a run".
 
 Print a plain ASCII table summarizing what each phase found and did. This gives the user a quick at-a-glance record of

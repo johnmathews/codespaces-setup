@@ -437,7 +437,8 @@ to say the session can be closed, or that all the work is done (a sitrep's
 python3 ~/.claude/skills/engineering-team/scripts/model_usage.py
 ```
 
-Put its output in the reply, just above the verdict. It reads this
+Put its output in the reply, in a code block so the columns stay aligned,
+just above the verdict. It reads this
 session's transcripts and lists the model each subagent actually ran on,
 with its elapsed time and tokens, plus the same for the lead.
 `references/team-structure.md` §"Choosing a model" says which should run
