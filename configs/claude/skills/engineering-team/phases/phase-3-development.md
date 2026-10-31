@@ -128,6 +128,10 @@ prevent — a unit "reported complete" in chat is invisible to every later run.
 
 Set `phase: 3` in `run.yaml` when you enter this phase.
 
+These announcements are the minimum. On a long or multi-agent stretch the user
+also gets a pulse when subagents start and return, and a sitrep whenever they
+ask how it is going (`../references/status-updates.md`).
+
 ## Pausing for user input
 
 If during Phase 3 you encounter a decision that genuinely needs user

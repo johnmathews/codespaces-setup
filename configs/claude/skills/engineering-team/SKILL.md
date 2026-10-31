@@ -444,6 +444,15 @@ There is no machine-readable marker contract. Instead:
   ("Starting W1: <title>", "W1 done — full suite green"). Never leave a
   started unit unaccounted for: by the end of the session each started
   unit is either reported done or reported abandoned with a reason.
+- **Status updates:** on a long or multi-agent run, send a one-line pulse
+  when agents start, when they return, and before any wait the user cannot
+  see, and a full situation report (sitrep) at each checkpoint. **Whenever
+  the user asks about status in any wording** ("how is it going", "do you
+  need anything from me", "what's done and what's left", "do we need a new
+  session", "sitrep"), answer with the sitrep. Its fixed shape, its
+  triggers and the new-session test live in `references/status-updates.md`;
+  load it at the first dispatch of a multi-agent batch or the first status
+  question.
 - **Pausing:** when a decision genuinely needs user input (see the phase
   docs for the criteria), stop work, ask the user directly — with the
   AskUserQuestion tool or a plain question — and wait for the answer
@@ -527,6 +536,10 @@ Load these on demand when their topic becomes relevant:
   and the sensing boundary. Load it with `multi-session.md` whenever a run has
   lanes.
 - `references/discussion.md` — Discussion workflow details.
+- `references/status-updates.md` — **keeping the user informed**: the
+  one-line pulse, the situation report's fixed shape (status, needs from
+  you, heads-up, done, doing now, still to do, finished?, session), when each is
+  sent, and when to recommend continuing in a new session.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for
   urgent reports.

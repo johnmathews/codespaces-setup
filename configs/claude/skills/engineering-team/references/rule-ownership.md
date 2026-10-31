@@ -41,6 +41,7 @@
 | `SKILL.md` (router) | the **concurrent-sessions premise** (assume other sessions; main checkout read-only; touch only what you created); `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
+| `references/status-updates.md` | **keeping the user informed**: the pulse and the sitrep, when each is sent, the sitrep's fixed section order, "done" in a sitrep means verified, estimates carry their basis, and the continue-or-new-session test |
 | `references/local-stack.md` | **see it running before CI**: a user-visible change runs locally in front of the user before `/done` pushes it; the login and the data survive restarts and worktrees (data outside the worktree, never reset unasked); demo data seeded wherever the project allows |
 
 ## 3. Cross-cutting invariants → canonical home
@@ -153,6 +154,14 @@ should point here.
 |---|---|---|
 | A user-visible change runs locally for the user before `/done` pushes it | §"1. When it applies" | phase 3 (pointer); phase 4 Step 0 (pointer) |
 | The local login and data survive restarts, rebuilds and worktree removal | §"3. Keep the login and the data" | phase 4 Step 0 (pointer) |
+
+### Homed in `status-updates.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| Any status question, in any wording, gets the full sitrep in its fixed order: status, needs from you, heads-up (only when needed), done, doing now, still to do, finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
+| A long or multi-agent stretch is never silent: a pulse when agents start, when they return, before an unseen wait, and at least every ten minutes | §"When to send a pulse" | `SKILL.md` §"Progress, pausing, and completion"; phase 3 (pointer); `wide-survey.md` §"Before you run it" step 5 |
+| Recommend a new session only when substantial work remains and a named signal holds (summarised, stale context, repetition); hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
 
 ### Homed in `team-structure.md`
 
