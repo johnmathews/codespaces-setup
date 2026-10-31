@@ -37,7 +37,7 @@
 | `references/worktree.md` | worktree isolation + the **detection idiom**; "already in one → don't nest"; project-conventions-outrank-defaults; linter setup; the **documentation gates**, the **make-a-check-required laws**, "gate the code no other gate reads", and the **stale-base push guard** |
 | `references/multi-session.md` | single-writer / one-artifact-one-owner; disjoint file footprints; append-only coordinator-owned plan; never-touch-another-lane's-worktree; the multi-session invariant list |
 | `references/coordination-protocol.md` | the three planes (control / state / sensing); the six-type message vocabulary + the mandatory `ref`; the blocking pre-PR gate + its four CHANGES criteria + the round limit; the contract register + unit zero + the integration gate; the sense-don't-act autonomy boundary |
-| `references/team-structure.md` | the **findings contract**; dispatch mechanics + the read-the-roster rule; which dispatches take the cheaper model tier; numbered-lists-to-the-user; clarifying-questions-first |
+| `references/team-structure.md` | the **findings contract**; dispatch mechanics + the read-the-roster rule; which dispatches take the mid model tier, and the floor below it; numbered-lists-to-the-user; clarifying-questions-first |
 | `SKILL.md` (router) | the **concurrent-sessions premise** (assume other sessions; main checkout read-only; touch only what you created); `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
@@ -178,7 +178,7 @@ should point here.
 |---|---|---|
 | The findings contract (one shape: severity, grade, title, location, evidence, detail, `covered`) | §"The findings contract — every brief carries it" | `wide-survey.md` (the machine form — the file says "change one, change the other in the same edit"); phases 1–3 |
 | Read the agent-type roster the session provides; never name a type from memory | §"Choosing an agent type" | phases 1, 3 |
-| Subagents inherit the lead's model, except five named dispatches that take the cheaper tier the tool lists | §"Choosing a model" | `wide-survey.md` (the script's `surveyModel`); `coordination-protocol.md` §3.3; `phase-3-development.md` §"Implementation"; `commands/done.md` Phase 2 |
+| Subagents inherit the lead's model, except five named dispatches that take the mid tier, never a tier below it | §"Choosing a model" | `wide-survey.md` (the script's `surveyModel`); `coordination-protocol.md` §3.3; `phase-3-development.md` §"Implementation"; `commands/done.md` Phase 2 |
 
 ## 4. Edit-together pairs, and the two rules with no single home
 

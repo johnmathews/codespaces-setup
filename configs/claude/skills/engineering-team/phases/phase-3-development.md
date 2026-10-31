@@ -340,7 +340,7 @@ investigate the unit competently and then be unable to change a single file. See
 "Choosing an agent type" in `../references/team-structure.md`.
 
 **The model inherits, except for small units.** A unit sized S, with risk below
-High and with acceptance criteria, goes to the cheaper tier. Every other unit
+High and with acceptance criteria, goes to the mid tier, never below it. Every other unit
 inherits the lead's model. See "Choosing a model" in
 `../references/team-structure.md`.
 

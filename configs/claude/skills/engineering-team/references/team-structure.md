@@ -121,13 +121,19 @@ every brief in this skill assumes that model. Override it in only the five
 dispatches below. Each is bounded or mechanical, or its output is checked
 again before anything rests on it.
 
-**Read the value off the tool, as with agent types.** Use the cheaper tier
-that the dispatching tool's description lists. At the time of writing, both
-the Agent tool and the Workflow `agent()` hook list `sonnet`. Confirm it
-there when you dispatch. If the tool lists no cheaper tier, or the lead
-already runs on it, omit `model` and dispatch as usual.
+**Read the value off the tool, as with agent types.** The target is the
+mid tier, which sits below the lead's top model and above the smallest one.
+At the time of writing that is `sonnet`, on both the Agent tool and the
+Workflow `agent()` hook. Confirm it in the tool's description when you
+dispatch. If the tool lists no mid tier, or the lead already runs on it,
+omit `model` and dispatch as usual.
 
-| Dispatch | Where | Why the cheaper tier is safe |
+**Never go below the mid tier.** No dispatch in this skill uses the
+smallest tier (`haiku` today). The tool's list also holds tiers below the
+mid tier, so "a cheaper tier" alone does not say which one is meant. The
+five dispatches below are judged safe on the mid tier only.
+
+| Dispatch | Where | Why the mid tier is safe |
 | --- | --- | --- |
 | Wide-survey surveyors (Stage 1) | `wide-survey.md` §"The script" | One lens on one area, with schema-bound output. The lead regrades every finding and disconfirms the load-bearing ones. |
 | Footprint check | `coordination-protocol.md` §3.3 | A mechanical comparison of the diff's paths against the declared footprint. |

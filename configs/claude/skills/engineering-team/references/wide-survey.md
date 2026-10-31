@@ -131,9 +131,14 @@ export const meta = {
 
 const { projectRoot, areas, lenses, surveyModel } = args
 
-// The surveyors take the cheaper tier (team-structure.md, "Choosing a model");
-// the consolidators inherit the lead's model. Absent surveyModel, all inherit.
-const SURVEY_OPTS = surveyModel ? { model: surveyModel } : {}
+// The surveyors take the mid tier (team-structure.md, "Choosing a model");
+// the consolidators inherit the lead's model. An allowlist, so a tier below
+// the mid tier, or a typo, falls back to inheriting: dearer, never weaker.
+const ALLOWED_SURVEY_MODELS = ['sonnet']
+const SURVEY_OPTS = ALLOWED_SURVEY_MODELS.includes(surveyModel) ? { model: surveyModel } : {}
+if (surveyModel && !SURVEY_OPTS.model) {
+  log(`surveyModel "${surveyModel}" is not allowed (${ALLOWED_SURVEY_MODELS.join(', ')}); surveyors inherit the lead's model`)
+}
 
 const FINDINGS = {
   type: 'object',
@@ -253,7 +258,7 @@ Pass `args` as a real JSON value — `{projectRoot, areas, lenses, surveyModel}`
 JSON-encoded string. A stringified object arrives as one string and every
 `.map` in the script throws.
 
-Set `surveyModel` to the cheaper tier the Workflow tool lists
+Set `surveyModel` to the mid tier the Workflow tool lists (`sonnet` today; the script ignores any other value)
 (`team-structure.md` §"Choosing a model"), or leave it out to have every
 agent inherit the lead's model.
 
