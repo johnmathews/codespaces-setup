@@ -74,6 +74,8 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     # rewrite that keeps the heading but drops the rule still reds.
     "model-floor": ("references/team-structure.md", MODEL_FLOOR_SIG),
     "closing-a-run": ("SKILL.md", r"Closing a run"),
+    # Before any closable verdict, the model report runs and is shown.
+    "model-report-before-verdict": ("SKILL.md", r"Before that verdict, show which models ran"),
     "heading-numbering": ("references/documentation-model.md", r"Heading numbering"),
     "announce-the-phase": ("SKILL.md", r"Announce phase transitions"),
     "messages-carry-no-state": ("references/coordination-protocol.md",
