@@ -23,6 +23,10 @@ main checkout is never written, except a fast-forward when it is on a clean `mai
 repo's skill checks, opens a PR, waits for CI, squash-merges it and records the new base. That
 takes a few minutes, mostly CI, so run it in the background and wait for it to finish.
 
+It waits only for the `ci` workflow's run on its commit. Other checks on the PR, such as the
+container smoke test, need services outside GitHub, so they never hold up the merge; a failed one
+is named in a "note:" line. Pass that note on to the user.
+
 ## Reading the result
 
 - **Exit 0**: report what was pushed, pulled and merged, the PR link and merge commit if there
@@ -37,7 +41,7 @@ takes a few minutes, mostly CI, so run it in the background and wait for it to f
   sides can't be decided. Files whose local copy is an older repo version, or that only the repo
   has, are listed as pulls. Ask the user which repo commit `~/.claude` was last installed from or
   synced to, and rerun with `--base <commit>`. If nobody knows, compare the files by hand.
-- **Exit 1, a check or CI failed**: show the failing output. The worktree (or PR) is left for
+- **Exit 1, a check or the `ci` workflow failed**: show the failing output. The worktree (or PR) is left for
   inspection, and anything already pulled stays in `~/.claude`. The usual cause is
   `lint-skill-versions.sh`: a changed script under a skill's `scripts/` needs its
   `SCRIPT_VERSION` bumped. Fix it in `~/.claude`, close the failed PR

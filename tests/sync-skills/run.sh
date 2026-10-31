@@ -21,6 +21,9 @@
 #      then stops at the PR (exit 1).
 #   7. The repo holds a newer sync-skills.sh: the running copy pulls it and
 #      restarts on it.
+#   8. The CI gate, with a fake gh past the PR: it merges when the ci workflow
+#      passed even though another check (the smoke test) failed, and names that
+#      check; it merges nothing when the ci workflow failed.
 
 set -uo pipefail
 
@@ -179,6 +182,52 @@ check "the newer script is pulled" grep -q "^# newer copy" "${WORK}/home/.claude
 check "it stays executable" test -x "${WORK}/home/.claude/scripts/sync-skills.sh"
 check "the run restarts on it" out_has "restarting on it"
 check "the restarted run finishes in sync" out_has "already in sync"
+
+echo "8. the CI gate is the ci workflow alone"
+# A fake gh: signed in, opens a PR, finds one ci.yml run whose conclusion the
+# case chooses, and reports a failed smoke check beside a passing lint.
+mkdir -p "${WORK}/fakebin"
+cat >"${WORK}/fakebin/gh" <<'EOF'
+#!/usr/bin/env bash
+echo "gh $*" >>"${FAKE_GH_LOG}"
+case "$1 $2" in
+  "auth status") exit 0 ;;
+  "pr create") echo "https://github.com/johnmathews/codespaces-setup/pull/999" ;;
+  "run list") [[ " $* " == *" --workflow ci.yml "* ]] && echo 4242 ;;
+  "run watch") exit 0 ;;
+  "run view") echo "${FAKE_CI_CONCLUSION}" ;;
+  "pr checks")
+    printf 'lint\tpass\t1m\thttps://example.invalid/1\n'
+    printf 'smoke (universal:6)\tfail\t5m\thttps://example.invalid/2\n'
+    exit 1
+    ;;
+  "pr merge") touch "${FAKE_GH_MERGED}" ;;
+  "pr view") echo abcdef1234567 ;;
+  *)
+    echo "fake gh: unexpected: $*" >&2
+    exit 1
+    ;;
+esac
+EOF
+chmod +x "${WORK}/fakebin/gh"
+run_fake_gh() {
+  rm -f "${WORK}/merged" "${WORK}/gh.log"
+  PATH="${WORK}/fakebin:${PATH}" FAKE_GH_LOG="${WORK}/gh.log" FAKE_GH_MERGED="${WORK}/merged" \
+    FAKE_CI_CONCLUSION="$1" SYNC_SKILLS_POLL=0 run --base "${B}"
+}
+fresh_home
+local_edits
+run_fake_gh success
+check "ci passed, smoke failed: exit 0" rc_is 0
+check "it merges" test -f "${WORK}/merged"
+check "it waits on the ci.yml run for the synced commit" grep -q "run list --workflow ci.yml --commit" "${WORK}/gh.log"
+check "it names the failed check that did not gate" out_has "do not gate: smoke \\(universal:6\\)"
+fresh_home
+local_edits
+run_fake_gh failure
+check "ci failed: exit 1" rc_is 1
+check "it merges nothing" test ! -f "${WORK}/merged"
+check "it says the ci workflow failed" out_has "CI \\(ci.yml\\) ended 'failure'"
 
 for wt in $(git -C "${WORK}/repo" worktree list --porcelain | awk '/^worktree /{print $2}' | tail -n +2); do
   git -C "${WORK}/repo" worktree remove --force "${wt}"

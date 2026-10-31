@@ -1,0 +1,68 @@
+name: smoke
+
+# Runs setup.sh end to end in real devcontainer images. This is the only thing
+# that executes the installer scripts; everything in ci.yml lints them, checks
+# their wiring, or drives the runner over fake steps. ~2000 lines of what this
+# repo ships would otherwise be exercised by nothing, and every defect in them
+# would stay latent until someone created a Codespace.
+#
+# It is a SIGNAL, never a gate, and it will not become one. Its whole job is to
+# download and install real tools from apt mirrors, GitHub releases, nodejs.org,
+# npm and PyPI, so its result depends on services outside this repo being up. A
+# red here means "look at the log": a defect in an installer, or an outage
+# upstream. ci.yml is the gate, and /sync-skills merges on ci.yml alone.
+#
+# It used to be a job inside ci.yml with continue-on-error. That kept the
+# workflow's conclusion green, but the PR still showed a red check, and
+# /sync-skills, which then waited on every check, refused to merge a change to
+# skill docs because a Neovim plugin download had failed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly, so an upstream change (a moved release asset, a new image) shows up
+  # even in a week with no commits.
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    # GitHub's default job timeout is 6 hours, and a wedged install should
+    # report in minutes.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two images, because a real failure showed that one is not enough: a
+        # smoke test on this repo's own pinned base:ubuntu was green while a
+        # user's Codespace could not finish setup at all.
+        #
+        # The second leg is the "universal" image — what GitHub gives a repo
+        # with no devcontainer.json, and therefore what the account-wide
+        # dotfiles path most often lands on. It is very large and allowed to be
+        # slow; what matters is that it is a DIFFERENT image from the one this
+        # repo pins.
+        #
+        # Deliberately universal:6 (Ubuntu 24.04 noble) rather than :2. The :2
+        # tag is the focal (Ubuntu 20.04) line and is four major versions
+        # behind; its glibc 2.31 cannot run Neovim, yazi or stylua at all, so
+        # that leg could only ever be red. A permanently-red check is one people
+        # learn to ignore, which is worse than not having it. The kit now
+        # detects that case and skips those tools with an explanation
+        # (require_glibc in scripts/lib.sh) rather than failing.
+        image:
+          - mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+          - mcr.microsoft.com/devcontainers/universal:6
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: run setup.sh in ${{ matrix.image }}
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: bash ci/smoke-container.sh
