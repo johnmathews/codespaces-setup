@@ -209,6 +209,26 @@ change — say that instead of staying silent. An unreported red observation
 and an impossible one look identical in a summary, which is how this
 degrades into the "should" it used to be.
 
+**A pin test is the one test meant to pass before the change.** It pins
+behaviour that already works, so the change can't break it unnoticed: the
+safety net written before a refactor, or the neighbouring case beside a bug
+fix. Green before the change is right for a pin, and it is not the unit's red
+observation. Three rules keep it honest:
+
+- **Call it a pin in the report**, so green-before reads as intended rather
+  than as a test that proves nothing:
+
+  > W5: `test_export_keeps_column_order` is a pin: green before and after;
+  > seen red when the sort was removed by hand.
+
+- **See it go red once, by breaking the behaviour it pins by hand**: a
+  one-line edit, undone straight after. A pin that can't go red guards
+  nothing. When breaking it is not cheap, say the pin was not seen red.
+- **A pin never stands in for the change's own test.** A unit that adds or
+  fixes behaviour still needs a test of that behaviour, seen red. A pure
+  refactor, whose whole point is that behaviour does not change, may have
+  only pins; say so.
+
 **Code work units** (the work unit modifies or creates executable code):
 1. **Documentation:** Write or update the relevant documentation first. This forces
    clarity about what the change should accomplish before writing any code.
@@ -376,6 +396,18 @@ done inside its footprint or without breaking a constraint.
 "$RUN_DIR"` and `scripts/check_plan.py`. A plan whose unit list disagrees with
 `run.yaml` sends every subagent in with a wrong picture of who owns what.
 
+**Before each dispatch, check the unit's own two fields.**
+
+- **Dependencies:** every unit it names as a hard dependency is `done` in
+  `run.yaml`. If one isn't, the unit waits, and the sitrep says why.
+- **Acceptance criteria:** the brief quotes them, and the review judges the
+  unit against them. If they are missing or too vague to judge ("works",
+  "tests pass"), write them into the plan before dispatching, and mention the
+  addition in the next update. `check_plan.py` warns about a unit with
+  either field missing (W3, W4). Criteria the lead makes up only in the
+  brief are lost at a hand-over, and the review has nothing written to
+  check against.
+
 Each implementing subagent should:
 - Read the files listed above, then its own unit in full
 - Follow the doc → test → code order strictly
@@ -385,12 +417,14 @@ Each implementing subagent should:
   (see the "Stable element ids" rule in `../references/general-guidelines.md`)
   so elements can be discussed and tested precisely
 - Run tests after implementation
-- Report back: what was done, what tests pass/fail, any issues encountered,
-  which of the files above it read, and how the change keeps to the plan's
-  constraints and the user's request
+- Report back: what was done, what tests pass/fail (with the red
+  observation, and which tests are pins), any issues encountered, which of
+  the files above it read, how it meets each acceptance criterion, and how
+  the change keeps to the plan's constraints and the user's request
 
 As Lead Engineer, review each completed unit before marking it done. Check:
-- Does the implementation match the plan?
+- Does the implementation match the plan, and does it meet each of the unit's
+  acceptance criteria?
 - Does it keep to the plan's constraints and the user's request in
   `request.md`? Check this against the files, not memory: a rule the lead
   forgot is a rule the review misses.

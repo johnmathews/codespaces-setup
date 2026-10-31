@@ -16,9 +16,11 @@ units:
 ## W1: Fix Optional<Config> handling
 
 - **ID:** W1
+- **Dependencies:** none
 - **Acceptance criteria:** `test_optional_config` passes.
 
 ## W2: Make Repository<Foo> null-safe
 
 - **ID:** W2
+- **Dependencies:** none
 - **Acceptance criteria:** `test_repo_null` passes.
