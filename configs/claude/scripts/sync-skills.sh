@@ -389,8 +389,11 @@ run_check python3 "$DS/design_preview.py" --selftest
 run_check node "$DS/render_previews.mjs" --selftest
 run_check python3 "$DS/mockup.py" --selftest
 run_check node "$DS/render_mockup.mjs" --selftest
+# The second try resolves from uv's cache alone, so a PyPI outage doesn't fail
+# the check when the packages were fetched before. A real failure fails both.
+uv_run_cached() { uv run -q "$@" || uv run -q --offline "$@"; }
 if command -v uv >/dev/null; then
-  run_check uv run -q --with fonttools --with brotli python3 "$DS/wordmark.py" --selftest
+  run_check uv_run_cached --with fonttools --with brotli python3 "$DS/wordmark.py" --selftest
 else
   log "uv not installed: skipping wordmark.py's selftest (CI still runs it)"
 fi
@@ -418,11 +421,33 @@ git -C "$WT" push -q -u origin "$BRANCH"
 pr_url="$(cd "$WT" && gh pr create --base main --head "$BRANCH" --title "$subject" --body "$body")"
 log "PR: $pr_url"
 
-log "waiting for CI"
-sleep 15 # checks register a few seconds after the PR opens
-if ! (cd "$WT" && gh pr checks "$pr_url" --watch --interval 20 >/dev/null 2>&1); then
+# The gate is the ci workflow's run on the synced commit, and nothing else.
+# Other checks on the PR depend on services outside GitHub (the container smoke
+# test installs real tools from the internet; third-party apps have their own
+# outages), so they are reported, never waited on: a change to skill docs must
+# not be held up by a CDN. Waiting on every check is how a failed Neovim plugin
+# download once stopped a sync.
+CI_WORKFLOW="ci.yml"
+POLL="${SYNC_SKILLS_POLL:-20}" # seconds; the test sets 0
+log "waiting for CI ($CI_WORKFLOW)"
+run_id=""
+# A run registers a few seconds after the PR opens.
+for _ in $(seq 1 30); do
+  run_id="$(cd "$WT" && gh run list --workflow "$CI_WORKFLOW" --commit "$SYNCED" --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
+  [[ -n "$run_id" ]] && break
+  sleep "$POLL"
+done
+[[ -n "$run_id" ]] ||
+  die "no $CI_WORKFLOW run started for $pr_url; nothing merged (worktree left at $WT). ~/.claude keeps what was pulled."
+(cd "$WT" && gh run watch "$run_id" --interval "$POLL" >/dev/null 2>&1) || true
+conclusion="$(cd "$WT" && gh run view "$run_id" --json conclusion -q .conclusion 2>/dev/null || true)"
+if [[ "$conclusion" != success ]]; then
   (cd "$WT" && gh pr checks "$pr_url") | sed 's/^/  /' || true
-  die "CI failed on $pr_url; nothing merged (worktree left at $WT). ~/.claude keeps what was pulled."
+  die "CI ($CI_WORKFLOW) ended '${conclusion:-unknown}' on $pr_url; nothing merged (worktree left at $WT). ~/.claude keeps what was pulled."
+fi
+others="$(cd "$WT" && gh pr checks "$pr_url" 2>/dev/null | awk -F'\t' '$2 == "fail" { print $1 }' || true)"
+if [[ -n "$others" ]]; then
+  log "note: merging on $CI_WORKFLOW; these other checks failed and do not gate: $(paste -sd ',' - <<<"$others" | sed 's/,/, /g')"
 fi
 
 # A squash merge that would conflict (main changed the same file meanwhile)

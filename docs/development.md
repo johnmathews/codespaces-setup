@@ -1,6 +1,6 @@
 # Development
 
-**Status:** active. **Last updated:** 2026-10-25. **Last verified:** 2026-10-25 (the sync-skills test, shellcheck and shfmt below executed; the design-system and skill-version commands 2026-10-24; the rest last executed 2026-09-01). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `tests/setup-resilience/**`, `configs/claude/skills/design-system/scripts/**`, `configs/claude/scripts/**`, `tests/sync-skills/**`.
+**Status:** active. **Last updated:** 2026-10-31. **Last verified:** 2026-10-31 (the sync-skills test, shellcheck and shfmt below executed; the design-system and skill-version commands 2026-10-24; the rest last executed 2026-09-01). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `.github/workflows/smoke.yml`, `tests/setup-resilience/**`, `configs/claude/skills/design-system/scripts/**`, `configs/claude/scripts/**`, `tests/sync-skills/**`.
 
 
 This repo is a set of provisioning shell scripts — there is no application code,
@@ -77,10 +77,27 @@ bash tests/sync-skills/run.sh
 The resilience suite also exercises the Neovim bootstrap/sync wrappers over fake
 upstream scripts: checkout working directory, user-local prefix/PATH, proxy trust,
 retry recovery, timeout, and truthful failure status. The real container smoke
-test (`bash ci/smoke-container.sh`) uses the devcontainer post-create entrypoint
+test (`bash ci/smoke-container.sh`, run by `.github/workflows/smoke.yml`) uses the devcontainer post-create entrypoint
 on Ubuntu 24.04, waits for background sync to finish, checks the selected Neovim
 pin and unchanged lockfile, then reruns config deployment, bootstrap and sync.
 CI also exercises the account-wide dotfiles environment with `universal:6`.
+
+### What gates and what only reports
+
+`ci.yml` is the gate, and its result must not depend on a service outside
+GitHub being up: `/sync-skills` merges on its run alone, so a red there has to
+mean a defect in this repo. shellcheck and shfmt come from GitHub release
+assets (shfmt was a Docker Hub image), the zsh install retries, and the one
+PyPI package (fontTools, with brotli) is kept in GitHub's uv cache and retried
+`--offline` from it when PyPI is down. On a cold cache with PyPI down, that
+step can still fail.
+
+`smoke.yml` runs on every PR, on `main`, weekly and by hand, and **never
+gates**. Its job is to install real tools from apt mirrors, GitHub releases,
+nodejs.org, npm and PyPI, so it can fail because one of them is down. Read a
+red smoke run as "look at the log", not "the change is wrong". It used to be a
+`continue-on-error` job inside `ci.yml` waiting to be promoted to required;
+it won't be, because it can never stop depending on the internet.
 
 Install the tools on macOS with `brew install shfmt shellcheck` (the Codespace
 itself already installs `shfmt` via `scripts/15-dev-tools.sh`).
