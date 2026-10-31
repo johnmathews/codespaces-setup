@@ -178,7 +178,7 @@ should point here.
 |---|---|---|
 | The findings contract (one shape: severity, grade, title, location, evidence, detail, `covered`) | §"The findings contract — every brief carries it" | `wide-survey.md` (the machine form — the file says "change one, change the other in the same edit"); phases 1–3 |
 | Read the agent-type roster the session provides; never name a type from memory | §"Choosing an agent type" | phases 1, 3 |
-| Subagents inherit the lead's model, except five named dispatches that take the mid tier, never a tier below it | §"Choosing a model" | `wide-survey.md` (the script's `surveyModel`); `coordination-protocol.md` §3.3; `phase-3-development.md` §"Implementation"; `commands/done.md` Phase 2 |
+| Subagents inherit the lead's model, except four named dispatches that take the mid tier, never a tier below it; the footprint check is a script | §"Choosing a model" | `wide-survey.md` (the script's `surveyModel`); `coordination-protocol.md` §3.3; `phase-3-development.md` §"Implementation"; `commands/done.md` Phase 2 |
 
 ## 4. Edit-together pairs, and the two rules with no single home
 

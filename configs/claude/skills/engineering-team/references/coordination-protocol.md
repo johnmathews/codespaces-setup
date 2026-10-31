@@ -175,13 +175,23 @@ affordable.
 
 ### 3.3 Panel selection — by what the unit touched
 
-**Always dispatch both:**
+**Always run both:**
 
 - **Acceptance-criteria check** — an agent reading *only* the unit spec and the
   diff, answering met/unmet per criterion. This is what catches "the wrong thing was
   built correctly".
-- **Footprint check** — mechanical: did the diff stay inside the declared paths.
-  Cheap, and it is the scope-creep guard.
+- **Footprint check** — a script, with no agent and no model. It is the scope-creep
+  guard: did the diff stay inside the paths the unit declared?
+
+  ```bash
+  python3 scripts/check_footprint.py "$RUN_DIR" W<n> [W<m> ...] --repo <lane worktree>
+  ```
+
+  It compares `git diff <base>...HEAD` (default base `origin/main`) with the units'
+  **Files (footprint):** fields, joined when the PR ships several units. Exit 1 lists
+  each file outside the footprint, which is a `CHANGES` verdict (§3.4 item 3). Exit 2
+  means the footprint could not be read: a missing field, or one written as prose.
+  That is a plan defect, so fix the plan and run it again. It never counts as a pass.
 
 **Add, conditional on the diff:**
 
@@ -194,8 +204,8 @@ affordable.
 | Unit sized M or larger | `code-reviewer` or `/code-review` |
 
 Name agent types from the roster the session provides (`references/team-structure.md`).
-The two always-on checks run on the mid tier (never below it), and the conditional reviewers
-inherit the lead's model (`references/team-structure.md` §"Choosing a model").
+The acceptance-criteria check runs on the mid tier (never below it), and the conditional
+reviewers inherit the lead's model (`references/team-structure.md` §"Choosing a model").
 
 ### 3.4 What makes a verdict `CHANGES` — exactly four things
 
