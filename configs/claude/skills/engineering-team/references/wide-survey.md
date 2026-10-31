@@ -129,7 +129,11 @@ export const meta = {
   ],
 }
 
-const { projectRoot, areas, lenses } = args
+const { projectRoot, areas, lenses, surveyModel } = args
+
+// The surveyors take the cheaper tier (team-structure.md, "Choosing a model");
+// the consolidators inherit the lead's model. Absent surveyModel, all inherit.
+const SURVEY_OPTS = surveyModel ? { model: surveyModel } : {}
 
 const FINDINGS = {
   type: 'object',
@@ -199,7 +203,7 @@ const results = await pipeline(
             `In "covered", say what you actually read. If you ran out of room, say so —`,
             `an honest partial answer is useful and a silent one is not.`,
           ].join('\n'),
-          { label: `${lens.key}:${area.key}`, phase: 'Survey', schema: FINDINGS },
+          { label: `${lens.key}:${area.key}`, phase: 'Survey', schema: FINDINGS, ...SURVEY_OPTS },
         ),
       ),
     ),
@@ -245,9 +249,13 @@ return {
 }
 ```
 
-Pass `args` as a real JSON value — `{projectRoot, areas, lenses}` — not a
+Pass `args` as a real JSON value — `{projectRoot, areas, lenses, surveyModel}` — not a
 JSON-encoded string. A stringified object arrives as one string and every
 `.map` in the script throws.
+
+Set `surveyModel` to the cheaper tier the Workflow tool lists
+(`team-structure.md` §"Choosing a model"), or leave it out to have every
+agent inherit the lead's model.
 
 ### Footguns
 

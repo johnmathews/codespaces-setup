@@ -150,7 +150,8 @@ This applies throughout every phase below. When in doubt, search first.
      audit's checklist — if you skip it, you are self-certifying.
   2. **Audit each surface against the docs with fresh eyes.** If the session changed code, structure, config, or APIs,
      **dispatch a subagent whose sole job is to cross-check documentation claims against the SHIPPED code** and return
-     concrete findings with `file:line`. (A dedicated adversarial pass is what reliably catches issues; the author who
+     concrete findings with `file:line`. Dispatch it on the cheaper model tier the Agent tool lists (rule and fallback:
+     `~/.claude/skills/engineering-team/references/team-structure.md`, "Choosing a model"). (A dedicated adversarial pass is what reliably catches issues; the author who
      just wrote the code is blind to their own stale assumptions.) For trivial or doc-only sessions, run the same three
      checks inline. The audit MUST cover all three of:
      - **Accuracy / staleness:** Does any doc, top-level `README.md`, `CLAUDE.md`, or architecture/design doc describe
