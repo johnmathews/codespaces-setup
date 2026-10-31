@@ -45,12 +45,14 @@ A pulse reports outcomes and waits. It never narrates tool calls ("Now reading
   "do you need anything from me?", "what's done and what's left?", "when will it
   be finished?", "do we need a new session?", "where are we?", "sitrep". Open
   with a one-line direct answer to the question asked, then send the sitrep.
+  A question about the session alone ("do we need a new session?") gets the
+  direct answer and the §4 reasoning, without the rest of the sitrep.
 - **A phase starts or ends.** The one-line phase announcement (`SKILL.md`
   §"Announce phase transitions") comes first, then the sitrep.
 - **A multi-agent batch or Workflow finishes**, once its results are read.
 - **The run pauses for user input.** The question goes under "Needs from you",
   so it is never buried in a paragraph.
-- **The session test in §4 turns to "move".** Say so in the next update without
+- **The overlap test in §4 turns to "move".** Say so in the next update without
   waiting to be asked.
 - **The session ends.** The final summary takes the sitrep shape, and the
   session verdict from `SKILL.md` §"Closing a run" is its last line.
@@ -98,8 +100,8 @@ next deploy, or the app won't start.
 **Finished?** No. 3 units are left, and each has taken about 30 minutes. Expect
 it done around 15:30 CET if you answer by 14:45.
 
-**Session:** Fine to continue here. The conversation hasn't been summarised
-yet, and the remaining units use files already loaded.
+**Session:** Fine to continue here. W5 to W7 are in the same billing code as
+W1 to W4, and lean on what we learned there. About 90k tokens so far.
 ```
 
 ### 3.1 Rules for each section
@@ -179,45 +181,108 @@ If the sitrep and `run.yaml` disagree, fix `run.yaml` before sending.
 
 ## 4. Continue here, or start a new session?
 
-The lead cannot measure how full its context is. It can observe signals, and the
-"Session" line names the ones it used.
+The question is how much of what this session holds the work ahead will use.
+Context size alone cannot answer it. A large session whose remaining work uses
+that context is better off continuing. A small one about to switch to unrelated
+work is better off handing over.
 
-**The signals:**
+### 4.1 When to ask it
 
-1. **The conversation has been summarised** (compacted to free space) at least
-   once. Early detail now exists only as a summary.
-2. **Most of the context is about finished work.** For example, Phase 1's survey
-   reports are still loaded during Phase 3 edits, or the session ran unrelated
-   tasks before this run.
-3. **The lead is repeating itself.** It re-reads files it already read, or asks
-   about something the user already settled. Earlier context is being lost.
+At every unit boundary and every phase boundary, and whenever the user asks
+("do we need a new session?", "would you like to continue in a new session?").
+Those boundaries are where the overlap changes. Auto-compaction is far too late
+a signal: on a 1M-token window it runs near the end of the window, long after
+answers have started to suffer from carrying stale material.
 
-**The test.** Recommend a new session when substantial work remains (two or
-more units, or a whole phase) **and** at least one signal holds. Signal 3 is
-enough on its own, whatever is left. With about one unit left, stay: a
-hand-over costs re-reading the plan and the files, which rarely pays for
-itself that close to the end.
+### 4.2 The overlap test
 
-**Handing over is cheap, by design.** `run.yaml`, the plan and
+1. **Name the work ahead.** The next units, or the next phase.
+2. **Name what that work needs.** The parts of the code, the decisions and
+   conventions, what the user has said they prefer, and what has already been
+   tried and failed.
+3. **Compare it with what this session holds.** Then decide:
+
+| The work ahead | Decision |
+| --- | --- |
+| Continues the same thread: the same files or area, the same kind of task, and it leans on things learned in this conversation | **Stay.** A new session would have to relearn it, and a hand-over loses nuance |
+| Moves somewhere else: another part of the code, another kind of task (for example from evaluating to building, or from code to docs), or a fresh question | **Move.** Most of this context is dead weight for that work |
+| Mixed | **Move at the point where the overlap drops**, usually after the units that share this context |
+
+The test asks two separate questions, and they can disagree:
+
+- **Is the same knowledge needed?** That decides whether staying is worth it.
+- **Is that knowledge on disk already?** That decides what a hand-over costs.
+  Knowledge held in the code, the plan or an ADR moves for free. A preference
+  the user states, or a decision settled in chat, goes into the plan or an ADR
+  as soon as it is made, whatever this test says, because a compaction can lose
+  it too. What remains is knowledge that is hard to write down: familiarity
+  with the code, and why the dead ends were dead. That is a real reason to
+  stay.
+
+**A switch has a cost**: the new session re-reads `SKILL.md`, `run.yaml`, the
+plan and the files it needs, and the user has to start it. So between units of
+the same phase, with a context under about 100k tokens, low overlap alone is not
+enough. Move at the next phase boundary instead. In Phase 3, subagents do most
+of the reading, so the lead's own context carries less of the code than it
+seems.
+
+### 4.3 Size and warning signs
+
+These change how urgent the answer is. Below the ceiling, they don't decide it
+on their own.
+
+- **Size.** `scripts/context_usage.py` reports the context size in tokens from
+  the session's transcript. With low overlap and a large context, hand over at
+  the next break point. With high overlap and a large context, stay, and keep
+  state on disk at every unit so a compaction loses nothing. A manual `/compact`
+  with a focus instruction ("keep the billing decisions, drop the survey") is
+  an alternative to a switch. The script relies on an undocumented transcript
+  format, so if it prints "unknown", judge by how much has passed through the
+  session: whole-file reads, logs, subagent reports.
+- **The ceiling.** Past about half the window, size decides on its own: hand
+  over at the next break point whatever the overlap. That is about 500k tokens
+  on a 1M window, or 100k on a 200k window. The model's documentation gives the
+  window size.
+- **Already summarised.** The session has been compacted. Anything learned
+  before the summary counts as not held unless it is on disk, so redo the
+  overlap test with that smaller set.
+- **Repetition.** The lead re-reads an unchanged file because it no longer
+  remembers what the file says, or asks about something the user settled.
+  Re-reading after an edit doesn't count. Earlier context is being lost, so
+  move at the next break point, whatever the overlap.
+
+### 4.4 Handing over
+
+Handing over is cheap by design. `run.yaml`, the plan and
 `.engineering-team/current.txt` let a fresh session resume the run (`SKILL.md`
-§"The run directory"). So:
+§"The run directory").
 
 1. **Recommend a break point now.** The end of the current unit, or the merge of
    the open PR. Never in the middle of a unit with unrecorded changes.
 2. **At the break point, put the state on disk.** Bring `run.yaml` up to date,
-   and write down every decision and every open question that exists only in
+   and write down every decision, open question and lesson that exists only in
    chat: in the plan, an ADR, or a note in `$RUN_DIR`. An open question left in
    chat gets asked again by the next session.
-3. **Then offer `/prompt`** if the session has it. It writes a continuation
-   prompt to paste into the new session.
+3. **Let running work land first.** Wait for background agents and Workflows
+   to finish and for their results to be saved. CI and open PRs survive the
+   switch, so the new session can pick those up.
+4. **Tell the user what is being carried over.** List what existed only in chat
+   and where it now lives, so the user can trust the hand-over.
+5. **Give the user the steps.** Run `/prompt` here if the session has it, open a
+   new session in the same directory, and paste the prompt it wrote.
 
-Until step 2 is done, the next step depends on context that exists only in this
-conversation, so stay.
+The Session line gives the decision, the main reason in one sentence (the
+overlap, or a warning sign from §4.3), and the size, or "size unknown":
 
 > **Session:** Move to a new session once W3 merges, in about 15 minutes. This
-> one has been summarised once and still holds the Phase 1 survey reports,
-> which W4 and W5 don't need. At that point we save the open question to the
-> plan, and `/prompt` writes the hand-over.
+> session has been in the auth code; W4 and W5 are the reports queries and the
+> deploy guide, which need none of it. It also holds about 170k tokens of Phase
+> 1 survey reports. At that point we save the open question to the plan, and
+> `/prompt` writes the hand-over.
+
+> **Session:** Fine to continue here. W4 is the next part of the same export
+> code, and it depends on the edge cases we found in W3, which aren't written
+> down anywhere else. About 120k tokens so far.
 
 ## 5. Mistakes to avoid
 

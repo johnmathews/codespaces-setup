@@ -382,7 +382,7 @@ run_check() {
 }
 ET="$DEST_PREFIX/skills/engineering-team/scripts"
 DS="$DEST_PREFIX/skills/design-system/scripts"
-for s in check_report check_run check_plan check_board; do run_check python3 "$ET/$s.py" --selftest; done
+for s in check_report check_run check_plan check_board context_usage; do run_check python3 "$ET/$s.py" --selftest; done
 run_check python3 "$DS/check_design_system.py" --selftest
 run_check python3 "$DS/design_preview.py" --selftest
 run_check node "$DS/render_previews.mjs" --selftest

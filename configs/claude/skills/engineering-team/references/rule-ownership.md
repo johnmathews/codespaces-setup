@@ -161,7 +161,7 @@ should point here.
 |---|---|---|
 | Any status question, in any wording, gets the full sitrep in its fixed order: status, needs from you, heads-up (only when needed), done, doing now, still to do, finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
 | A long or multi-agent stretch is never silent: a pulse when agents start, when they return, before an unseen wait, and at least every ten minutes | §"When to send a pulse" | `SKILL.md` §"Progress, pausing, and completion"; phase 3 (pointer); `wide-survey.md` §"Before you run it" step 5 |
-| Recommend a new session only when substantial work remains and a named signal holds (summarised, stale context, repetition); hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
+| Continue-or-move is decided by overlap: does the work ahead need what this session holds, and is that knowledge on disk? Size and compaction only change the urgency. Checked at every unit and phase boundary; hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
 
 ### Homed in `team-structure.md`
 
