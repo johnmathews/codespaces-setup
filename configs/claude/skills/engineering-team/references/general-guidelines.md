@@ -181,6 +181,9 @@ So, concretely:
   Reading a call site is not evidence about what its dependency returns.
 - **Revert the fix and watch the test fail.** A test that passes either way
   proves nothing — and *why* it passes either way is often the real finding.
+  A pin test, which guards behaviour that already works, is green before the
+  change by design; it goes red by breaking that behaviour instead
+  (`../phases/phase-3-development.md`, "The red observation is required").
 - **A defect in code that has been in production and working deserves more
   suspicion, not less.** If it were really broken that way, something
   would likely have shown by now.

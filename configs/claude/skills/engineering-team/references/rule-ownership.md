@@ -152,6 +152,8 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
+| Every behavioural test is seen red before its fix and the red is reported; a pin test (guarding behaviour that already works) is named as one, is seen red by breaking what it pins, and never replaces the change's own test | §"The red observation is required" | `references/general-guidelines.md` ("Revert the fix and watch the test fail") |
+| Before each dispatch, the unit's hard dependencies are `done` and its acceptance criteria are written in the plan; the brief quotes them and the review judges against them | §"Implementation" | phase 2 (the **Dependencies** and **Acceptance criteria** fields); `scripts/check_plan.py` (W3, W4) |
 | An implementing subagent's brief points, by absolute path, at `request.md`, the whole plan (constraints included), the definition of done, the project's rules, and the report's summary plus the unit's cited findings, plus the lead's own notes; never the conversation transcript. The review checks the work against the constraints and `request.md` | §"Implementation" | `SKILL.md` §"The run directory" (`request.md` is created with the run); phase 1 (writes `request.md`); phase 2 (the unit's **Findings** field); `commands/prompt.md` (hand-overs carry `request.md`) |
 
 ### Homed in `local-stack.md`

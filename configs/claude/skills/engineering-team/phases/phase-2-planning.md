@@ -218,11 +218,16 @@ it deliberately excludes as by what it includes.
   one-way migration), say so explicitly — that signals "review extra carefully" to
   implementation and to the user.
 - **Dependencies:** Hard dependencies — units that must complete first. Note soft
-  dependencies separately ("easier after W3 but not blocked by it").
+  dependencies separately ("easier after W3 but not blocked by it"). Write "none"
+  when there are none: Phase 3 checks this field before dispatching the unit, and a
+  dependency left out of the plan exists only in the lead's memory.
 - **Acceptance criteria:** Specific, observable conditions. "Tests pass" is not enough —
   name *which behavior* is verified by *which test*, or what the user-visible outcome is.
   For doc changes, name the section that exists and is correct. The criterion should let
-  someone other than the implementer judge whether the unit is done.
+  someone other than the implementer judge whether the unit is done. Phase 3 quotes it
+  in the subagent's brief and reviews the unit against it. (A verification unit's
+  **How it goes red** plays this part.) `scripts/check_plan.py` warns about a unit
+  missing either of these two fields.
 
 **Verification units** — Not every unit's deliverable is a diff. Some units
 exist to produce an **observation**, and the field list above cannot carry
