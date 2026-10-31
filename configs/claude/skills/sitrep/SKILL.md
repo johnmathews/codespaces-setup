@@ -39,6 +39,10 @@ remembers:
 4. **Git:** the branch, uncommitted changes, and commits not yet pushed.
 5. **Size:** `python3 ~/.claude/skills/engineering-team/scripts/context_usage.py`. If it prints
    "unknown", judge size as §4.3 says.
+6. **Models**, when the report will say `Finished? Yes` or that the session can be closed:
+   `python3 ~/.claude/skills/engineering-team/scripts/model_usage.py`. Show its output after the
+   Session line. The rule and what each exit code means are in
+   `~/.claude/skills/engineering-team/SKILL.md`, "Closing a run".
 
 ## Step 3 — Fill the gaps when there is no run
 

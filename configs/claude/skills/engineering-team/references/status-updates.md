@@ -193,8 +193,11 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
     measurement behind it is a claim stronger than its check
     (`general-guidelines.md` rule 2).
   - If a move to a new session is planned, include it in the estimate.
+  - A `Yes` comes with the model report, placed after the Session line
+    (`SKILL.md` §"Closing a run").
 - **Session** — continue here, or move to a new session and when. §4 decides
-  which.
+  which. A line saying the session can be closed also needs the model report
+  (`SKILL.md` §"Closing a run").
 
 ### 3.2 Language
 

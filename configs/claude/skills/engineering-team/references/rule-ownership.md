@@ -146,6 +146,7 @@ should point here.
 | Scope by the user's verb (evaluate/plan/full); scope gates what may merge | §"Decide which phase to load" | phases 1, 2, 4 |
 | The plan is tracked only while the run is live, and retired at closeout; run bookkeeping is never tracked | §"The run directory" | phase 2 (pointer); phase 4 (the retire step); `multi-session.md` §10 |
 | Closing a run: four steps, in the main checkout, then the session-closable verdict | §"Closing a run" | phases 1, 2, 4 |
+| Before any closable or all-done verdict, run `scripts/model_usage.py` and show which model each agent ran on | §"Closing a run" | `status-updates.md` §3.1 (Finished?, Session); the `sitrep` skill, Step 2; `commands/done.md` Phase 9 |
 | Announce the phase in one plain-prose line | §"Announce phase transitions" | phases 1–4 (four parallel copies — **see §4**) |
 
 ### Homed in `phase-3-development.md`
