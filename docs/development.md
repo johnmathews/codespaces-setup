@@ -49,6 +49,7 @@ python3 configs/claude/skills/engineering-team/scripts/check_plan.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_board.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/check_footprint.py --selftest
 python3 configs/claude/skills/engineering-team/scripts/context_usage.py --selftest
+python3 configs/claude/skills/engineering-team/scripts/model_usage.py --selftest
 
 # design-system skill scripts (also run in CI)
 python3 configs/claude/skills/design-system/scripts/check_design_system.py --selftest
