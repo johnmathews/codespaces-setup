@@ -69,10 +69,14 @@ running.
 ## 3. The sitrep shape
 
 Send the sections in this order, so the user's eye lands in the same place each
-time. Every section except "Heads-up" appears every time. A section with nothing
+time. The definition of done comes first: a user running several sessions
+reads it to recall which one this is. Every section except "Heads-up" appears every time. A section with nothing
 to report says so in one word.
 
 ```markdown
+**Definition of done:** All seven billing fixes merged to main with CI green,
+and the deploy guide updated for the new settings.
+
 **Status:** Waiting on you. One question holds up W5; everything else is moving.
 4 of 7 fixes are done and the tests pass.
 
@@ -106,6 +110,13 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
 
 ### 3.1 Rules for each section
 
+- **Definition of done** — the goal of the whole run, so a user switching
+  between sessions knows immediately what this one is for. Copy it from
+  `done_when:` in `run.yaml` (`SKILL.md` §"The run directory"). One or two
+  lines, plain words, an end state the user could check. When it has changed
+  since the last sitrep, add what changed and when: "(changed 14:10: W7
+  dropped, as you asked)". With no `done_when:` yet, write one from the
+  user's request, show it, and save it.
 - **Status** — the first matching word from this list, then the reason, with a
   number in it:
   1. `Blocked`: something other than the user is stopping all progress, such as

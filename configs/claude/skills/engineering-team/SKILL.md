@@ -153,13 +153,14 @@ a claim with no check behind it — applied to the skill's own bookkeeping.
 run: manual-20260610T142500Z
 phase: 3                  # 1 | 2 | 3 | 4 | complete
 scope: full               # evaluate | plan | full  (from the user's verb; set once, in Phase 1)
+done_when: "All plan units merged to main with CI green, docs updated"   # the definition of done, in plain words
 units:                    # mirrors the improvement plan's frontmatter; absent until Phase 2
   - { id: W1, status: done }
   - { id: W2, status: in-progress }
   - { id: W3, status: pending }        # pending | in-progress | done | abandoned
 ```
 
-Three rules, and they are what make it worth having:
+Four rules, and they are what make it worth having:
 
 1. **Write it at the same moment you announce.** The prose announcement and
    the status change are one action, not two — "W2 done" in chat and
@@ -169,7 +170,16 @@ Three rules, and they are what make it worth having:
    This is what stops "blocked" masquerading as "not done" across a session
    boundary, and it is the durable half of the rule that no started unit may
    be left unaccounted for.
-3. **A missing `run.yaml` is not an error.** Runs created before this file
+3. **`done_when:` is the definition of done**: one line, in plain words, naming
+   the end state a user could check. Write it when the run starts, from the
+   user's request and scope ("An evaluation report on security and tests,
+   ready to read"). Sharpen it at the Phase 2 gate, once the plan exists, and
+   show it to the user there. After that it changes only when the user agrees,
+   and the next sitrep says what changed. Every sitrep leads with it
+   (`references/status-updates.md`). The user may be running several sessions
+   at once, and this line is how they tell them apart. Keep it on one line,
+   and leave out ` #`, which the file's checker reads as a comment.
+4. **A missing `run.yaml` is not an error.** Runs created before this file
    existed don't have one, and a run dir written by hand won't either. Fall
    back to inferring from which artifacts exist (below), and write a
    `run.yaml` reflecting what you inferred, so the next session doesn't have
@@ -537,8 +547,8 @@ Load these on demand when their topic becomes relevant:
   lanes.
 - `references/discussion.md` — Discussion workflow details.
 - `references/status-updates.md` — **keeping the user informed**: the
-  one-line pulse, the situation report's fixed shape (status, needs from
-  you, heads-up, done, doing now, still to do, finished?, session), when each is
+  one-line pulse, the situation report's fixed shape (definition of done,
+  status, needs from you, heads-up, done, doing now, still to do, finished?, session), when each is
   sent, and when to recommend continuing in a new session.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for

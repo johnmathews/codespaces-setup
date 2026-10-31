@@ -14,6 +14,8 @@ It checks two things, both mechanical:
 1. **Schema** — `run:` present, `phase:` and `scope:` in their enums, every
    unit has an `id` and a status in its enum, and an `abandoned` unit carries a
    `why`. These are unambiguous and machine-fixable, so they are hard failures.
+   A live run with no `done_when:` (its definition of done) is a warning: runs
+   made before the field existed lack it, and writing one is a human call.
 2. **Reconciliation** — the skill's own stated invariant: a `phase:` of 2 or
    later means Phase 1 finished, so `evaluation-report.md` must exist; a `phase:`
    of 3 or later means Phase 2 finished, so `improvement-plan.md` must exist.
@@ -211,6 +213,14 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
                 if unit.get("status") in ("pending", "in-progress"):
                     warn("W1", int(unit.get("_line", 0)) or None,
                          f"run is `complete` but unit {unit.get('id', '?')} is still '{unit.get('status')}'")
+
+    # W3 — a live run with no definition of done. The sitrep leads with it
+    # (references/status-updates.md), and a user running several sessions at
+    # once relies on it to tell them apart. A warning: older runs predate the
+    # field, and what "done" means is the user's call, not the checker's.
+    if phase != "complete" and not rf.scalars.get("done_when", "").strip():
+        warn("W3", None, "no `done_when:` — the run has no definition of done "
+             "(see \"The run directory\" in SKILL.md)")
 
     return errors, warnings
 

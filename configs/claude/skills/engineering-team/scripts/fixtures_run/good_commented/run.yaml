@@ -1,6 +1,7 @@
 run: manual-20260610T142500Z
 phase: 3                  # 1 | 2 | 3 | 4 | complete
 scope: full               # evaluate | plan | full  (from the user's verb; set once, in Phase 1)
+done_when: "All plan units merged to main with CI green, docs updated"   # the definition of done, in plain words
 units:                    # mirrors the improvement plan's frontmatter; absent until Phase 2
   - { id: W1, status: done }
   - { id: W2, status: in-progress }

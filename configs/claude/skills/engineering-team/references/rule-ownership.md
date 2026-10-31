@@ -141,7 +141,7 @@ should point here.
 |---|---|---|
 | Assume you are one of several concurrent sessions: a worktree is required, the main checkout is read-only shared state, names are checked before being taken, and you touch only what you created | §"You are never the only session" | `worktree.md` §"Worktree Isolation" (the worktree consequence + its setup steps); `multi-session.md` §5.3 (solo is about the run, not the machine); `discussion.md` §"The read-only exemption, and where it ends"; `workflows.md` |
 | `$RUN_DIR` lives in the main checkout, never inside a worktree | §"The run directory" | `worktree.md`; `multi-session.md`; phases 1, 3, 4 |
-| `run.yaml` state rules: write-at-announce, `abandoned` needs a `why`, a missing file is not an error, phase reconciles against artifacts | §"The run directory" | phases 1–4; `multi-session.md` (coordinator-owned) |
+| `run.yaml` state rules: write-at-announce, `abandoned` needs a `why`, `done_when:` is the definition of done (set at the start, sharpened at the Phase 2 gate, changed only with the user), a missing file is not an error, phase reconciles against artifacts | §"The run directory" | phases 1–4; `multi-session.md` (coordinator-owned) |
 | No default repo owner — read the remote, ask if none | §"Project configuration" | `worktree.md` |
 | Scope by the user's verb (evaluate/plan/full); scope gates what may merge | §"Decide which phase to load" | phases 1, 2, 4 |
 | The plan is tracked only while the run is live, and retired at closeout; run bookkeeping is never tracked | §"The run directory" | phase 2 (pointer); phase 4 (the retire step); `multi-session.md` §10 |
@@ -159,7 +159,7 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
-| Any status question, in any wording, gets the full sitrep in its fixed order: status, needs from you, heads-up (only when needed), done, doing now, still to do, finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
+| Any status question, in any wording, gets the full sitrep in its fixed order: definition of done, status, needs from you, heads-up (only when needed), done, doing now, still to do, finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
 | A long or multi-agent stretch is never silent: a pulse when agents start, when they return, before an unseen wait, and at least every ten minutes | §"When to send a pulse" | `SKILL.md` §"Progress, pausing, and completion"; phase 3 (pointer); `wide-survey.md` §"Before you run it" step 5 |
 | Continue-or-move is decided by overlap: does the work ahead need what this session holds, and is that knowledge on disk? Size and compaction only change the urgency. Checked at every unit and phase boundary; hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
 

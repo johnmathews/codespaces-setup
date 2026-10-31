@@ -1,6 +1,7 @@
 run: manual-20260610T142500Z
 phase: 3
 scope: full
+done_when: "Every plan unit merged to main with CI green, docs updated, worktree removed"
 units:
   - { id: W1, status: done }
   - { id: W2, status: in-progress }

@@ -36,7 +36,9 @@ Also add an **ID:** line to each per-work-unit field list so each unit
 references its frontmatter ID explicitly.
 
 **Mirror the unit list into `$RUN_DIR/run.yaml`** in the same write, each with
-`status: pending`, and set `phase: 2`. The plan's frontmatter is the *index* —
+`status: pending`, and set `phase: 2`. Sharpen `done_when:` now that the units
+are known, and show it to the user at the gate below. Once approved, it changes
+only with the user's agreement. The plan's frontmatter is the *index* —
 which units exist; `run.yaml` is the *state* — what each one has done. Keeping
 them in one file would mean editing the approved plan to record progress, which
 the multi-lane rules forbid (the plan is coordinator-owned and read-only to

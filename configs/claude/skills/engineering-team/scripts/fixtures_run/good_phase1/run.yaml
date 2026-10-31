@@ -1,3 +1,4 @@
 run: manual-20260101T000000Z
 phase: 1
 scope: full
+done_when: "Every plan unit merged to main with CI green, docs updated, worktree removed"
