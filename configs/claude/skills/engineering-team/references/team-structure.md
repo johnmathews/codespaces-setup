@@ -126,6 +126,9 @@ conclusions, and summary points. The user refers to items by number, so every ac
 must be numbered. Internal implementation instructions (within this skill definition) are not affected —
 this rule applies only to what is shown to the user.
 
+One exception: a situation report's status lines (done, doing now, still to do) are bullets, and its asks
+are numbered (`status-updates.md` §3.2). The user asked for bullets there, and answers only the asks.
+
 The user speed-reads chat output like everything else, so `writing-style.md` §4, §5, §7 and §8 apply to it:
 lists over prose, plain literal words, a natural rhythm, and no contrast framing ("This is X, not Y").
 

@@ -80,6 +80,12 @@ something you can do in one pass.
 **4. Get the user's yes**, with the shape and the number in front of them.
 Phase 1's Step 2 has the wording.
 
+**5. Keep the user posted while it runs.** A wide survey runs in the
+background for a long time, and from outside a quiet one looks hung.
+Send a pulse when it starts, with the agent count and a time estimate from
+step 2's arithmetic, and a sitrep when it returns
+(`status-updates.md` §2).
+
 ## Sizing
 
 Agent count is `areas × lenses + areas` — one surveyor per pair, plus one
