@@ -37,3 +37,17 @@ nothing and ran on a different family from the lead, and "BELOW FLOOR".
 `<session-id>/subagents/agent-<id>.jsonl` with its `.meta.json` for each
 subagent. No Workflow run on this machine has left transcripts in that layout
 yet, so whether Workflow agents appear there is unverified.
+
+## Time and tokens (PR #100)
+
+Each line now also shows elapsed time and tokens, and the report says nothing
+about the floor when it held. The FAIL line stays, last, when it didn't.
+
+- **Time** is first to last timestamp. The lead's figure includes idle waits
+  for the user, and the subagent total adds the agents' times together, so it
+  is not wall-clock when they run in parallel.
+- **Tokens** add input, cache reads, cache writes and output over every API
+  call, with output shown separately. Cache reads are most of the total and
+  cost far less, so the figure is volume, not cost. One call can be written as
+  several entries with the same usage, so each message ID counts once. The
+  probe agent came to 45k tokens in 3s, which matches what the harness reported.
