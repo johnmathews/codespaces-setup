@@ -54,6 +54,8 @@ COMMANDS = REPO / "configs/claude/commands"
 # Curated invariants: name -> (home file relative to SKILL, signature regex that
 # must appear at the home). Kept small and load-bearing on purpose; extend it when
 # rule-ownership.md gains a cross-cutting invariant worth guarding.
+MODEL_FLOOR_SIG = r"Never go below the mid tier\.\*\*\s+No dispatch in this skill uses the\s+smallest tier"
+
 SIGNATURES: dict[str, tuple[str, str]] = {
     "claim-not-stronger-than-check": ("references/general-guidelines.md",
                                       r"claim may not be stronger than the check"),
@@ -68,6 +70,9 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "evidence-grading": ("references/general-guidelines.md",
                          r"\[VERIFIED\].{0,80}\[SUPPORTED\].{0,80}\[SUSPECTED\]"),
     "findings-contract": ("references/team-structure.md", r"findings contract"),
+    # The model floor: no dispatch goes below the mid tier. Both halves, so a
+    # rewrite that keeps the heading but drops the rule still reds.
+    "model-floor": ("references/team-structure.md", MODEL_FLOOR_SIG),
     "closing-a-run": ("SKILL.md", r"Closing a run"),
     "heading-numbering": ("references/documentation-model.md", r"Heading numbering"),
     "announce-the-phase": ("SKILL.md", r"Announce phase transitions"),
@@ -442,6 +447,7 @@ def _sig_literal(sig: str) -> str:
         r"\[VERIFIED\].{0,80}\[SUPPORTED\].{0,80}\[SUSPECTED\]": "[VERIFIED] [SUPPORTED] [SUSPECTED]",
         r"\$RUN_DIR.{0,40}main checkout.{0,40}never|"
         r"\$RUN_DIR.{0,40}never.{0,40}main checkout": "$RUN_DIR lives in the main checkout, never in a worktree",
+        MODEL_FLOOR_SIG: "Never go below the mid tier.** No dispatch in this skill uses the smallest tier",
     }
     return samples.get(sig, sig.replace("\\", ""))
 
