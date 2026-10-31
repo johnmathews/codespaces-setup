@@ -438,11 +438,13 @@ python3 ~/.claude/skills/engineering-team/scripts/model_usage.py
 ```
 
 Put its output in the reply, just above the verdict. It reads this
-session's transcripts and lists the model each subagent actually ran on.
+session's transcripts and lists the model each subagent actually ran on,
+with its elapsed time and tokens, plus the same for the lead.
 `references/team-structure.md` §"Choosing a model" says which should run
 where. Then act on the result:
 
-- **Exit 0:** show the report as it is.
+- **Exit 0:** show the report as it is. It does not mention the floor when
+  the floor held, so add no floor line of your own.
 - **Exit 1:** an agent ran below the floor. Say so plainly and name the
   agent. The verdict still stands, because the work is done, but the
   dispatch that caused it needs fixing.

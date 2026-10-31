@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Which model did each agent in this session actually run on?
+"""Which model did each agent in this session run on, for how long, at what size?
 
 `references/team-structure.md` §"Choosing a model" names four dispatches that
 run on the mid tier and puts a floor under every dispatch: never below the mid
 tier. A rule about which model ran is a runtime claim, so its check has to be a
 runtime observation. This script reads that observation from the transcripts:
-every assistant entry records the model that produced it.
+every assistant entry records the model that produced it and the API usage of
+its request, and every entry carries a timestamp.
 
 Where it reads (the layout Claude Code writes):
 
@@ -14,10 +15,21 @@ Where it reads (the layout Claude Code writes):
   subagent, with `agent-<id>.meta.json` beside it holding the agent type, the
   description and the `model` the dispatch asked for (absent means inherit).
 
+What each line reports:
+
+- **time**: first to last timestamp in the transcript. For the lead that is the
+  session's elapsed time, idle waits for the user included.
+- **tokens**: the sum, over API calls, of input + cache reads + cache writes +
+  output, with the output share in brackets. Cache reads are most of it and cost
+  far less than fresh input, so this is volume processed, not a bill. One call
+  can be written as several entries that repeat its usage, so each message ID
+  counts once.
+
 What it flags:
 
 - **below floor**: an agent that ran on the smallest tier (a `haiku` model). The
-  skill's floor forbids it, so this exits 1.
+  skill's floor forbids it, so the report ends with a FAIL line and exits 1.
+  When the floor held, the report says nothing about it.
 - **pinned by its type**: an agent that asked for nothing but ran on a different
   family from the lead's. Its agent type's own definition set the model, which
   beats inheritance. Pass `model` explicitly when the tier matters.
@@ -42,6 +54,7 @@ import re
 import sys
 import tempfile
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 FLOOR_RE = re.compile(r"haiku", re.IGNORECASE)
@@ -49,16 +62,31 @@ FAMILY_RE = re.compile(r"claude-([a-z]+)", re.IGNORECASE)
 
 
 @dataclass
-class Agent:
-    name: str
-    agent_type: str
-    requested: str  # a tier name such as "sonnet", or "inherit"
+class Usage:
+    """What one transcript shows: models, tokens and elapsed seconds."""
+
     models: collections.Counter[str] = field(default_factory=collections.Counter)
-    output_tokens: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    seconds: float = 0.0
+
+    def add(self, other: Usage) -> None:
+        self.models.update(other.models)
+        self.tokens_in += other.tokens_in
+        self.tokens_out += other.tokens_out
+        self.seconds += other.seconds
 
     @property
     def ran(self) -> str:
         return ", ".join(m for m, _ in self.models.most_common()) or "no reply"
+
+
+@dataclass
+class Agent:
+    name: str
+    agent_type: str
+    requested: str  # a tier name such as "sonnet", or "inherit"
+    usage: Usage
 
 
 def family(model: str) -> str:
@@ -66,26 +94,46 @@ def family(model: str) -> str:
     return m.group(1).lower() if m else model.lower()
 
 
-def read_models(path: Path, skip_sidechain: bool) -> tuple[collections.Counter[str], int]:
-    models: collections.Counter[str] = collections.Counter()
-    out = 0
+def _when(stamp: object) -> datetime | None:
+    if not isinstance(stamp, str):
+        return None
+    try:
+        return datetime.fromisoformat(stamp)
+    except ValueError:
+        return None
+
+
+def read_usage(path: Path, skip_sidechain: bool) -> Usage:
+    usage = Usage()
+    calls: dict[str, tuple[str, dict]] = {}  # message id -> (model, usage); the last copy wins
+    first = last = None
     with path.open(encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            if '"assistant"' not in line:
-                continue
+        for n, line in enumerate(fh):
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if entry.get("type") != "assistant" or (skip_sidechain and entry.get("isSidechain")):
+            if not isinstance(entry, dict) or (skip_sidechain and entry.get("isSidechain")):
+                continue
+            when = _when(entry.get("timestamp"))
+            if when:
+                first = first or when
+                last = when
+            if entry.get("type") != "assistant":
                 continue
             message = entry.get("message") or {}
             model = str(message.get("model") or "")
             if not model or model.startswith("<"):  # "<synthetic>" entries carry no real call
                 continue
-            models[model] += 1
-            out += int((message.get("usage") or {}).get("output_tokens") or 0)
-    return models, out
+            calls[str(message.get("id") or f"line-{n}")] = (model, message.get("usage") or {})
+    for model, u in calls.values():
+        usage.models[model] += 1
+        usage.tokens_in += sum(int(u.get(k) or 0) for k in
+                               ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+        usage.tokens_out += int(u.get("output_tokens") or 0)
+    if first and last:
+        usage.seconds = max(0.0, (last - first).total_seconds())
+    return usage
 
 
 def read_agents(session_dir: Path) -> list[Agent]:
@@ -96,22 +144,20 @@ def read_agents(session_dir: Path) -> list[Agent]:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             meta = {}
-        models, out = read_models(transcript, skip_sidechain=False)
         agents.append(Agent(
             name=str(meta.get("description") or transcript.stem),
             agent_type=str(meta.get("agentType") or "unknown"),
             requested=str(meta.get("model") or "inherit"),
-            models=models,
-            output_tokens=out,
+            usage=read_usage(transcript, skip_sidechain=False),
         ))
     return agents
 
 
 def flags(agent: Agent, lead_family: str) -> list[str]:
     out = []
-    if any(FLOOR_RE.search(m) for m in agent.models):
+    if any(FLOOR_RE.search(m) for m in agent.usage.models):
         out.append("BELOW FLOOR")
-    families = {family(m) for m in agent.models}
+    families = {family(m) for m in agent.usage.models}
     if agent.requested == "inherit":
         if lead_family and families and families != {lead_family}:
             out.append("pinned by its type")
@@ -120,38 +166,63 @@ def flags(agent: Agent, lead_family: str) -> list[str]:
     return out
 
 
-def report(lead: collections.Counter[str], agents: list[Agent], per_agent: bool) -> tuple[str, int]:
-    lead_family = family(lead.most_common(1)[0][0]) if lead else ""
-    lines = [f"Lead session: {', '.join(m for m, _ in lead.most_common()) or 'no reply found'}"]
+def fmt_tokens(n: int) -> str:
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n / 1_000:.0f}k" if n >= 10_000 else f"{n / 1_000:.1f}k"
+    return str(n)
+
+
+def fmt_time(seconds: float) -> str:
+    s = round(seconds)
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s"
+    return f"{s // 3600}h {s % 3600 // 60:02d}m"
+
+
+def cost(u: Usage) -> str:
+    return f"{fmt_time(u.seconds)}, {fmt_tokens(u.tokens_in + u.tokens_out)} tokens ({fmt_tokens(u.tokens_out)} out)"
+
+
+def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]:
+    lead_family = family(lead.models.most_common(1)[0][0]) if lead.models else ""
+    lines = [f"Lead session: {lead.ran}, {cost(lead)}"]
     if not agents:
         lines.append("Subagents: none")
         return "\n".join(lines), 0
+    total = Usage()
+    for a in agents:
+        total.add(a.usage)
+    lines.append(f"Subagents: {len(agents)}, {cost(total)} (time is the sum, not wall-clock)")
     below = 0
-    lines.append(f"Subagents: {len(agents)}")
     if per_agent:
         for a in agents:
             f = flags(a, lead_family)
             below += "BELOW FLOOR" in f
-            lines.append(f"- {a.name} [{a.agent_type}, asked {a.requested}] ran {a.ran}"
+            lines.append(f"- {a.name} [{a.agent_type}, asked {a.requested}] ran {a.usage.ran}, {cost(a.usage)}"
                          + (f"  <- {'; '.join(f)}" if f else ""))
     else:
         groups: dict[tuple[str, str, str], list[Agent]] = collections.defaultdict(list)
         for a in agents:
-            groups[(a.agent_type, a.requested, a.ran)].append(a)
+            groups[(a.agent_type, a.requested, a.usage.ran)].append(a)
         for (atype, req, ran), members in sorted(groups.items(), key=lambda kv: -len(kv[1])):
             f = flags(members[0], lead_family)
             if "BELOW FLOOR" in f:
                 below += len(members)
-            lines.append(f"- {len(members)} x {atype}, asked {req}, ran {ran}"
+            group = Usage()
+            for a in members:
+                group.add(a.usage)
+            lines.append(f"- {len(members)} x {atype}, asked {req}, ran {ran}, {cost(group)}"
                          + (f"  <- {'; '.join(f)}" if f else ""))
-    totals: collections.Counter[str] = collections.Counter()
+    by_family: collections.Counter[str] = collections.Counter()
     for a in agents:
-        totals.update({family(m): 1 for m in a.models})
-    lines.append("By family: " + ", ".join(f"{fam} {n}" for fam, n in totals.most_common()))
+        by_family.update({family(m): 1 for m in a.usage.models})
+    lines.append("By family: " + ", ".join(f"{fam} {n}" for fam, n in by_family.most_common()))
     if below:
         lines.append(f"FAIL: {below} agent(s) ran below the floor (team-structure.md, \"Choosing a model\")")
-    else:
-        lines.append("Floor: held. No agent ran below the mid tier.")
     return "\n".join(lines), 1 if below else 0
 
 
@@ -161,7 +232,7 @@ def find_transcript(session_id: str, config_dir: Path) -> Path | None:
 
 
 def run(transcript: Path, per_agent: bool) -> int:
-    lead, _ = read_models(transcript, skip_sidechain=True)
+    lead = read_usage(transcript, skip_sidechain=True)
     text, code = report(lead, read_agents(transcript.with_suffix("")), per_agent)
     print(text)
     return code
@@ -175,44 +246,67 @@ def selftest() -> int:
         print(("ok   " if cond else "FAIL ") + msg)
         failed += not cond
 
-    def asst(model: str, out: int = 10, side: bool = False) -> str:
-        return json.dumps({"type": "assistant", "isSidechain": side,
-                           "message": {"model": model, "usage": {"output_tokens": out}}})
+    def asst(model: str, at: str = "2026-10-31T12:00:00Z", out: int = 10, inp: int = 100,
+             mid: str | None = None, side: bool = False) -> str:
+        message: dict = {"model": model, "usage": {"input_tokens": inp, "cache_read_input_tokens": 0,
+                                                   "cache_creation_input_tokens": 0, "output_tokens": out}}
+        if mid:
+            message["id"] = mid
+        return json.dumps({"type": "assistant", "isSidechain": side, "timestamp": at, "message": message})
+
+    def user(at: str) -> str:
+        return json.dumps({"type": "user", "timestamp": at, "message": {"content": "hi"}})
+
+    expect(fmt_tokens(950) == "950" and fmt_tokens(1_500) == "1.5k" and fmt_tokens(45_413) == "45k"
+           and fmt_tokens(12_300_000) == "12.3M", "token counts format as 950, 1.5k, 45k, 12.3M")
+    expect(fmt_time(2.9) == "3s" and fmt_time(185) == "3m 05s" and fmt_time(7_260) == "2h 01m",
+           "durations format as 3s, 3m 05s, 2h 01m")
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         main = root / "s1.jsonl"
         main.write_text("\n".join([
-            json.dumps({"type": "user", "message": {"content": "hi"}}),
-            asst("claude-opus-5-5"),
-            asst("claude-sonnet-5-5", side=True),  # a sidechain entry is not the lead
-            asst("<synthetic>"),
+            user("2026-10-31T12:00:00Z"),
+            asst("claude-opus-5-5", at="2026-10-31T12:00:05Z", mid="m1"),
+            asst("claude-opus-5-5", at="2026-10-31T12:00:06Z", mid="m1"),  # same call, second block
+            asst("claude-sonnet-5-5", at="2026-10-31T13:00:00Z", side=True),  # sidechain: not the lead
+            asst("<synthetic>", at="2026-10-31T12:01:00Z"),
             "not json",
+            user("2026-10-31T12:02:00Z"),
         ]), encoding="utf-8")
         sub = root / "s1" / "subagents"
         sub.mkdir(parents=True)
 
         def agent(aid: str, meta: dict, *models: str) -> None:
-            (sub / f"agent-{aid}.jsonl").write_text("\n".join(asst(m) for m in models), encoding="utf-8")
+            (sub / f"agent-{aid}.jsonl").write_text("\n".join(
+                asst(m, at=f"2026-10-31T12:00:{i * 30:02d}Z") for i, m in enumerate(models)), encoding="utf-8")
             (sub / f"agent-{aid}.meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-        lead, _ = read_models(main, skip_sidechain=True)
-        expect(dict(lead) == {"claude-opus-5-5": 1}, f"lead models skip sidechain and synthetic: {dict(lead)}")
+        lead = read_usage(main, skip_sidechain=True)
+        expect(dict(lead.models) == {"claude-opus-5-5": 1}, f"lead skips sidechain and synthetic: {dict(lead.models)}")
+        expect(lead.tokens_in == 100 and lead.tokens_out == 10, "a call split over two entries counts once")
+        expect(lead.seconds == 120, f"lead time is first to last timestamp, sidechain excluded: {lead.seconds}")
 
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
         expect(code == 0 and "Subagents: none" in text, "no subagents: exit 0")
+        expect(text.startswith("Lead session: claude-opus-5-5, 2m 00s, 110 tokens (10 out)"),
+               f"lead line shows time and tokens: {text.splitlines()[0]}")
 
         agent("a1", {"agentType": "general-purpose", "description": "survey", "model": "sonnet"},
               "claude-sonnet-5-5", "claude-sonnet-5-5")
         agent("a2", {"agentType": "general-purpose", "description": "plan"}, "claude-opus-5-5")
-        agents = read_agents(root / "s1")
-        text, code = report(lead, agents, per_agent=False)
-        expect(code == 0 and "Floor: held" in text, "sonnet as asked plus inherited opus: floor held, exit 0")
-        expect("<-" not in text, "nothing flagged when every agent ran as asked")
+        text, code = report(lead, read_agents(root / "s1"), per_agent=False)
+        expect(code == 0 and "<-" not in text, "sonnet as asked plus inherited opus: nothing flagged, exit 0")
+        expect("floor" not in text.lower(), "a held floor is not mentioned")
+        expect("asked sonnet, ran claude-sonnet-5-5, 30s, 220 tokens (20 out)" in text,
+               "a group line shows its summed time and tokens")
+        expect("Subagents: 2, 30s, 330 tokens (30 out)" in text, "the subagent total sums every agent")
 
         agent("a3", {"agentType": "some-reviewer", "description": "review"}, "claude-sonnet-5-5")
         text, _ = report(lead, read_agents(root / "s1"), per_agent=True)
         expect("pinned by its type" in text, "inherit that ran on another family is flagged as pinned")
+        expect("- review [some-reviewer, asked inherit] ran claude-sonnet-5-5, 0s, 110 tokens (10 out)" in text,
+               "a per-agent line shows its own time and tokens")
 
         agent("a4", {"agentType": "general-purpose", "description": "check", "model": "sonnet"}, "claude-opus-5-5")
         text, _ = report(lead, read_agents(root / "s1"), per_agent=True)
@@ -220,7 +314,8 @@ def selftest() -> int:
 
         agent("a5", {"agentType": "guide", "description": "docs lookup"}, "claude-haiku-5-5")
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
-        expect(code == 1 and "BELOW FLOOR" in text and "FAIL: 1 agent" in text, "a haiku agent fails the floor: exit 1")
+        expect(code == 1 and "BELOW FLOOR" in text and text.splitlines()[-1].startswith("FAIL: 1 agent"),
+               "a haiku agent fails the floor: FAIL is the last line, exit 1")
 
         (sub / "agent-a6.jsonl").write_text(asst("claude-sonnet-5-5"), encoding="utf-8")  # no meta file
         a6 = [a for a in read_agents(root / "s1") if a.name == "agent-a6"]
@@ -240,7 +335,7 @@ def selftest() -> int:
 
 
 def main(argv: list[str]) -> int:
-    ap = argparse.ArgumentParser(description="Report which model each agent in a session ran on.")
+    ap = argparse.ArgumentParser(description="Report which model each agent in a session ran on, with time and tokens.")
     ap.add_argument("--transcript", type=Path, help="a session transcript (.jsonl)")
     ap.add_argument("--all", action="store_true", help="one line per agent instead of grouped")
     ap.add_argument("--selftest", action="store_true")
