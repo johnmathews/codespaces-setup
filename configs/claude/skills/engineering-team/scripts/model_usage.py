@@ -205,9 +205,9 @@ def table(headers: list[str], rows: list[list[str]], right: set[int]) -> list[st
 
 def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]:
     lead_family = family(lead.models.most_common(1)[0][0]) if lead.models else ""
-    second = "Type" if per_agent else "Count"
-    rows = [["lead", "-" if per_agent else "1", "-", short(lead.ran),
-             fmt_time(lead.seconds), fmt_tokens(lead.tokens_in + lead.tokens_out), ""]]
+    # Grouped: Agent, Asked, Ran, Count, ... Per agent: Agent, Type, Asked, Ran, ...
+    rows = [["lead", "-", "-", short(lead.ran)] if per_agent else ["lead", "-", short(lead.ran), "1"]]
+    rows[0] += [fmt_time(lead.seconds), fmt_tokens(lead.tokens_in + lead.tokens_out), ""]
     below = 0
     if per_agent:
         for a in agents:
@@ -227,16 +227,16 @@ def report(lead: Usage, agents: list[Agent], per_agent: bool) -> tuple[str, int]
             group = Usage()
             for a in members:
                 group.add(a.usage)
-            rows.append([atype, str(len(members)), req, short(ran), fmt_time(group.seconds),
+            rows.append([atype, req, short(ran), str(len(members)), fmt_time(group.seconds),
                          fmt_tokens(group.tokens_in + group.tokens_out), "; ".join(f)])
     if agents:
         total = Usage()
         for a in agents:
             total.add(a.usage)
-        rows.append(["all subagents", "-" if per_agent else str(len(agents)), "", "",
-                     fmt_time(total.seconds), fmt_tokens(total.tokens_in + total.tokens_out), ""])
-    lines = table(["Agent", second, "Asked", "Ran", "Time", "Tokens", "Note"], rows,
-                  right={4, 5} if per_agent else {1, 4, 5})
+        total_cells = ["all subagents", "-", "", ""] if per_agent else ["all subagents", "", "", str(len(agents))]
+        rows.append([*total_cells, fmt_time(total.seconds), fmt_tokens(total.tokens_in + total.tokens_out), ""])
+    headers = (["Agent", "Type", "Asked", "Ran"] if per_agent else ["Agent", "Asked", "Ran", "Count"])
+    lines = table([*headers, "Time", "Tokens", "Note"], rows, right={4, 5} if per_agent else {3, 4, 5})
     if not agents:
         lines.append("No subagents.")
     if below:
@@ -315,7 +315,7 @@ def selftest() -> int:
 
         text, code = report(lead, read_agents(root / "s1"), per_agent=False)
         expect(code == 0 and text.splitlines()[-1] == "No subagents.", "no subagents: exit 0, said once")
-        expect(cells(text, "lead") == ["lead", "1", "-", "opus-5-5", "2m 00s", "110"],
+        expect(cells(text, "lead") == ["lead", "-", "opus-5-5", "1", "2m 00s", "110"],
                f"lead row shows model, time and tokens: {cells(text, 'lead')}")
 
         agent("a1", {"agentType": "general-purpose", "description": "survey", "model": "sonnet"},
@@ -325,14 +325,14 @@ def selftest() -> int:
         expect(code == 0 and "<-" not in text, "sonnet as asked plus inherited opus: nothing flagged, exit 0")
         expect("floor" not in text.lower(), "a held floor is not mentioned")
         lines = text.splitlines()
-        expect(lines[0].split() == ["Agent", "Count", "Asked", "Ran", "Time", "Tokens", "Note"],
+        expect(lines[0].split() == ["Agent", "Asked", "Ran", "Count", "Time", "Tokens", "Note"],
                f"header row: {lines[0]}")
         tok = lines[0].index("Tokens") + len("Tokens")
         expect(all(len(row) >= tok and row[tok - 1] != " " for row in lines[2:]),
                "every token count ends under the end of its header")
         rows = [re.split(r"\s{2,}", row.strip()) for row in lines[2:]]
-        expect(["general-purpose", "1", "sonnet", "sonnet-5-5", "30s", "220"] in rows
-               and ["general-purpose", "1", "inherit", "opus-5-5", "0s", "110"] in rows,
+        expect(["general-purpose", "sonnet", "sonnet-5-5", "1", "30s", "220"] in rows
+               and ["general-purpose", "inherit", "opus-5-5", "1", "0s", "110"] in rows,
                "each group row shows its count, summed time and tokens")
         expect(cells(text, "all subagents") == ["all subagents", "2", "30s", "330"],
                f"the total row sums every agent: {cells(text, 'all subagents')}")
