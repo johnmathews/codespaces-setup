@@ -44,7 +44,9 @@ When you create `$RUN_DIR`, also write `$RUN_DIR/run.yaml` with `phase: 1` and
 the `scope:` implied by the user's verb (`evaluate` / `plan` / `full` — see "The
 run directory" in `../SKILL.md`). Set `scope` now, while the user's request is
 in front of you: it is the only record of what they actually asked for, and
-Phase 4 reads it to decide whether it may merge anything.
+Phase 4 reads it to decide whether it may merge anything. Write `done_when:` in
+the same write, the definition of done in one plain line, for the same reason
+(`../SKILL.md` §"The run directory", rule 3).
 
 ---
 
