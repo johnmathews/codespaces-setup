@@ -24,8 +24,13 @@ Same two gate-design rules as the sibling gates:
    presence check would red honest plans. Their completeness is a human-review
    judgement, not a gate's.
 2. Softer signals are WARNINGS: a plan with no "Non-goals" section (the spec
-   calls that "suspicious", not invalid), and a `run.yaml` that is merely behind
-   the plan rather than contradicting it.
+   calls that "suspicious", not invalid), a `run.yaml` that is merely behind
+   the plan rather than contradicting it, and a unit section with no
+   **Acceptance criteria** (W3) or **Dependencies** (W4) field. Those two are
+   the exception to "prose fields are not checked" because Phase 3 acts on
+   them mechanically: it checks a unit's dependencies before dispatching it,
+   and quotes its acceptance criteria to the subagent and reviews against
+   them. Only the field's presence is checked, never its quality.
 
 Cross-file: when a `run.yaml` sits beside the plan, its unit IDs must be a subset
 of the plan's — a `run.yaml` unit the plan doesn't declare is a phantom (hard
@@ -53,6 +58,12 @@ BODY_WID_RE = re.compile(r"\bW\d+\b")
 PLACEHOLDER_RE = re.compile(r"^<[^>\n]+>$")  # a WHOLE value like <short kebab-case name>, not a substring
 RUN_ID_RE = re.compile(r"\bid:\s*(W\d+)")  # from run.yaml's flow-style unit dicts
 SCALAR_RE = re.compile(r"^([A-Za-z_][\w-]*):\s*(.*)$")
+# A field label at the start of a line: "- **Dependencies:** none",
+# "Dependencies: W1", a sub-heading "### Acceptance criteria", or a table row
+# "| **How it goes red** | ...".
+_FIELD = r"^\s*(?:[-*+]\s+|\|\s*|#{{1,6}}\s+)?[*_]*\s*(?:{})\b"
+ACCEPTANCE_RE = re.compile(_FIELD.format(r"acceptance criteria|how it goes red"), re.I | re.M)
+DEPENDENCIES_RE = re.compile(_FIELD.format(r"dependencies|depends on"), re.I | re.M)
 
 
 class Plan:
@@ -66,6 +77,7 @@ class Plan:
         self.plan_name: str = ""
         self.units: list[dict[str, str]] = []  # frontmatter units, in order
         self.body_ids: list[str] = []
+        self.sections: dict[str, str] = {}  # unit id -> its section text
         self.has_nongoals = False
 
         body_start = self._parse_frontmatter()
@@ -115,16 +127,28 @@ class Plan:
         return close + 1
 
     def _parse_body(self, start: int) -> None:
+        # A unit's section runs from its heading to the next heading of the same
+        # or a higher level, so its own sub-headings stay inside it and the
+        # plan's closing sections ("Constraints the user set") do not.
+        cur_id: str | None = None
+        cur_level = 0
         for line in self.lines[start:]:
             m = HEADING_RE.match(line)
-            if not m:
-                continue
-            heading = m.group(1)
-            if re.sub(r"[*`_]", "", heading).strip().casefold() == "non-goals":
-                self.has_nongoals = True
-            wid = BODY_WID_RE.search(heading)
-            if wid:
-                self.body_ids.append(wid.group(0))
+            if m:
+                level = len(line) - len(line.lstrip("#"))
+                heading = m.group(1)
+                if re.sub(r"[*`_]", "", heading).strip().casefold() == "non-goals":
+                    self.has_nongoals = True
+                wid = BODY_WID_RE.search(heading)
+                if wid:
+                    self.body_ids.append(wid.group(0))
+                    cur_id, cur_level = wid.group(0), level
+                    self.sections.setdefault(cur_id, "")
+                    continue
+                if cur_id is not None and level <= cur_level:
+                    cur_id = None
+            if cur_id is not None:
+                self.sections[cur_id] += line + "\n"
 
 
 def check(plan_dir: pathlib.Path) -> tuple[list[str], list[str]]:
@@ -198,6 +222,16 @@ def check(plan_dir: pathlib.Path) -> tuple[list[str], list[str]]:
     if not plan.has_nongoals:
         warn("W1", None, "no `Non-goals` section — the spec calls a plan without one suspicious")
 
+    # W3/W4 — the two unit fields Phase 3 acts on. Presence only.
+    for uid in fm_ids:
+        section = plan.sections.get(uid)
+        if section is None:
+            continue  # already E7
+        if not ACCEPTANCE_RE.search(section):
+            warn("W3", None, f"{uid} has no `Acceptance criteria:` field — Phase 3 quotes it in the brief and reviews against it")
+        if not DEPENDENCIES_RE.search(section):
+            warn("W4", None, f"{uid} has no `Dependencies:` field — write \"none\" if it has none; Phase 3 checks it before dispatch")
+
     # Cross-file: run.yaml (if present) must not name a unit the plan doesn't
     # declare (E8, phantom), and ideally mirrors every plan unit (W2, lagging).
     run_yaml = plan_dir / "run.yaml"
@@ -251,6 +285,11 @@ def selftest() -> int:
         if name.startswith("good"):
             if errors:
                 print(f"FAIL {name}: expected green, got {sorted(codes)}")
+                failed += 1
+            elif warn_codes & {"W3", "W4"}:
+                # Every good plan writes both fields, in one form or another,
+                # so a W3/W4 here is the field check missing a real field.
+                print(f"FAIL {name}: false field warning {sorted(warn_codes & {'W3', 'W4'})}")
                 failed += 1
             else:
                 print(f"ok   {name}: green ({sorted(warn_codes) or 'no warnings'})")
