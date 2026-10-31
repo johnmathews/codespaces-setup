@@ -95,6 +95,14 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                            r"warmer and plainer, not more formal"),
     "specialist-default-off": ("references/specialists.md",
                                r"A specialist is an addition, not a resize"),
+    "status-question-gets-sitrep": ("references/status-updates.md",
+                                    r"The user asks anything about status"),
+    "sitrep-fixed-order": ("references/status-updates.md",
+                           r"Send the sections in this order"),
+    "pulse-never-silent": ("references/status-updates.md",
+                           r"at least every ten minutes"),
+    "new-session-test": ("references/status-updates.md",
+                         r"Continue here, or start a new session"),
 }
 
 
