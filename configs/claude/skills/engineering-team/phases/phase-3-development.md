@@ -339,6 +339,11 @@ must have `Edit`/`Write` — the default type does, but a read-only type will
 investigate the unit competently and then be unable to change a single file. See
 "Choosing an agent type" in `../references/team-structure.md`.
 
+**The model inherits, except for small units.** A unit sized S, with risk below
+High and with acceptance criteria, goes to the cheaper tier. Every other unit
+inherits the lead's model. See "Choosing a model" in
+`../references/team-structure.md`.
+
 **Do not create nested worktrees here.** This session is already in one; parallel
 units inside it use subagent parallelism. That is the right rule for a solo run —
 but do not over-read it:

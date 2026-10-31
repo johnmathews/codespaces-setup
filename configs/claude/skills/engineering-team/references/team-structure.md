@@ -114,10 +114,37 @@ matching those names, and do not invent a mapping between them. The role
 shapes what you write in the brief; the type decides what the agent can do.
 They are independent choices.
 
-Model and reasoning-effort overrides exist on the same tool, if a brief
-genuinely warrants a more capable agent than the default. The same rule
-applies: take the available values from the tool's own description at the
-time you dispatch, not from this file or from memory.
+### Choosing a model
+
+**Omit `model` by default.** The agent then inherits the lead's model, and
+every brief in this skill assumes that model. Override it in only the five
+dispatches below. Each is bounded or mechanical, or its output is checked
+again before anything rests on it.
+
+**Read the value off the tool, as with agent types.** Use the cheaper tier
+that the dispatching tool's description lists. At the time of writing, both
+the Agent tool and the Workflow `agent()` hook list `sonnet`. Confirm it
+there when you dispatch. If the tool lists no cheaper tier, or the lead
+already runs on it, omit `model` and dispatch as usual.
+
+| Dispatch | Where | Why the cheaper tier is safe |
+| --- | --- | --- |
+| Wide-survey surveyors (Stage 1) | `wide-survey.md` §"The script" | One lens on one area, with schema-bound output. The lead regrades every finding and disconfirms the load-bearing ones. |
+| Footprint check | `coordination-protocol.md` §3.3 | A mechanical comparison of the diff's paths against the declared footprint. |
+| Acceptance-criteria check | `coordination-protocol.md` §3.3 | Reads only the unit spec and the diff, and answers met or unmet per criterion. |
+| `/done`'s docs cross-check | `commands/done.md` §"Phase 2 — Documentation", item 2 | Checks each doc claim against the shipped code and cites `file:line`. |
+| Implementing an S unit | `phase-3-development.md` §"Implementation" | Only when the unit is sized S, its risk is not High, and it has acceptance criteria. The review gate and CI sit behind it. |
+
+**Everything else inherits.** That covers Phase 1's standard engineers and
+specialists, all Phase 2 planning, the wide-survey consolidators, Phase 1's
+disconfirmation, the conditional reviewers in `coordination-protocol.md`
+§3.3, and any unit sized M or L, at High risk, or without acceptance
+criteria. Each of these makes a judgement the run rests on, so the saving
+is not worth the risk.
+
+Raising the tier, and overriding reasoning effort, follow the same rule:
+only when a brief warrants it, with values taken from the tool's own
+description at the time you dispatch.
 
 ## Output Formatting Rule
 
