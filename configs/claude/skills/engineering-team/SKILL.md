@@ -459,7 +459,7 @@ There is no machine-readable marker contract. Instead:
   see, and a full situation report (sitrep) at each checkpoint. **Whenever
   the user asks about status in any wording** ("how is it going", "do you
   need anything from me", "what's done and what's left", "do we need a new
-  session", "sitrep"), answer with the sitrep. Its fixed shape, its
+  session", "sitrep", or `/sitrep`), answer with the sitrep. Its fixed shape, its
   triggers and the new-session test live in `references/status-updates.md`;
   load it at the first dispatch of a multi-agent batch or the first status
   question.
@@ -548,7 +548,7 @@ Load these on demand when their topic becomes relevant:
 - `references/discussion.md` — Discussion workflow details.
 - `references/status-updates.md` — **keeping the user informed**: the
   one-line pulse, the situation report's fixed shape (definition of done,
-  status, needs from you, heads-up, done, doing now, still to do, finished?, session), when each is
+  stage, status, needs from you, heads-up, done, doing now, still to do, finished?, session), when each is
   sent, and when to recommend continuing in a new session.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for

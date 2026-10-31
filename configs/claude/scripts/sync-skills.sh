@@ -59,6 +59,7 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/sync-skills"
 ASSETS=(
   skills/engineering-team
   skills/design-system
+  skills/sitrep
   commands/done.md
   commands/merge-push.md
   commands/prompt.md
