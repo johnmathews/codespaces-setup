@@ -429,6 +429,27 @@ holding commits, a red check, a background process still writing. The
 user cannot see the four steps and should not have to infer from a
 summary's tone whether closing the terminal loses anything.
 
+**Before that verdict, show which models ran.** Whenever a reply is about
+to say the session can be closed, or that all the work is done (a sitrep's
+`Finished? Yes` included), first run:
+
+```bash
+python3 ~/.claude/skills/engineering-team/scripts/model_usage.py
+```
+
+Put its output in the reply, just above the verdict. It reads this
+session's transcripts and lists the model each subagent actually ran on.
+`references/team-structure.md` §"Choosing a model" says which should run
+where. Then act on the result:
+
+- **Exit 0:** show the report as it is.
+- **Exit 1:** an agent ran below the floor. Say so plainly and name the
+  agent. The verdict still stands, because the work is done, but the
+  dispatch that caused it needs fixing.
+- **Exit 2:** no transcript was found. Say that the check could not run.
+
+Never say the floor held without this output to back it.
+
 `full` reaches this through Phase 4's Step 4, which does the same four
 things after the merge. `evaluate` and `plan` reach it at the end of Phase
 1 and Phase 2 respectively — they have no Phase 4, which is exactly why the

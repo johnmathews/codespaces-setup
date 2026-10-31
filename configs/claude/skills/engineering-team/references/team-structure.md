@@ -149,6 +149,17 @@ disconfirmation, the conditional reviewers in `coordination-protocol.md`
 criteria. Each of these makes a judgement the run rests on, so the saving
 is not worth the risk.
 
+**An agent type can set its own model, and that beats inheriting.** A type
+from a plugin, or a built-in one, may set a model in its definition. Its
+agents then run on that model unless the dispatch names one. Transcripts on
+this machine show both directions: one type always ran on the smallest tier,
+and a code-review type always ran on the mid tier. So when the tier matters,
+pass `model` explicitly. An explicit value overrides the type's definition.
+That means the lead's own model for a job that must inherit, and the mid
+tier for the four dispatches above. `scripts/model_usage.py` shows what each
+agent actually ran on, and `SKILL.md` §"Closing a run" runs it before every
+verdict.
+
 Raising the tier, and overriding reasoning effort, follow the same rule:
 only when a brief warrants it, with values taken from the tool's own
 description at the time you dispatch.
