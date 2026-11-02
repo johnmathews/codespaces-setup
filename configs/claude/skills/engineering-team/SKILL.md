@@ -155,7 +155,7 @@ a claim with no check behind it — applied to the skill's own bookkeeping.
 run: manual-20260610T142500Z
 phase: 3                  # 1 | 2 | 3 | 4 | complete
 scope: full               # evaluate | plan | full  (from the user's verb; set once, in Phase 1)
-done_when: "All plan units merged to main with CI green, docs updated"   # the definition of done, in plain words
+done_when: "All plan units merged to main with CI green; docs updated"   # the definition of done: plain-words items, split by ;
 units:                    # mirrors the improvement plan's frontmatter; absent until Phase 2
   - { id: W1, status: done }
   - { id: W2, status: in-progress }
@@ -172,8 +172,9 @@ Four rules, and they are what make it worth having:
    This is what stops "blocked" masquerading as "not done" across a session
    boundary, and it is the durable half of the rule that no started unit may
    be left unaccounted for.
-3. **`done_when:` is the definition of done**: one line, in plain words, naming
-   the end state a user could check. Write it when the run starts, from the
+3. **`done_when:` is the definition of done**: one line of plain-words items
+   separated by `;`, each an end state a user could check. The sitrep shows
+   them as a checklist (the DoD). Write it when the run starts, from the
    user's request and scope ("An evaluation report on security and tests,
    ready to read"). Sharpen it at the Phase 2 gate, once the plan exists, and
    show it to the user there. After that it changes only when the user agrees,
@@ -429,30 +430,6 @@ holding commits, a red check, a background process still writing. The
 user cannot see the four steps and should not have to infer from a
 summary's tone whether closing the terminal loses anything.
 
-**Before that verdict, show which models ran.** Whenever a reply is about
-to say the session can be closed, or that all the work is done (a sitrep's
-`Finished? Yes` included), first run:
-
-```bash
-python3 ~/.claude/skills/engineering-team/scripts/model_usage.py
-```
-
-Put its output in the reply, in a code block so the columns stay aligned,
-just above the verdict. It reads this
-session's transcripts and lists the model each subagent actually ran on,
-with its elapsed time and tokens, plus the same for the lead.
-`references/team-structure.md` §"Choosing a model" says which should run
-where. Then act on the result:
-
-- **Exit 0:** show the report as it is. It does not mention the floor when
-  the floor held, so add no floor line of your own.
-- **Exit 1:** an agent ran below the floor. Say so plainly and name the
-  agent. The verdict still stands, because the work is done, but the
-  dispatch that caused it needs fixing.
-- **Exit 2:** no transcript was found. Say that the check could not run.
-
-Never say the floor held without this output to back it.
-
 `full` reaches this through Phase 4's Step 4, which does the same four
 things after the merge. `evaluate` and `plan` reach it at the end of Phase
 1 and Phase 2 respectively — they have no Phase 4, which is exactly why the
@@ -573,8 +550,8 @@ Load these on demand when their topic becomes relevant:
   lanes.
 - `references/discussion.md` — Discussion workflow details.
 - `references/status-updates.md` — **keeping the user informed**: the
-  one-line pulse, the situation report's fixed shape (definition of done,
-  stage, status, needs from you, heads-up, done, doing now, still to do, finished?, session), when each is
+  one-line pulse, the situation report's fixed shape (DoD checklist,
+  stage, status, needs from you, heads-up, doing now, still to do, also done, finished?, session), when each is
   sent, and when to recommend continuing in a new session.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for

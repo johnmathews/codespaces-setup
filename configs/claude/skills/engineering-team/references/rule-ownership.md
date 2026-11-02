@@ -41,7 +41,7 @@
 | `SKILL.md` (router) | the **concurrent-sessions premise** (assume other sessions; main checkout read-only; touch only what you created); `$RUN_DIR`-in-the-main-checkout + the **`run.yaml`** state rules; owner detection (no default owner); scope-by-verb + phase reconciliation; closing-a-run; announce-the-phase |
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
-| `references/status-updates.md` | **keeping the user informed**: the pulse and the sitrep, when each is sent, the sitrep's fixed section order, "done" in a sitrep means verified, estimates carry their basis, and the continue-or-new-session test |
+| `references/status-updates.md` | **keeping the user informed**: the pulse and the sitrep, when each is sent, the sitrep's fixed section order, a DoD tick or "also done" in a sitrep means verified, estimates carry their basis, and the continue-or-new-session test |
 | `references/local-stack.md` | **see it running before CI**: a user-visible change runs locally in front of the user before `/done` pushes it; the login and the data survive restarts and worktrees (data outside the worktree, never reset unasked); demo data seeded wherever the project allows |
 
 ## 3. Cross-cutting invariants → canonical home
@@ -146,7 +146,6 @@ should point here.
 | Scope by the user's verb (evaluate/plan/full); scope gates what may merge | §"Decide which phase to load" | phases 1, 2, 4 |
 | The plan is tracked only while the run is live, and retired at closeout; run bookkeeping is never tracked | §"The run directory" | phase 2 (pointer); phase 4 (the retire step); `multi-session.md` §10 |
 | Closing a run: four steps, in the main checkout, then the session-closable verdict | §"Closing a run" | phases 1, 2, 4 |
-| Before any closable or all-done verdict, run `scripts/model_usage.py` and show which model each agent ran on | §"Closing a run" | `status-updates.md` §3.1 (Finished?, Session); the `sitrep` skill, Step 2; `commands/done.md` Phase 9 |
 | Announce the phase in one plain-prose line | §"Announce phase transitions" | phases 1–4 (four parallel copies — **see §4**) |
 
 ### Homed in `phase-3-development.md`
@@ -168,7 +167,7 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
-| Any status question, in any wording, gets the full sitrep in its fixed order: definition of done, stage, status, needs from you, heads-up (only when needed), done, doing now, still to do, finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
+| Any status question, in any wording, gets the full sitrep in its fixed order: DoD checklist, stage, status, needs from you, heads-up (only when needed), doing now, still to do, also done (only when needed), finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
 | A long or multi-agent stretch is never silent: a pulse when agents start, when they return, before an unseen wait, and at least every ten minutes | §"When to send a pulse" | `SKILL.md` §"Progress, pausing, and completion"; phase 3 (pointer); `wide-survey.md` §"Before you run it" step 5 |
 | Continue-or-move is decided by overlap: does the work ahead need what this session holds, and is that knowledge on disk? Size and compaction only change the urgency. Checked at every unit and phase boundary; hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
 | When the decision is to move, the lead prepares the hand-over prompt itself (the `/prompt` procedure: a markdown file plus a copyable block), and a session that uses the engineering-team skill hands over to the engineering-team: the prompt starts with `/engineering-team` | §"Handing over" | `commands/prompt.md` Step 3 (owns the engineering-team rule) and Step 4 (owns the file and the two forms); the `sitrep` skill, Step 4 |

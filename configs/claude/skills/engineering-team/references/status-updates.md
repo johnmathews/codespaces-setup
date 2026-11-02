@@ -73,19 +73,22 @@ running.
 ## 3. The sitrep shape
 
 Send the sections in this order, so the user's eye lands in the same place each
-time. The definition of done comes first and the stage second: a user running
-several sessions reads them to recall which one this is and where it has got
-to. Every section except "Heads-up" appears every time. A section with nothing
-to report says so in one word.
+time. The DoD (definition of done) comes first and the stage second: a user
+running several sessions reads them to recall which one this is and where it
+has got to. Every section except "Heads-up" and "Also done" appears every time.
+A section with nothing to report says so in one word.
 
 ```markdown
-**Definition of done:** All seven billing fixes merged to main with CI green,
-and the deploy guide updated for the new settings.
+**DoD:**
+- ✅ Login no longer times out
+- ✅ Billing totals match the invoices
+- ⬜ All seven billing fixes merged to main with CI green (2 of 7)
+- ⬜ The deploy guide covers the new settings
 
 **Stage:** Implementing W4 of 7 (Phase 3 of 4). Next: waiting on CI for W3.
 
 **Status:** Waiting on you. One question holds up W5; everything else is moving.
-4 of 7 fixes are done and the tests pass.
+2 of 7 fixes are merged, and W3 is in CI.
 
 **Needs from you:**
 1. Choose the cache size: 1 GB (faster pages, about €20 a month more) or
@@ -94,10 +97,6 @@ and the deploy guide updated for the new settings.
 
 **Heads-up:** Once W3 merges, production needs two new settings before the
 next deploy, or the app won't start.
-
-**Done:**
-- Login no longer times out after five minutes (W1, merged).
-- Billing totals now match the invoices (W2, merged).
 
 **Doing now:**
 - Two agents are writing tests for the export feature (W4), back in about 5 minutes.
@@ -108,6 +107,9 @@ next deploy, or the app won't start.
 - W6: update the deploy guide. W7: remove the old export code.
 - Then the wrap-up: merge, journal entry, tidy-up.
 
+**Also done:**
+- Fixed a flaky export test that kept failing CI.
+
 **Finished?** No. 3 units are left, and each has taken about 30 minutes. Expect
 it done around 15:30 CET if you answer by 14:45.
 
@@ -117,13 +119,25 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
 
 ### 3.1 Rules for each section
 
-- **Definition of done** — the goal of the whole run, so a user switching
-  between sessions knows immediately what this one is for. Copy it from
-  `done_when:` in `run.yaml` (`SKILL.md` §"The run directory"). One or two
-  lines, plain words, an end state the user could check. When it has changed
-  since the last sitrep, add what changed and when: "(changed 14:10: W7
-  dropped, as you asked)". With no `done_when:` yet, write one from the
-  user's request, show it, and save it.
+- **DoD** — the definition of done: the goal of the whole run, so a user
+  switching between sessions knows immediately what this one is for. A
+  checklist with one short bullet per item of `done_when:` in `run.yaml`
+  (`SKILL.md` §"The run directory"), which separates its items with `;`.
+  Each item is an end state the user could check, and each bullet starts with
+  one mark:
+  - ✅ met. Tick it only on evidence read for this sitrep: the unit is `done` in
+    `run.yaml`, the PR is merged, the check is green, the result was seen
+    running. A unit that is written but not yet reviewed and tested is not met.
+  - ⬜ not met yet. When it is partly met, add a count: "(4 of 7)".
+  - ❌ blocked, or can't be done as things stand. Give the reason in a few
+    words: "❌ Deploy guide updated: staging is down, so the settings can't be
+    checked". A ❌ always has a matching `Blocked` status, an ask under "Needs
+    from you", or a Heads-up.
+
+  Work the marks out again for every sitrep and never store them, because a
+  stored tick goes stale. When the DoD has changed since the last sitrep, add
+  what changed and when: "(changed 14:10: W7 dropped, as you asked)". With no
+  `done_when:` yet, write one from the user's request, show it, and save it.
 - **Stage** — where the work is right now, as one word or phrase from this
   list, then the detail and what comes next:
 
@@ -141,7 +155,7 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   | Checking it live | looking at the running result, locally or deployed |
   | Wrapping up | journal, docs, removing the worktree (Phase 4) |
   | Handing over | saving state and writing the prompt for a new session |
-  | Done | the definition of done is met |
+  | Done | every DoD item is ✅ |
 
   Name the lead's own stage. When several things run at once, such as
   implementing W4 while CI checks W3, the stage is the one the lead is doing
@@ -167,11 +181,6 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   about but doesn't have to act on now. For example, a merge that changes what a
   deploy needs, or a unit that turned out bigger than planned. Keeping it out
   of "Needs from you" keeps the asks real.
-- **Done** — outcomes the user would notice. Write "Login no longer times out"
-  rather than "edited `auth.py`". A unit is done only by the `run.yaml`
-  definition: review passed and the full suite is green. Written but unchecked
-  work goes under "Doing now" as "written, being checked". Add the `W<n>` ID in
-  brackets so the line can be matched to the plan.
 - **Doing now** — everything running at this moment, including background
   agents, Workflows, CI and a local server, and when each should finish. With no
   measured duration for a step, give its start time ("review started 6 minutes
@@ -183,6 +192,13 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
 - **Still to do** — the remaining units from `run.yaml`, each in plain words
   with its ID, then the wrap-up steps. When the run's scope stops before Phase 3,
   say where it stops and what the next phase would be.
+- **Also done** (only when needed) — finished work that no DoD item covers,
+  such as a side fix the user asked for or a bug found along the way. Write
+  outcomes the user would notice: "Login no longer times out" rather than
+  "edited `auth.py`". It counts as done only by the `run.yaml` definition:
+  review passed and the full suite is green. Written but unchecked work goes
+  under "Doing now" as "written, being checked". Work that counts toward a DoD
+  item shows there, not here.
 - **Finished?** — `Yes` or `No`, then an estimate with its basis:
   - Base it on the units left, how long the finished ones took, and waits
     already measured on this run, such as CI's usual time.
@@ -193,11 +209,8 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
     measurement behind it is a claim stronger than its check
     (`general-guidelines.md` rule 2).
   - If a move to a new session is planned, include it in the estimate.
-  - A `Yes` comes with the model report, placed after the Session line
-    (`SKILL.md` §"Closing a run").
 - **Session** — continue here, or move to a new session and when. §4 decides
-  which. A line saying the session can be closed also needs the model report
-  (`SKILL.md` §"Closing a run").
+  which.
 
 ### 3.2 Language
 
@@ -212,6 +225,9 @@ A sitrep is in the **Briefing register** (`voice-registers.md` §3):
 Leave out file paths, commit hashes and tool names unless the user needs them
 to act. Status lines are bullets. The asks are numbered, because the user
 answers them by number.
+
+Use emoji and colour sparingly, so the few there are stand out. The DoD's three
+marks (✅ ⬜ ❌) are the only ones in a sitrep.
 
 ### 3.3 Sources
 
