@@ -1,6 +1,6 @@
 ---
 name: sitrep
-description: Give a situation report on this session's work in a fixed shape — definition of done, stage, status, what's needed from the user, done, doing now, still to do, when it will finish, and whether to continue in a new session. Use when the user types /sitrep, or asks for a status update in any wording — "how is it going", "do you need anything from me", "what have we done and what's left", "is it done yet", "when will it be finished", "do we need a new session", "where are we", "give me an update".
+description: Give a situation report on this session's work in a fixed shape — a DoD checklist, stage, status, what's needed from the user, doing now, still to do, also done, when it will finish, and whether to continue in a new session. Use when the user types /sitrep, or asks for a status update in any wording — "how is it going", "do you need anything from me", "what have we done and what's left", "is it done yet", "when will it be finished", "do we need a new session", "where are we", "give me an update".
 ---
 
 # Sitrep
@@ -39,19 +39,16 @@ remembers:
 4. **Git:** the branch, uncommitted changes, and commits not yet pushed.
 5. **Size:** `python3 ~/.claude/skills/engineering-team/scripts/context_usage.py`. If it prints
    "unknown", judge size as §4.3 says.
-6. **Models**, when the report will say `Finished? Yes` or that the session can be closed:
-   `python3 ~/.claude/skills/engineering-team/scripts/model_usage.py`. Show its output, in a code block, after the
-   Session line. The rule and what each exit code means are in
-   `~/.claude/skills/engineering-team/SKILL.md`, "Closing a run".
 
 ## Step 3 — Fill the gaps when there is no run
 
 Outside an engineering-team run, nothing on disk holds the goal or the units. Then:
 
-- **Definition of done:** state the end state the user asked for, from their request in this
-  conversation. Mark it "(from your request; correct me if it's wrong)" the first time.
+- **DoD:** split the end state the user asked for, from their request in this conversation, into
+  checkable items. Mark the list "(from your request; correct me if it's wrong)" the first time.
 - **Stage:** use §3.1's list, picking the closest word.
-- **Done / Still to do:** list the steps of the task as this conversation has defined them.
+- **DoD marks, Still to do, Also done:** work from the steps of the task as this conversation
+  has defined them.
 
 ## Step 4 — Send it
 

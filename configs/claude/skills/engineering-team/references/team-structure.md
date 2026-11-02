@@ -157,8 +157,7 @@ and a code-review type always ran on the mid tier. So when the tier matters,
 pass `model` explicitly. An explicit value overrides the type's definition.
 That means the lead's own model for a job that must inherit, and the mid
 tier for the four dispatches above. `scripts/model_usage.py` shows what each
-agent actually ran on, and `SKILL.md` §"Closing a run" runs it before every
-verdict.
+agent actually ran on, when run by hand.
 
 Raising the tier, and overriding reasoning effort, follow the same rule:
 only when a brief warrants it, with values taken from the tool's own
@@ -173,7 +172,7 @@ conclusions, and summary points. The user refers to items by number, so every ac
 must be numbered. Internal implementation instructions (within this skill definition) are not affected —
 this rule applies only to what is shown to the user.
 
-One exception: a situation report's status lines (done, doing now, still to do) are bullets, and its asks
+One exception: a situation report's status lines (the DoD checklist, doing now, still to do, also done) are bullets, and its asks
 are numbered (`status-updates.md` §3.2). The user asked for bullets there, and answers only the asks.
 
 The user speed-reads chat output like everything else, so `writing-style.md` §4, §5, §7 and §8 apply to it:
