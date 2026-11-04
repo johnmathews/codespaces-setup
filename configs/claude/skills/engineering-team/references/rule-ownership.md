@@ -42,6 +42,7 @@
 | `references/workflows.md` + `references/discussion.md` | Build-vs-Discussion boundary (needs a codebase, else deep-research); discussion-changes-no-code; phase-invocation mapping |
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
 | `references/status-updates.md` | **keeping the user informed**: the pulse and the sitrep, when each is sent, the sitrep's fixed section order, a DoD tick or "also done" in a sitrep means verified, estimates carry their basis, and the continue-or-new-session test |
+| `references/shipping.md` | **how a change reaches each environment**: the `## Shipping` section a project keeps in `CLAUDE.md` (`Lands by:` pull request, direct push or local only; each environment with a read-only `Check:`), working it out when missing, who writes it, and how far "done" goes |
 | `references/local-stack.md` | **see it running before CI**: a user-visible change runs locally in front of the user before `/done` pushes it; the login and the data survive restarts and worktrees (data outside the worktree, never reset unasked); demo data seeded wherever the project allows |
 
 ## 3. Cross-cutting invariants → canonical home
@@ -163,11 +164,19 @@ should point here.
 | A user-visible change runs locally for the user before `/done` pushes it | §"1. When it applies" | phase 3 (pointer); phase 4 Step 0 (pointer) |
 | The local login and data survive restarts, rebuilds and worktree removal | §"3. Keep the login and the data" | phase 4 Step 0 (pointer) |
 
+### Homed in `shipping.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| How a change lands is the project's choice, read from the `Lands by:` line of its `## Shipping` section: pull request, direct push, or local only | §"1. The section a project keeps" | `commands/merge-push.md` Step 0; `commands/done.md` Phase 0 and Phase 8; phase 4 Step 3 (pointer) |
+| A missing section is worked out, shown and confirmed before it is saved; until then a repo with a remote lands by pull request; only `/merge-push` and `/done` write it, never the sitrep | §"2. When the section is missing" | `commands/merge-push.md` Step 0; `commands/done.md` Phase 0; the `sitrep` skill, Step 2 |
+| An environment is ticked only by its read-only `Check:` command, never by a merge | §"1. The section a project keeps" | `status-updates.md` §"Rules for each section" (Shipped) |
+
 ### Homed in `status-updates.md`
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
-| Any status question, in any wording, gets the full sitrep in its fixed order: DoD checklist, stage, status, needs from you, heads-up (only when needed), doing now, still to do, also done (only when needed), finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
+| Any status question, in any wording, gets the full sitrep in its fixed order: DoD checklist, stage, status, needs from you, heads-up (only when needed), shipped, doing now, still to do, also done (only when needed), finished?, session | §"The sitrep shape" | `SKILL.md` §"Progress, pausing, and completion"; `team-structure.md` §"Output Formatting Rule" (the bullets exception) |
 | A long or multi-agent stretch is never silent: a pulse when agents start, when they return, before an unseen wait, and at least every ten minutes | §"When to send a pulse" | `SKILL.md` §"Progress, pausing, and completion"; phase 3 (pointer); `wide-survey.md` §"Before you run it" step 5 |
 | Continue-or-move is decided by overlap: does the work ahead need what this session holds, and is that knowledge on disk? Size and compaction only change the urgency. Checked at every unit and phase boundary; hand over at a clean break point, after decisions and open questions are on disk | §"Continue here, or start a new session?" | — |
 | When the decision is to move, the lead prepares the hand-over prompt itself (the `/prompt` procedure: a markdown file plus a copyable block), and a session that uses the engineering-team skill hands over to the engineering-team: the prompt starts with `/engineering-team` | §"Handing over" | `commands/prompt.md` Step 3 (owns the engineering-team rule) and Step 4 (owns the file and the two forms); the `sitrep` skill, Step 4 |

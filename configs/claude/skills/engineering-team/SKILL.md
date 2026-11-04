@@ -177,8 +177,9 @@ Four rules, and they are what make it worth having:
    them as a checklist (the DoD). Write it when the run starts, from the
    user's request and scope ("An evaluation report on security and tests,
    ready to read"). Sharpen it at the Phase 2 gate, once the plan exists, and
-   show it to the user there. After that it changes only when the user agrees,
-   and the next sitrep says what changed. Every sitrep leads with it
+   show it to the user there. When the project deploys, it says how far along
+   the environments done goes (`references/shipping.md` §3). After that it
+   changes only when the user agrees, and the next sitrep says what changed. Every sitrep leads with it
    (`references/status-updates.md`). The user may be running several sessions
    at once, and this line is how they tell them apart. Keep it on one line,
    and leave out ` #`, which the file's checker reads as a comment.
@@ -551,8 +552,13 @@ Load these on demand when their topic becomes relevant:
 - `references/discussion.md` — Discussion workflow details.
 - `references/status-updates.md` — **keeping the user informed**: the
   one-line pulse, the situation report's fixed shape (DoD checklist,
-  stage, status, needs from you, heads-up, doing now, still to do, also done, finished?, session), when each is
+  stage, status, needs from you, heads-up, shipped, doing now, still to do, also done, finished?, session), when each is
   sent, and when to recommend continuing in a new session.
+- `references/shipping.md` — **how a change reaches each environment** in
+  this project: the `## Shipping` section a project keeps in `CLAUDE.md`
+  (lands by pull request, direct push or local only, and its environments),
+  how to work it out when it is missing, and who writes it. The sitrep's
+  "Shipped" section, `/merge-push` and `/done` read it.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for
   urgent reports.
