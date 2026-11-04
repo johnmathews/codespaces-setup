@@ -75,7 +75,9 @@ running.
 Send the sections in this order, so the user's eye lands in the same place each
 time. The DoD (definition of done) comes first and the stage second: a user
 running several sessions reads them to recall which one this is and where it
-has got to. Every section except "Heads-up" and "Also done" appears every time.
+has got to. "Shipped" sits just before "Doing now", so the user sees how far
+the work has got toward each environment without reading the rest. Every
+section except "Heads-up" and "Also done" appears every time.
 A section with nothing to report says so in one word.
 
 ```markdown
@@ -97,6 +99,12 @@ A section with nothing to report says so in one word.
 
 **Heads-up:** Once W3 merges, production needs two new settings before the
 next deploy, or the app won't start.
+
+**Shipped:** by pull request.
+- ✅ Pushed: W1 to W3
+- ⬜ Merged to main: W1 and W2 (2 of 7)
+- ⬜ Staging: W1 is live; W2 deploys in about 5 minutes
+- ⬜ Production: a manual release, once all seven are merged
 
 **Doing now:**
 - Two agents are writing tests for the export feature (W4), back in about 5 minutes.
@@ -181,6 +189,27 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   about but doesn't have to act on now. For example, a merge that changes what a
   deploy needs, or a unit that turned out bigger than planned. Keeping it out
   of "Needs from you" keeps the asks real.
+- **Shipped** — how far the work has got from this branch toward each
+  environment. The path comes from the project's `## Shipping` section
+  (`shipping.md`), which differs from project to project:
+  - **The first line names the path** ("by pull request", "by direct push to
+    main", "local only"). When the project has no `## Shipping` section, add
+    "(worked out, not confirmed)" and work it out as `shipping.md` §2 says.
+    The sitrep never writes the section itself.
+  - **Then one bullet per step of that path, in order**, then one per
+    environment, in the order a change reaches them. A `pull request` path
+    tracks pushed and merged. A `direct push` path tracks merged into `main`,
+    then pushed. A `local only` path tracks merged.
+  - **The marks follow the DoD's rules.** ✅ only on evidence read for this
+    sitrep: the branch matches its remote for pushed, `gh pr view` says
+    `MERGED` (or `main` contains the commits) for merged, and the
+    environment's `Check:` command for an environment. ⬜ is not there yet.
+    ❌ is a failed push, a red check on `main` or a failed deploy, with the
+    reason. An environment with `Check: none` stays ⬜ with "not checked".
+  - **With several units, count them** ("2 of 7") and name them when the list
+    is short.
+  - **With nothing committed yet**, write "Nothing to ship yet." A run that
+    only produces a report writes "Nothing to ship: this run writes a report."
 - **Doing now** — everything running at this moment, including background
   agents, Workflows, CI and a local server, and when each should finish. With no
   measured duration for a step, give its start time ("review started 6 minutes
@@ -226,8 +255,8 @@ Leave out file paths, commit hashes and tool names unless the user needs them
 to act. Status lines are bullets. The asks are numbered, because the user
 answers them by number.
 
-Use emoji and colour sparingly, so the few there are stand out. The DoD's three
-marks (✅ ⬜ ❌) are the only ones in a sitrep.
+Use emoji and colour sparingly, so the few there are stand out. The three
+marks (✅ ⬜ ❌) in the DoD and "Shipped" are the only ones in a sitrep.
 
 ### 3.3 Sources
 
@@ -236,6 +265,9 @@ Before every sitrep, read the state from disk and from what is running now:
 - `run.yaml` for phase and unit status
 - `progress.md` and the lane status files in a multi-lane run
 - the task list, the Workflow's status, and `gh pr checks` for anything running
+- for "Shipped": the project's `## Shipping` section, `git` (the branch against
+  its remote, and whether `main` holds the work), `gh pr view` for the PR's
+  state, and each environment's `Check:` command
 - `date`, for the times
 
 If the sitrep and `run.yaml` disagree, fix `run.yaml` before sending.

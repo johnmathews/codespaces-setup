@@ -1,6 +1,6 @@
 ---
 name: sitrep
-description: Give a situation report on this session's work in a fixed shape — a DoD checklist, stage, status, what's needed from the user, doing now, still to do, also done, when it will finish, and whether to continue in a new session. Use when the user types /sitrep, or asks for a status update in any wording — "how is it going", "do you need anything from me", "what have we done and what's left", "is it done yet", "when will it be finished", "do we need a new session", "where are we", "give me an update".
+description: Give a situation report on this session's work in a fixed shape — a DoD checklist, stage, status, what's needed from the user, how far it has shipped (pushed, merged, live in each environment), doing now, still to do, also done, when it will finish, and whether to continue in a new session. Use when the user types /sitrep, or asks for a status update in any wording — "how is it going", "do you need anything from me", "what have we done and what's left", "is it done yet", "is it merged", "is it deployed", "when will it be finished", "do we need a new session", "where are we", "give me an update".
 ---
 
 # Sitrep
@@ -37,7 +37,12 @@ remembers:
 3. **What is running:** background agents, Workflows and shells from this session, and
    `gh pr checks` for any open PR this session made.
 4. **Git:** the branch, uncommitted changes, and commits not yet pushed.
-5. **Size:** `python3 ~/.claude/skills/engineering-team/scripts/context_usage.py`. If it prints
+5. **Shipping:** the `## Shipping` section of the project's `CLAUDE.md`, whether `main` holds the
+   work (`gh pr view --json state` for a PR), and each environment's `Check:` command. When the
+   section is missing, work out the path as
+   `~/.claude/skills/engineering-team/references/shipping.md` §2 says, and show it as worked out.
+   Don't write the section: that is for `/merge-push` and `/done`.
+6. **Size:** `python3 ~/.claude/skills/engineering-team/scripts/context_usage.py`. If it prints
    "unknown", judge size as §4.3 says.
 
 ## Step 3 — Fill the gaps when there is no run

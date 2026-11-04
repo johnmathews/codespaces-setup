@@ -29,7 +29,7 @@ not finish the wrap-up.
 The phases below run in this fixed order. The letter suffixes are historical and
 **not** a hierarchy: `7b` and `8c` are full, standalone phases (they each get a
 summary row), while `8a`/`8b` are the two mutually-exclusive branches *inside*
-Phase 8 (remote vs. no remote). Phase 0 (Sanity) and Phase 9 (the summary table
+Phase 8 (lands by pull request, or not). Phase 0 (Sanity) and Phase 9 (the summary table
 itself) are the only phases without their own summary row.
 
 ```
@@ -43,8 +43,8 @@ itself) are the only phases without their own summary row.
 7    Lint — detect and run the project's linter
 7b   Journal — write the dated entry AFTER all work phases (never before)
 8    Commit & open a PR — never pushes to main
-       8a  remote exists (the normal path: branch → push → PR → watch CI)
-       8b  no remote (scratch repo: commit locally, offer /merge-push)
+       8a  lands by pull request (branch → push → PR → watch CI)
+       8b  lands by direct push, or local only (commit on the branch, offer /merge-push)
 8c   Housekeeping — reap merged worktrees/branches (propose, then confirm)
 9    Session summary — the plain-ASCII table of what each phase found/did
 ```
@@ -76,10 +76,15 @@ This applies throughout every phase below. When in doubt, search first.
     confirm before creating one (default owner `johnmathews`) and pushing to it. Do **not** assume the repo
     belongs to `johnmathews` — on a work project it does not, and every downstream rule that assumes it
     (registry, PR target, review expectations) is then wrong.
-- **Governance check.** Establish early whether `main` is protected, because it decides how Phase 8 ships:
-  `gh api repos/{owner}/{repo}/rulesets` and `gh api repos/{owner}/{repo}/branches/main/protection` (either may
-  404 — that's an answer, not an error). A repo with a remote gets the PR path regardless; protections just tell
-  you what the PR must satisfy.
+- **How does this project ship?** Read the `## Shipping` section of the project's `CLAUDE.md`
+  (`~/.claude/skills/engineering-team/references/shipping.md` defines it). Its `Lands by:` line decides Phase 8:
+  `pull request` → 8a; `direct push` or `local only` → 8b. With no section, work it out as `shipping.md` §2 says,
+  show it to the user, and once they confirm, add it to `CLAUDE.md` so Phase 8 commits it with the work. **Until
+  they confirm, a repo with a remote takes 8a.**
+- **Governance check.** Read whether `main` is protected: `gh api repos/{owner}/{repo}/rulesets` and
+  `gh api repos/{owner}/{repo}/branches/main/protection` (either may 404 — that's an answer, not an error).
+  Protections tell you what the PR must satisfy. A `direct push` section on a repo whose `main` requires a PR is
+  wrong: say so and take 8a.
 - Run `git status` and `git diff` to understand the current state of the working tree.
 - **Worktree check.** Compare the two git dirs, **normalising both to absolute** — if they differ you are in a
   worktree, which is the expected state for engineering-team work:
@@ -347,8 +352,9 @@ to include any additional work done during the wrap-up phases rather than creati
 
 ## Phase 8 — Commit & Open a PR
 
-**This phase never pushes to `main`.** It ships the work to a pull request and watches CI *there*, so a red commit
-can't reach `main` in the first place. Fix-forward happens on the branch, where it belongs.
+**This phase never pushes to `main`.** On a project that lands by pull request it ships the work to a PR and watches
+CI *there*, so a red commit can't reach `main` in the first place. Fix-forward happens on the branch, where it belongs.
+On any other project it commits on the branch and leaves landing to `/merge-push`.
 
 - **Pre-commit check:** Before committing, verify that Phase 7b (Journal) was completed. If the journal entry has not
   been written or updated yet, do it now before proceeding.
@@ -356,9 +362,9 @@ can't reach `main` in the first place. Fix-forward happens on the branch, where 
   monolithic commit either. A commit should make sense on its own when read in `git log`.
 - Write clear commit messages that explain the _why_, not just the _what_.
 
-Then branch on what Phase 0's governance check found:
+Then branch on the `Lands by:` line Phase 0 read:
 
-### 8a — Remote exists (the normal path)
+### 8a — Lands by pull request
 
 1. **Gate check — lane runs only.** A worker on an engineering-team lane may not
    open a PR for a unit the coordinator has not cleared
@@ -454,10 +460,11 @@ Then branch on what Phase 0's governance check found:
 **"Don't push" narrows this to step 2 only** — commit, and report that the branch is ready. It does not cancel the
 phase, and it does not license skipping Phase 9.
 
-### 8b — No remote (scratch repo)
+### 8b — Lands by direct push, or local only
 
-Commit, and tell the user the work is committed locally. Offer `/merge-push` if they want it merged. Do not create a
-remote without asking.
+Commit on the branch, and tell the user the work is committed there. Offer `/merge-push` to land it: it merges into
+`main` and, for `direct push`, pushes `main` after the user confirms. This phase still never pushes to `main`. Do not
+create a remote without asking.
 
 ## Phase 8c — Housekeeping (worktrees & branches)
 
@@ -530,7 +537,7 @@ makes it the easiest place in the whole workflow to assert more than you checked
 - Documentation: must cite the freshness audit — `"Audited 4 changed modules + new env var vs docs/README/CLAUDE.md; fixed 1 stale default, added 1 README link"` or, when genuinely clean, `"Audited N changed surfaces vs docs — all current"` (never a bare `"No changes needed"`, which signals the audit was skipped)
 - Security & Privacy: `"Added .env to .gitignore, moved API key to vault"` or `"No secrets found"`
 - Code Review: `"Simplified error handling in deploy.yml"` or `"No issues found"`
-- Commit & PR: `"2 commits, PR #42 opened on feat/xyz"` or `"2 commits, no remote — committed locally"`
+- Commit & PR: `"2 commits, PR #42 opened on feat/xyz"` or `"2 commits on feat/xyz; lands by direct push — run /merge-push"` or `"2 commits, no remote — committed locally"`
 - CI (on the PR): `"lint-types-test + docs-check green on #42"` or `"lint failed on #42, fixed, green on retry"` or `"No workflows configured"` (name the checks — `"CI passed"` alone is not a result)
 - Housekeeping: `"Reaped 2 merged worktrees (feat/a, feat/b); skipped feat/c — uncommitted changes"` or `"No stale worktrees"`
 

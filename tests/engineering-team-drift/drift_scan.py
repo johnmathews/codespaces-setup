@@ -108,6 +108,8 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                            r"at least every ten minutes"),
     "new-session-test": ("references/status-updates.md",
                          r"Continue here, or start a new session"),
+    "lands-by-default": ("references/shipping.md",
+                         r"Until the user confirms, a repo with a remote lands by pull request"),
 }
 
 

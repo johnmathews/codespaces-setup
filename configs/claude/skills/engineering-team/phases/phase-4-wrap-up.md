@@ -147,27 +147,36 @@ problems at the one moment you can no longer act on them.
    required" in `../references/worktree.md` — that is a repo config bug, not
    something to wait out.
 
+**A project that lands by direct push or local only has no PR**
+(`../references/shipping.md`). There, the checks before landing are the suite
+and linter `/done` ran on the branch, and CI runs on `main` after the push:
+`/merge-push` Step 2C watches it and fixes forward at once if it goes red.
+
 Apply the vocabulary rule: **"green" means an executed check that passed, and you
 can name it.** A check that was skipped, or that cannot fail, is not evidence
 (`../references/general-guidelines.md`).
 
 ### Step 3: Merge & Cleanup
 
-Only once Step 2 is satisfied. Run `/merge-push` to merge the PR and clean up. It
-detects whether the repo is governed (a remote with branch protections →
-squash-merge the PR once green; no remote → a local merge), checks for conflicts,
-and asks for explicit confirmation before merging.
+Only once Step 2 is satisfied. Run `/merge-push` to merge and clean up. It reads
+how the project lands a change from the `## Shipping` section of its `CLAUDE.md`
+(`../references/shipping.md`): squash-merge the PR once green, merge into `main`
+and push it, or a local merge with no remote. It checks for conflicts and asks
+for explicit confirmation before merging.
 
 **If `/merge-push` is absent**, do the same thing by hand and say you did:
-confirm no conflicts with `main`, ask the user explicitly, squash-merge the
-green PR (`gh pr merge --squash`) or merge locally where there is no remote,
-then remove the worktree and delete the branch.
+confirm no conflicts with `main`, ask the user explicitly, then land it the way
+the project's `Lands by:` line says: squash-merge the green PR
+(`gh pr merge --squash`), push the rebased branch to `main`, or merge locally
+where there is no remote. Then remove the worktree and delete the branch.
 
 **Merge is the irreversible step, so it is always confirmed.** Never merge
 because the PR looks ready — a green PR is a fact about the PR, not permission.
 
-Do not consider the work complete until CI was green on the PR *and* the PR is
-merged.
+Do not consider the work complete until CI was green *and* the work is on
+`main`: on the PR before it merged, or on `main` after a direct push. When the
+run's `done_when:` names environments, it is complete once their `Check:`
+commands show it live there.
 
 ### Step 3.5: Reconcile the lanes (multi-lane runs only)
 

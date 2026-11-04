@@ -3,26 +3,38 @@
 Land the current branch on `main`. This command is focused and fast — no tests, no
 linting, no documentation review. Use `/done` for the full wrap-up workflow.
 
-There are two ways to land, and **Step 0 decides which**. Do not skip it: on a repo with a
-remote, merging into local `main` and pushing bypasses review and pre-merge CI, and on a
-protected repo it simply fails.
+There are three ways to land, and each project picks one. **Step 0 decides which.** Do not
+skip it: on a project that lands by pull request, merging into `main` and pushing bypasses
+review and pre-merge CI, and on a protected repo it simply fails.
 
 ## Step 0 — Which path?
+
+The project says how it ships in the `## Shipping` section of its `CLAUDE.md`
+(`~/.claude/skills/engineering-team/references/shipping.md` defines it). Read its `Lands by:`
+line, and check the branch:
 
 ```bash
 git remote -v                                          # is there a remote at all?
 gh pr view --json number,state,url 2>/dev/null         # does this branch already have a PR?
 ```
 
-- **A remote exists → the PR path (Step 2A).** Merge happens on the platform, after CI has
-  passed on the PR. This is the default whenever there is a remote, protections or not: it is
-  how `main` stays green and how the change gets a reviewable record.
-- **No remote → the local path (Step 2B).** A scratch repo with no remote has no PR to open
+- **`pull request` → the PR path (Step 2A).** Merge happens on the platform, after CI has
+  passed on the PR.
+- **`direct push` → the direct path (Step 2C).** Merge into `main` and push `main`. The project
+  has chosen this, so there is no PR to open.
+- **`local only` → the local path (Step 2B).** A scratch repo with no remote has no PR to open
   and no CI to wait for; a local merge is the whole ceremony.
 
+**No `## Shipping` section?** Work the path out as `shipping.md` §2 says, show it to the user,
+and ask them to confirm it. Once they do, add the section to `CLAUDE.md` on this branch and
+commit it, so it lands with the change. **Until they confirm, a repo with a remote takes the PR
+path**, protections or not: a wrong guess there costs one PR, and a wrong guess the other way
+puts unreviewed commits on `main`.
+
 Protections (`gh api repos/{owner}/{repo}/rulesets`, `gh api repos/{owner}/{repo}/branches/main/protection`
-— a 404 from either is an answer, not an error) don't change the path; they tell you what the
-PR must satisfy before it can merge, and whether an admin bypass will be needed.
+— a 404 from either is an answer, not an error) tell you what the PR must satisfy before it can
+merge, and whether an admin bypass will be needed. A section that says `direct push` on a repo
+whose `main` requires a PR is wrong: say so and take the PR path.
 
 ## Step 1 — Assess
 
@@ -85,7 +97,7 @@ Check whether the merge is likely to have conflicts:
 Present a clear summary to the user:
 
 ```
-Path:             PR (remote exists) / local (no remote)
+Path:             PR / direct push / local (from CLAUDE.md, or confirmed now)
 Branch:           feature/xyz
 Commits to merge: 5 (list them)
 Main has diverged: yes/no (N commits)
@@ -93,10 +105,10 @@ Conflict risk:    none detected / likely in [files]
 PR:               #42 open / none yet / already MERGED (stop — see Step 2A.1)
 ```
 
-## Step 2A — The PR path (a remote exists)
+## Step 2A — The PR path (`Lands by: pull request`)
 
-**Never merge into local `main` and push.** That bypasses review and pre-merge CI, and on a
-protected repo the push is rejected anyway. The merge happens on the platform.
+**Never merge into `main` and push on this path.** That bypasses review and pre-merge CI, and
+on a protected repo the push is rejected anyway. The merge happens on the platform.
 
 1. **Push the branch** if it isn't pushed: `git push -u origin <branch>`.
    - **First check the PR isn't already merged** (`gh pr view --json state`). Pushing to a
@@ -121,7 +133,7 @@ protected repo the push is rejected anyway. The merge happens on the platform.
 6. **If the PR is out of date or conflicts:** rebase the branch onto `main`, push, and re-watch
    CI. Resolve conflicts on the branch and ask the user to review the resolutions.
 
-## Step 2B — The local path (no remote)
+## Step 2B — The local path (`Lands by: local only`)
 
 **Ask the user for explicit confirmation before merging.** Do not proceed without a clear "yes."
 
@@ -135,9 +147,33 @@ protected repo the push is rejected anyway. The merge happens on the platform.
    review the resolutions before completing the merge with `git commit`.
 4. If the user later wants a remote, ask before creating one.
 
+## Step 2C — The direct path (`Lands by: direct push`)
+
+**Ask the user for explicit confirmation before pushing to `main`.** Do not proceed without a
+clear "yes". A push to `main` is visible to everyone at once.
+
+Land it from the branch, without touching the main checkout: another session may be using it,
+and a fast-forward push cannot overwrite anyone's work on `main`.
+
+1. **Bring the branch up to date:** `git fetch origin`, then `git rebase origin/main`. On
+   conflicts, list the files, resolve them on the branch, and ask the user to review the
+   resolutions.
+2. **Push the branch to `main`:** `git push origin HEAD:main`. This is a fast-forward. If `main`
+   moved in the meantime, the push is rejected: go back to step 1. **Never force-push `main`.**
+3. **Watch CI on `main`**, if the project runs it on push:
+   `gh run list --branch main --commit "$(git rev-parse HEAD)"`, then `gh run watch <id>`. A red
+   run here is red on `main`: fix it forward straight away, through this same path, and tell the
+   user.
+4. **Update the local `main`** where it is safe to:
+   - not checked out anywhere: `git fetch origin main:main`
+   - checked out and clean in the main checkout:
+     `git -C "<main checkout>" merge --ff-only origin/main`
+   - checked out with changes: leave it alone and say so. Those changes are someone else's.
+
 ## Step 4 — Cleanup
 
-Once the work is actually merged (PR shows `MERGED`, or the local merge is done):
+Once the work is actually merged (PR shows `MERGED`, `main` on the remote holds the commits, or
+the local merge is done):
 
 1. **Remove the worktree** at the path it actually occupies — take it from `git worktree list`,
    don't assume `.claude/worktrees/<name>`. `git worktree remove <path>` (`--force` only if you
@@ -159,7 +195,8 @@ If not in a worktree, no cleanup is needed.
 
 ## Step 5 — Summary
 
-Brief one-liner: what was merged, via which path (PR #N squash-merged, or local merge), the
+Brief one-liner: what was merged, via which path (PR #N squash-merged, pushed to `main`, or
+local merge), the
 resulting commit hash on `main`, and what was cleaned up. Name the CI checks that were green
 before the merge — "CI passed" is not a result; "`lint-types-test` + `docs-check` green on #42"
 is.
