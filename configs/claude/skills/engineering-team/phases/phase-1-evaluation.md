@@ -44,13 +44,14 @@ When you create `$RUN_DIR`, also write `$RUN_DIR/run.yaml` with `phase: 1` and
 the `scope:` implied by the user's verb (`evaluate` / `plan` / `full` — see "The
 run directory" in `../SKILL.md`). Set `scope` now, while the user's request is
 in front of you: it is the only record of what they actually asked for, and
-Phase 4 reads it to decide whether it may merge anything. Write `done_when:` in
-the same write, the definition of done in one plain line, for the same reason
-(`../SKILL.md` §"The run directory", rule 3).
+Phase 4 reads it to decide whether it may merge anything. Write `goal:` and
+`done_when:` in the same write, for the same reason: the one-sentence goal every
+sitrep opens with, and the definition of done in one plain line (`../SKILL.md`
+§"The run directory", rule 3).
 
 Also write `$RUN_DIR/request.md`: the date, the user's request **word for word**,
 and, once the clarifying questions (Step 0) are answered, those questions and the
-user's answers, also word for word. Don't summarise or tidy it. `scope:` and
+user's answers, also word for word. Don't summarise or tidy it. `scope:`, `goal:` and
 `done_when:` are the lead's summaries of the request; this file is the request
 itself, and it is the only copy that survives the conversation. Phase 3's
 implementing subagents and every hand-over read it. Write it once. A later change

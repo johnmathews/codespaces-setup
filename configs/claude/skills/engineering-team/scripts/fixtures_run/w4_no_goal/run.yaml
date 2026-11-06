@@ -1,0 +1,4 @@
+run: manual-20260101T000000Z
+phase: 1
+scope: evaluate
+done_when: "An evaluation report on security and tests, ready to read"

@@ -6,7 +6,8 @@
 > `main` locally and push it, and each has its own environments. This file defines the
 > `## Shipping` section a project keeps in its `CLAUDE.md`, how to work it out when the section
 > is missing, and who reads and writes it. `/merge-push` and `/done` read it to choose how a
-> change lands. The sitrep reads it for its "Shipped" section (`status-updates.md` §3).
+> change lands. The sitrep reads it for the shipping steps in its Done, Doing and Need to do sections
+> (`status-updates.md` §3).
 
 ## 1. The section a project keeps
 
