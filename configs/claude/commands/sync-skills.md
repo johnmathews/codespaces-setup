@@ -1,6 +1,7 @@
 # Sync Skills & Commands with codespaces-setup
 
-Run `~/.claude/scripts/sync-skills.sh` and report what it did.
+Run `~/.claude/scripts/sync-skills.sh` and report what it did, in the fixed shape under "The
+report" below.
 
 The script keeps this machine's `~/.claude` and the codespaces-setup repo's copy
 (`johnmathews/codespaces-setup`, `configs/claude/`, checked out at `~/projects/codespaces`) equal
@@ -25,28 +26,58 @@ takes a few minutes, mostly CI, so run it in the background and wait for it to f
 
 It waits only for the `ci` workflow's run on its commit. Other checks on the PR, such as the
 container smoke test, need services outside GitHub, so they never hold up the merge; a failed one
-is named in a "note:" line. Pass that note on to the user.
+is named in a "note:" line. Pass that note on in the report's Notes line.
+
+## The report
+
+Every run, whatever the outcome, is reported in this shape: every line, in this order, with
+nothing before it. A line with nothing to say reads "none" rather than being left out, so two
+reports can be compared line by line.
+
+```
+**Sync:** <result> — <one sentence on what happened>
+**Pushed:** <files, or none>
+**Pulled:** <files, or none>
+**Merged:** <files changed on both sides and merged, or none>
+**PR:** <link>, merged as <short commit>, or none
+**Base:** <old short commit> → <new short commit>, or <short commit> (unchanged)
+**Notes:** <each "note:" line the script printed, or none>
+**Needs from you:** <the one question to answer, or nothing>
+```
+
+1. **`<result>`** is one of: `in sync`, `pushed`, `pulled`, `pushed and pulled`, `dry run`,
+   `conflict`, `no base`, `failed`.
+2. **Files** are paths under `configs/claude/`, as the script prints them (`commands/prompt.md`,
+   `skills/sitrep/SKILL.md`). With more than three, give them as a nested list under the line.
+3. **When anything was pulled**, end the Pulled line with "`~/.claude` changed; backups in
+   `<backup path>`".
+4. **In a dry run**, the lines read "Would push", "Would pull" and "Would merge", and PR and Base
+   read "none (dry run)".
+5. **Detail goes after the block**, never inside it: the conflicting hunks for a conflict, and the
+   failing output for a failure. Nothing goes after the detail.
 
 ## Reading the result
 
-- **Exit 0**: report what was pushed, pulled and merged, the PR link and merge commit if there
-  was one, or "already in sync". If files were pulled, say so: `~/.claude` changed, and the
-  backups are in `~/.local/state/sync-skills/backups/<time>/`.
-- **Exit 2, "in conflict"**: nothing was changed. Both sides changed the listed files in
-  overlapping places. The merge attempts, with conflict markers, are in
-  `~/.local/state/sync-skills/conflicts/<time>/`. Show the user the conflicting hunks and ask how
-  to resolve them. Resolve in `~/.claude` (bring the repo's change into the file), then run the
-  sync again. Never resolve by discarding the repo's side without asking.
-- **Exit 2, "no recorded base"**: this machine has never synced, so a file that differs on both
-  sides can't be decided. Files whose local copy is an older repo version, or that only the repo
-  has, are listed as pulls. Ask the user which repo commit `~/.claude` was last installed from or
-  synced to, and rerun with `--base <commit>`. If nobody knows, compare the files by hand.
-- **Exit 1, a check or the `ci` workflow failed**: show the failing output. The worktree (or PR) is left for
-  inspection, and anything already pulled stays in `~/.claude`. The usual cause is
-  `lint-skill-versions.sh`: a changed script under a skill's `scripts/` needs its
-  `SCRIPT_VERSION` bumped. Fix it in `~/.claude`, close the failed PR
-  (`gh pr close <url> --delete-branch`), remove the old worktree
-  (`git -C ~/projects/codespaces worktree remove --force <path>`), and run the sync again.
+What each exit means and what to do about it. The answers go into the report above.
+
+- **Exit 0**: `in sync`, `pushed`, `pulled` or `pushed and pulled`. Needs from you: nothing.
+- **Exit 2, "in conflict"** (`conflict`): nothing was changed. Both sides changed the listed files
+  in overlapping places. The merge attempts, with conflict markers, are in
+  `~/.local/state/sync-skills/conflicts/<time>/`. Show the conflicting hunks as the detail, and
+  ask how to resolve them as Needs from you. Resolve in `~/.claude` (bring the repo's change into
+  the file), then run the sync again. Never resolve by discarding the repo's side without asking.
+- **Exit 2, "no recorded base"** (`no base`): this machine has never synced, so a file that
+  differs on both sides can't be decided. Files whose local copy is an older repo version, or
+  that only the repo has, are listed as pulls. Needs from you: which repo commit `~/.claude` was
+  last installed from or synced to, so the sync can rerun with `--base <commit>`. If nobody knows,
+  compare the files by hand.
+- **Exit 1, a check or the `ci` workflow failed** (`failed`): show the failing output as the
+  detail. The worktree (or PR) is left for inspection, and anything already pulled stays in
+  `~/.claude` (report it on the Pulled line). The usual cause is `lint-skill-versions.sh`: a
+  changed script under a skill's `scripts/` needs its `SCRIPT_VERSION` bumped. Fix it in
+  `~/.claude`, close the failed PR (`gh pr close <url> --delete-branch`), remove the old worktree
+  (`git -C ~/projects/codespaces worktree remove --force <path>`), and run the sync again. When the
+  fix is yours to make, Needs from you is nothing; say in the Sync line that you are fixing it.
 
 ## Options
 
