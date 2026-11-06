@@ -36,14 +36,24 @@ reports can be compared line by line.
 
 ```
 **Sync:** <result> — <one sentence on what happened>
+
 **Pushed:** <files, or none>
+
 **Pulled:** <files, or none>
+
 **Merged:** <files changed on both sides and merged, or none>
+
 **PR:** <link>, merged as <short commit>, or none
+
 **Base:** <old short commit> → <new short commit>, or <short commit> (unchanged)
+
 **Notes:** <each "note:" line the script printed, or none>
+
 **Needs from you:** <the one question to answer, or nothing>
 ```
+
+Put a blank line between the lines, as above. Without it, markdown runs them together into one
+paragraph.
 
 1. **`<result>`** is one of: `in sync`, `pushed`, `pulled`, `pushed and pulled`, `dry run`,
    `conflict`, `no base`, `failed`.
