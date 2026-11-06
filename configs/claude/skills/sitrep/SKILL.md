@@ -63,9 +63,11 @@ Send the sitrep exactly in the §3 shape: every section, in order, one screen, p
 user asked a specific question, answer it in one line first.
 
 **If the Session line says to move now**, prepare the hand-over in the same reply by following §4.4
-steps 2 to 5. That runs the `/prompt` procedure, which writes the prompt to a file. In the reply, show
-the file path and the one-line paste version after the sitrep; the full text stays in the file. If this session
-uses the engineering-team skill, the hand-over prompt must start with `/engineering-team`.
+steps 2 to 5. That runs the `/prompt` procedure, which writes the prompt to a file and copies the
+one-line paste version to the clipboard. After the sitrep, show `/prompt`'s Step 5 report without the
+full prompt block: the file path, the new session's name, its start command, the paste line, whether
+it was copied, and last, whether this session can be closed. The full text stays in the file. If this
+session uses the engineering-team skill, the hand-over prompt must start with `/engineering-team`.
 
 After it is sent, carry on with any work that was in progress, unless the report raised something the
 user has to answer first.
