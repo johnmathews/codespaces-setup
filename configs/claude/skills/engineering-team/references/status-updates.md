@@ -73,24 +73,30 @@ running.
 ## 3. The sitrep shape
 
 Send the sections in this order, so the user's eye lands in the same place each
-time. The DoD (definition of done) comes first and the stage second: a user
-running several sessions reads them to recall which one this is and where it
-has got to. "Shipped" sits just before "Doing now", so the user sees how far
-the work has got toward each environment without reading the rest. Every
-section except "Heads-up" and "Also done" appears every time.
-A section with nothing to report says so in one word.
+time:
+
+1. **Goal**: what this session is for, in one sentence.
+2. **Status**: whether the work is on track, where it is, and when it will finish.
+3. **Needs from you**: the only section the user acts on, so it sits near the top.
+4. **Heads-up**: only when needed.
+5. **Done**, **Doing**, **Need to do**: the progress, in the order it happens.
+6. **Session**: continue here, or move to a new session.
+
+Every section except "Heads-up" appears every time. A section with nothing to
+report says "Nothing."
+
+The three progress sections hold every item exactly once: each item of the
+definition of done (DoD), each unit, and each shipping step. An item starts in
+"Need to do", moves to "Doing" while it is being worked on, and ends in
+"Done". The same items appear in every sitrep, so the user sees what moved
+since the last one. Nothing is said twice: the merge is one line in
+"Done", not a DoD tick and a "Shipped" tick.
 
 ```markdown
-**DoD:**
-- ✅ Login no longer times out
-- ✅ Billing totals match the invoices
-- ⬜ All seven billing fixes merged to main with CI green (2 of 7)
-- ⬜ The deploy guide covers the new settings
+**Goal:** Make the billing pages fast and correct again.
 
-**Stage:** Implementing W4 of 7 (Phase 3 of 4). Next: waiting on CI for W3.
-
-**Status:** Waiting on you. One question holds up W5; everything else is moving.
-2 of 7 fixes are merged, and W3 is in CI.
+**Status:** Waiting on you. Implementing W4 of 7 (Phase 3 of 4); one question
+holds up W5. Done around 15:30 CET if you answer by 14:45.
 
 **Needs from you:**
 1. Choose the cache size: 1 GB (faster pages, about €20 a month more) or
@@ -100,26 +106,26 @@ A section with nothing to report says so in one word.
 **Heads-up:** Once W3 merges, production needs two new settings before the
 next deploy, or the app won't start.
 
-**Shipped:** by pull request.
-- ✅ Pushed: W1 to W3
-- ⬜ Merged to main: W1 and W2 (2 of 7)
-- ⬜ Staging: W1 is live; W2 deploys in about 5 minutes
-- ⬜ Production: a manual release, once all seven are merged
+**Done:**
+- W1: login no longer times out.
+- W2: billing totals match the invoices.
+- W1 and W2 merged to main by pull request. W1 is live on staging.
+- Also: fixed a flaky export test that kept failing the automated checks (CI).
 
-**Doing now:**
-- Two agents are writing tests for the export feature (W4), back in about 5 minutes.
-- The automated checks (CI) are running on W3's change, usually about 8 minutes.
+**Doing:**
+- W2: deploying to staging, about 5 minutes.
+- W3: CI is running on it, usually about 8 minutes. Staging picks it up
+  about 5 minutes after it merges.
+- W4: two agents are writing tests for the export feature, back in about 5 minutes.
 
-**Still to do:**
-- W5: set the cache size (waiting on your answer).
-- W6: update the deploy guide. W7: remove the old export code.
-- Then the wrap-up: merge, journal entry, tidy-up.
-
-**Also done:**
-- Fixed a flaky export test that kept failing CI.
-
-**Finished?** No. 3 units are left, and each has taken about 30 minutes. Expect
-it done around 15:30 CET if you answer by 14:45.
+**Need to do:**
+- W6: the deploy guide covers the new settings.
+- W5: set the cache size, once you answer.
+- W7: remove the old export code.
+- All seven fixes merged to main with CI green (2 of 7 so far).
+- Wrap-up: journal entry, tidy-up.
+- Optional follow-ups:
+  - Production: a manual release, once all seven are merged.
 
 **Session:** Fine to continue here. W5 to W7 are in the same billing code as
 W1 to W4, and lean on what we learned there. About 90k tokens so far.
@@ -127,27 +133,43 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
 
 ### 3.1 Rules for each section
 
-- **DoD** — the definition of done: the goal of the whole run, so a user
-  switching between sessions knows immediately what this one is for. A
-  checklist with one short bullet per item of `done_when:` in `run.yaml`
-  (`SKILL.md` §"The run directory"), which separates its items with `;`.
-  Each item is an end state the user could check, and each bullet starts with
-  one mark:
-  - ✅ met. Tick it only on evidence read for this sitrep: the unit is `done` in
-    `run.yaml`, the PR is merged, the check is green, the result was seen
-    running. A unit that is written but not yet reviewed and tested is not met.
-  - ⬜ not met yet. When it is partly met, add a count: "(4 of 7)".
-  - ❌ blocked, or can't be done as things stand. Give the reason in a few
-    words: "❌ Deploy guide updated: staging is down, so the settings can't be
-    checked". A ❌ always has a matching `Blocked` status, an ask under "Needs
-    from you", or a Heads-up.
-
-  Work the marks out again for every sitrep and never store them, because a
-  stored tick goes stale. When the DoD has changed since the last sitrep, add
-  what changed and when: "(changed 14:10: W7 dropped, as you asked)". With no
-  `done_when:` yet, write one from the user's request, show it, and save it.
-- **Stage** — where the work is right now, as one word or phrase from this
-  list, then the detail and what comes next:
+- **Goal** — one sentence: the feature being shipped or the problem being
+  solved, in words the user would use. A user switching between sessions reads
+  it to recall which one this is, so it is the same sentence every time. In a
+  run it is `goal:` in `run.yaml` (`SKILL.md` §"The run directory"); with none
+  yet, write one from the user's request, show it, and save it. Outside a run,
+  write it from the request.
+  - The first time it is written from the request, add "(from your request;
+    correct me if it's wrong)". That note covers the DoD items below it too.
+  - When the DoD has changed since the last sitrep, add what changed and when
+    on the next line: "DoD changed 14:10: W7 dropped, as you asked."
+- **Status** — three parts, in this order:
+  1. **The state**: the first matching word from this list, then the reason,
+     with a number in it.
+     1. `Done`: every DoD item is in "Done". Leave out the stage and the
+        finish time; say in a few words what is now true.
+     2. `Blocked`: something other than the user is stopping all progress,
+        such as a red check or a missing credential.
+     3. `Waiting on you`: "Needs from you" has an item. Use this word even
+        while other work moves, and say what is still moving.
+     4. `Slipping`: the work is going slower, or growing bigger, than the
+        last estimate.
+     5. `On track`.
+  2. **The stage**: where the lead is right now, as a word or phrase from the
+     table below, with the detail. In an engineering-team run, add the phase
+     as "Phase N of 4". When several things run at once, name the lead's own
+     stage; the rest are under "Doing". When the work is paused on the user,
+     name the stage that's paused ("Implementing W5, paused").
+  3. **The finish time**: an estimate with its basis.
+     - Base it on the units left, how long the finished ones took, and waits
+       already measured on this run, such as CI's usual time.
+     - Give clock times in the user's local timezone and name it. Check `date`.
+     - With no basis yet, for example before the first unit has finished,
+       write "Can't estimate yet; will know after W1, in about 10 minutes."
+     - Round. "About", "around" and a range are honest. A precise time with
+       no measurement behind it is a claim stronger than its check
+       (`general-guidelines.md` rule 2).
+     - If a move to a new session is planned, include it in the estimate.
 
   | Stage | Means |
   | --- | --- |
@@ -163,25 +185,8 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   | Checking it live | looking at the running result, locally or deployed |
   | Wrapping up | journal, docs, removing the worktree (Phase 4) |
   | Handing over | saving state and writing the prompt for a new session |
-  | Done | every DoD item is ✅ |
-
-  Name the lead's own stage. When several things run at once, such as
-  implementing W4 while CI checks W3, the stage is the one the lead is doing
-  and the others go under "Doing now". When the work is paused on the user, the
-  stage is the one that's paused ("Implementing W5, paused") and "Status" says
-  `Waiting on you`. In an engineering-team run, add the phase as "Phase N of 4".
-- **Status** — the first matching word from this list, then the reason, with a
-  number in it:
-  1. `Blocked`: something other than the user is stopping all progress, such as
-     a red check or a missing credential.
-  2. `Waiting on you`: "Needs from you" has an item. Use this word even while
-     other work moves, and say what is still moving.
-  3. `Slipping`: the work is going slower, or growing bigger, than the last
-     estimate.
-  4. `On track`.
-- **Needs from you** — the only section the user has to act on, so it sits
-  directly under the status line. With no asks, write "Nothing." Number the
-  asks, make each one answerable in a single reply, and for each say:
+- **Needs from you** — with no asks, write "Nothing." Number the asks, make
+  each one answerable in a single reply, and for each say:
   - what is paused until it is answered
   - what each choice changes
   - what happens if the user doesn't answer
@@ -189,55 +194,64 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   about but doesn't have to act on now. For example, a merge that changes what a
   deploy needs, or a unit that turned out bigger than planned. Keeping it out
   of "Needs from you" keeps the asks real.
-- **Shipped** — how far the work has got from this branch toward each
-  environment. The path comes from the project's `## Shipping` section
-  (`shipping.md`), which differs from project to project:
-  - **The first line names the path** ("by pull request", "by direct push to
-    main", "local only"). When the project has no `## Shipping` section, add
-    "(worked out, not confirmed)" and work it out as `shipping.md` §2 says.
-    The sitrep never writes the section itself.
-  - **Then one bullet per step of that path, in order**, then one per
-    environment, in the order a change reaches them. A `pull request` path
-    tracks pushed and merged. A `direct push` path tracks merged into `main`,
-    then pushed. A `local only` path tracks merged.
-  - **The marks follow the DoD's rules.** ✅ only on evidence read for this
-    sitrep: the branch matches its remote for pushed, `gh pr view` says
-    `MERGED` (or `main` contains the commits) for merged, and the
-    environment's `Check:` command for an environment. ⬜ is not there yet.
-    ❌ is a failed push, a red check on `main` or a failed deploy, with the
-    reason. An environment with `Check: none` stays ⬜ with "not checked".
-  - **With several units, count them** ("2 of 7") and name them when the list
-    is short.
-  - **With nothing committed yet**, write "Nothing to ship yet." A run that
-    only produces a report writes "Nothing to ship: this run writes a report."
-- **Doing now** — everything running at this moment, including background
-  agents, Workflows, CI and a local server, and when each should finish. With no
-  measured duration for a step, give its start time ("review started 6 minutes
-  ago") rather than invent a finish time. Something that finished but has not
-  been read yet is "finished, reviewing the results". When a unit that could run
-  now is waiting, say why ("W4 starts after W3 merges, because both edit the
-  config"). In a multi-lane run the coordinator gives each lane one line here; a
-  worker covers its own lane.
-- **Still to do** — the remaining units from `run.yaml`, each in plain words
-  with its ID, then the wrap-up steps. When the run's scope stops before Phase 3,
-  say where it stops and what the next phase would be.
-- **Also done** (only when needed) — finished work that no DoD item covers,
-  such as a side fix the user asked for or a bug found along the way. Write
-  outcomes the user would notice: "Login no longer times out" rather than
-  "edited `auth.py`". It counts as done only by the `run.yaml` definition:
-  review passed and the full suite is green. Written but unchecked work goes
-  under "Doing now" as "written, being checked". Work that counts toward a DoD
-  item shows there, not here.
-- **Finished?** — `Yes` or `No`, then an estimate with its basis:
-  - Base it on the units left, how long the finished ones took, and waits
-    already measured on this run, such as CI's usual time.
-  - Give clock times in the user's local timezone and name it. Check `date`.
-  - With no basis yet, for example before the first unit has finished, write
-    "Can't estimate yet. Will know after W1, in about 10 minutes."
-  - Round. "About", "around" and a range are honest. A precise time with no
-    measurement behind it is a claim stronger than its check
-    (`general-guidelines.md` rule 2).
-  - If a move to a new session is planned, include it in the estimate.
+- **The items in Done, Doing and Need to do** come from three sources:
+  - **The DoD**: the entries of `done_when:` in `run.yaml`, which separates
+    them with `;`. Each is an end state the user could check. Outside a run,
+    split the end state the user asked for into such items. With no
+    `done_when:` yet, write one from the request, show it, and save it.
+  - **The units** in `run.yaml`: one line each, its ID and what it does in
+    plain words. When a DoD item is exactly one unit, they share that line
+    ("W6: the deploy guide covers the new settings"). A DoD item no single
+    unit covers, such as "all seven merged", gets its own line.
+  - **The shipping steps**, from the project's `## Shipping` section
+    (`shipping.md`): pushed and merged for a `pull request` path, merged into
+    `main` then pushed for `direct push`, merged for `local only`, then each
+    environment in the order a change reaches it. The first shipping line
+    names the path ("merged to main by pull request"). When the project has
+    no `## Shipping` section, add "(path worked out, not confirmed)" and work
+    it out as `shipping.md` §2 says; the sitrep never writes the section. A
+    DoD item that is itself a shipping step ("merged to main with CI green")
+    is one line, not two. With several units, count them ("2 of 7") and name
+    them when the list is short.
+
+  Work out where each item sits again for every sitrep, and never store it,
+  because a stored answer goes stale.
+- **Done** — in the order the work happened (unit order in a run), shipping
+  steps after the work they ship. An item goes here only on evidence read for
+  this sitrep: the unit is `done` in `run.yaml`, `gh pr view` says `MERGED`
+  (or `main` contains the commits), the branch matches its remote, the
+  environment's `Check:` command shows the change, or the result was seen
+  running. A unit that is written but not yet reviewed and tested is not done.
+  An environment with `Check: none` never goes here; it stays in "Need to do"
+  as "not checked". Write outcomes the user would notice: "Login no longer
+  times out" rather than "edited `auth.py`".
+  - **Side work last**, as "Also: …": finished work that no DoD item covers,
+    such as a side fix the user asked for or a bug found along the way. It
+    counts as done by the same rule: review passed and the full suite is green.
+- **Doing** — everything happening at this moment: the unit the lead is on,
+  background agents, Workflows, CI and a local server, and when each should
+  finish. With no measured duration for a step, give its start time ("review
+  started 6 minutes ago") rather than invent a finish time. Written but
+  unchecked work is "written, being checked". Something that finished but has
+  not been read yet is "finished, reviewing the results". In a multi-lane run
+  the coordinator gives each lane one line here; a worker covers its own lane.
+- **Need to do** — what is left, in the order it will happen, so the first item
+  is what comes next. A DoD item that is partly met sits here with a count
+  ("2 of 7 so far"). A unit paused on the user goes after the ones that can
+  run now. When a unit that could start now is waiting, say why ("W4 starts
+  after W3 merges, because both edit the config"). The wrap-up steps come
+  after the units, and only the optional follow-ups come after them. When the
+  run's scope stops before Phase 3, say where it stops and what the next phase
+  would be. With nothing left, write "Nothing for this task."
+  - **Blocked items** start with ❌ and give the reason in a few words: "❌ The
+    deploy guide covers the new settings: staging is down, so they can't be
+    checked". A failed push, a red check on `main` and a failed deploy are ❌
+    too. A ❌ always has a matching `Blocked` status, an ask under "Needs from
+    you", or a Heads-up.
+  - **Optional follow-ups last**, under that label: extras that are not part
+    of this task, and environments past how far done goes (`shipping.md` §3).
+    They never hold up `Done`. An environment past that point that the
+    change has already reached goes in "Done" like any other step.
 - **Session** — continue here, or move to a new session and when. §4 decides
   which.
 
@@ -252,11 +266,12 @@ A sitrep is in the **Briefing register** (`voice-registers.md` §3):
 - one screen
 
 Leave out file paths, commit hashes and tool names unless the user needs them
-to act. Status lines are bullets. The asks are numbered, because the user
-answers them by number.
+to act. The progress items are bullets. The asks are numbered, because the
+user answers them by number.
 
-Use emoji and colour sparingly, so the few there are stand out. The three
-marks (✅ ⬜ ❌) in the DoD and "Shipped" are the only ones in a sitrep.
+Use no emoji or colour: the section an item sits in already says whether it is
+done. The one mark is ❌, for a blocked or failed item in "Need to do", so it
+stands out.
 
 ### 3.3 Sources
 
@@ -265,7 +280,7 @@ Before every sitrep, read the state from disk and from what is running now:
 - `run.yaml` for phase and unit status
 - `progress.md` and the lane status files in a multi-lane run
 - the task list, the Workflow's status, and `gh pr checks` for anything running
-- for "Shipped": the project's `## Shipping` section, `git` (the branch against
+- for the shipping steps: the project's `## Shipping` section, `git` (the branch against
   its remote, and whether `main` holds the work), `gh pr view` for the PR's
   state, and each environment's `Check:` command
 - `date`, for the times

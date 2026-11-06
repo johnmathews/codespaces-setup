@@ -1,6 +1,6 @@
 ---
 name: sitrep
-description: Give a situation report on this session's work in a fixed shape — a DoD checklist, stage, status, what's needed from the user, how far it has shipped (pushed, merged, live in each environment), doing now, still to do, also done, when it will finish, and whether to continue in a new session. Use when the user types /sitrep, or asks for a status update in any wording — "how is it going", "do you need anything from me", "what have we done and what's left", "is it done yet", "is it merged", "is it deployed", "when will it be finished", "do we need a new session", "where are we", "give me an update".
+description: Give a situation report on this session's work in a fixed shape — a one-sentence goal, a status line (on track or not, the stage, when it will finish), what's needed from the user, then Done, Doing and Need to do (each item of the definition of done, each unit, and each shipping step — pushed, merged, live in each environment — in exactly one of them), and whether to continue in a new session. Use when the user types /sitrep, or asks for a status update in any wording — "how is it going", "do you need anything from me", "what have we done and what's left", "is it done yet", "is it merged", "is it deployed", "when will it be finished", "do we need a new session", "where are we", "give me an update".
 ---
 
 # Sitrep
@@ -32,8 +32,8 @@ remembers:
 1. `date`, for times in the user's local timezone.
 2. **An engineering-team run, if there is one.** Resolve the main checkout with
    `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, then read
-   `.engineering-team/current.txt` there and the run's `run.yaml`: `done_when:`, `phase:`, `scope:`
-   and each unit's status. With lanes, read `progress.md` too.
+   `.engineering-team/current.txt` there and the run's `run.yaml`: `goal:`, `done_when:`, `phase:`,
+   `scope:` and each unit's status. With lanes, read `progress.md` too.
 3. **What is running:** background agents, Workflows and shells from this session, and
    `gh pr checks` for any open PR this session made.
 4. **Git:** the branch, uncommitted changes, and commits not yet pushed.
@@ -49,11 +49,13 @@ remembers:
 
 Outside an engineering-team run, nothing on disk holds the goal or the units. Then:
 
-- **DoD:** split the end state the user asked for, from their request in this conversation, into
-  checkable items. Mark the list "(from your request; correct me if it's wrong)" the first time.
-- **Stage:** use §3.1's list, picking the closest word.
-- **DoD marks, Still to do, Also done:** work from the steps of the task as this conversation
-  has defined them.
+- **Goal:** one sentence from the user's request in this conversation: the feature being shipped
+  or the problem being solved. Add "(from your request; correct me if it's wrong)" the first time.
+  Use the same sentence in every later sitrep of this session.
+- **DoD items:** split the end state the user asked for into checkable items.
+- **The stage in Status:** use §3.1's list, picking the closest word.
+- **Done, Doing, Need to do:** place each DoD item, and each step of the task as this
+  conversation has defined it, in exactly one of the three.
 
 ## Step 4 — Send it
 

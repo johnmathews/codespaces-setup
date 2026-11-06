@@ -14,8 +14,9 @@ It checks two things, both mechanical:
 1. **Schema** — `run:` present, `phase:` and `scope:` in their enums, every
    unit has an `id` and a status in its enum, and an `abandoned` unit carries a
    `why`. These are unambiguous and machine-fixable, so they are hard failures.
-   A live run with no `done_when:` (its definition of done) is a warning: runs
-   made before the field existed lack it, and writing one is a human call.
+   A live run with no `done_when:` (its definition of done) or no `goal:` (the
+   sentence every sitrep opens with) is a warning: runs made before those fields
+   existed lack them, and writing one is a human call.
 2. **Reconciliation** — the skill's own stated invariant: a `phase:` of 2 or
    later means Phase 1 finished, so `evaluation-report.md` must exist; a `phase:`
    of 3 or later means Phase 2 finished, so `improvement-plan.md` must exist.
@@ -67,7 +68,7 @@ UNIT_RE = re.compile(r"^\s*-\s*\{(.*)\}\s*$")
 
 
 class RunFile:
-    """A parsed run.yaml: the three scalars and the unit list.
+    """A parsed run.yaml: the scalars and the unit list.
 
     `units` entries are dicts with at least the keys that parsed; `_line`
     records where each unit sat so errors can point at it.
@@ -220,6 +221,13 @@ def check(run_dir: pathlib.Path) -> tuple[list[str], list[str]]:
     # field, and what "done" means is the user's call, not the checker's.
     if phase != "complete" and not rf.scalars.get("done_when", "").strip():
         warn("W3", None, "no `done_when:` — the run has no definition of done "
+             "(see \"The run directory\" in SKILL.md)")
+
+    # W4 — a live run with no `goal:`. Every sitrep opens with this one sentence,
+    # so the same words name the run in every report. A warning, for the same
+    # reasons as W3: older runs predate it, and the wording is the user's call.
+    if phase != "complete" and not rf.scalars.get("goal", "").strip():
+        warn("W4", None, "no `goal:` — the sitrep has no one-sentence goal to open with "
              "(see \"The run directory\" in SKILL.md)")
 
     return errors, warnings
