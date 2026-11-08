@@ -43,6 +43,7 @@
 | `references/wide-survey.md` | the Phase-1 fan-out: coverage-not-independence, say-so-if-capped, merge-keeps-strongest-never-raises-a-grade |
 | `references/status-updates.md` | **keeping the user informed**: the pulse and the sitrep, when each is sent, the sitrep's fixed section order, a DoD tick or "also done" in a sitrep means verified, estimates carry their basis, and the continue-or-new-session test |
 | `references/shipping.md` | **how a change reaches each environment**: the `## Shipping` section a project keeps in `CLAUDE.md` (`Lands by:` pull request, direct push or local only; each environment with a read-only `Check:`), working it out when missing, who writes it, and how far "done" goes |
+| `references/issues.md` | **filing GitHub issues**: when a skill files one and what is not an issue; the label scheme (one type, one severity mapped from the rubric, concerns, areas never invented) and the **canonical label list** `scripts/issue_labels.py` parses; [SUSPECTED] filed as `investigation`; the body's evidence labels; the checks before and after filing |
 | `references/local-stack.md` | **see it running before CI**: a user-visible change runs locally in front of the user before `/done` pushes it; the login and the data survive restarts and worktrees (data outside the worktree, never reset unasked); demo data seeded wherever the project allows |
 
 ## 3. Cross-cutting invariants → canonical home
@@ -171,6 +172,16 @@ should point here.
 | How a change lands is the project's choice, read from the `Lands by:` line of its `## Shipping` section: pull request, direct push, or local only | §"1. The section a project keeps" | `commands/merge-push.md` Step 0; `commands/done.md` Phase 0 and Phase 8; phase 4 Step 3 (pointer) |
 | A missing section is worked out, shown and confirmed before it is saved; until then a repo with a remote lands by pull request; only `/merge-push` and `/done` write it, never the sitrep | §"2. When the section is missing" | `commands/merge-push.md` Step 0; `commands/done.md` Phase 0; the `sitrep` skill, Step 2 |
 | An environment is ticked only by its read-only `Check:` command, never by a merge | §"1. The section a project keeps" | `status-updates.md` §"Rules for each section" (Done) |
+
+### Homed in `issues.md`
+
+| Invariant | Canonical home | Also stated in |
+|---|---|---|
+| File an issue for a finding the plan leaves out of scope, a unit abandoned with a `why`, and a follow-up this run does not fix. Nothing fixed in this run, pending in its plan, already tracked, or declined by the user is filed | §"1. When to file an issue" and §"2. What is not an issue" | `phase-2-planning.md` Step 4; `phase-3-development.md` (progress reporting); `phase-4-wrap-up.md` Step 4; `commands/done.md` Phase 7a (all pointers) |
+| Every issue carries exactly one type label and exactly one severity label mapped 1:1 from the severity rubric, plus optional concern labels and area labels that already exist. A [SUSPECTED] finding is filed as `investigation` | §"3. The label scheme" | `general-guidelines.md` §"Severity: what it would cost if it is true" (the rubric it maps from, not restated) |
+| The canonical labels (name, colour, description) exist once, as the table the script parses. `apply` creates missing scheme labels and resets drifted ones, never renames, and never creates a label outside the table | §"4. The canonical labels" | `scripts/issue_labels.py` (reads the table, holds no copy) |
+| An issue body labels each evidence claim "Verified live", "Read in repo" or "Inferred", and keeps judgement in its own section | §"5. The issue body" | `scripts/issue_labels.py` `check` and `verify` (the enforcement) |
+| Before filing, apply the labels and check the label set and body. After filing, verify what landed with `gh issue view` | §"6. Filing, step by step" | `commands/done.md` Phase 7a (pointer) |
 
 ### Homed in `status-updates.md`
 

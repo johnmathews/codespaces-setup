@@ -110,6 +110,14 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                          r"Continue here, or start a new session"),
     "lands-by-default": ("references/shipping.md",
                          r"Until the user confirms, a repo with a remote lands by pull request"),
+    # Issue filing: the label scheme's two counting rules, the [SUSPECTED] ->
+    # investigation mapping, and the three evidence labels in the body.
+    "issue-label-scheme": ("references/issues.md",
+                           r"Exactly one type label.{0,400}Exactly one severity label"),
+    "suspected-is-investigation": ("references/issues.md",
+                                   r"\[SUSPECTED\] finding is filed as `investigation`"),
+    "issue-evidence-labels": ("references/issues.md",
+                              r"`Verified live:`.{0,200}`Read in repo:`.{0,200}`Inferred:`"),
 }
 
 

@@ -169,7 +169,8 @@ Four rules, and they are what make it worth having:
    the status change are one action, not two — "W2 done" in chat and
    `status: done` in `run.yaml` are written together, or the file is
    decoration. Same for entering a phase.
-2. **`abandoned` needs a reason** — `{ id: W3, status: abandoned, why: <one line> }`.
+2. **`abandoned` needs a reason** — `{ id: W3, status: abandoned, why: <one line> }`,
+   plus `issue: <n>` once it is filed (`references/issues.md` §1).
    This is what stops "blocked" masquerading as "not done" across a session
    boundary, and it is the durable half of the rule that no started unit may
    be left unaccounted for.
@@ -564,6 +565,10 @@ Load these on demand when their topic becomes relevant:
   (lands by pull request, direct push or local only, and its environments),
   how to work it out when it is missing, and who writes it. The sitrep's
   shipping steps, `/merge-push` and `/done` read it.
+- `references/issues.md` — **filing GitHub issues**: when a run files one
+  (out-of-scope findings, abandoned units, unfixed follow-ups) and when it
+  does not, the label scheme and canonical label list, the issue body, and
+  the checks before and after filing with `scripts/issue_labels.py`.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for
   urgent reports.
