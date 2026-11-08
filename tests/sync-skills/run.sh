@@ -162,7 +162,7 @@ local_edits
 run --base "${B}"
 check "the repo's change is merged into ~/.claude" grep -q "Repo-side line at the end." "$(skill)"
 check "the local change survives the merge" grep -q "Local line near the top." "$(skill)"
-check "every skill check ran" out_has "check: python3 tests/engineering-team-command-links"
+check "every skill check ran" out_has "check: python3 tests/engineering-team-issue-labels"
 check "the branch reached origin" bash -c "git -C '${ORIGIN}' branch --list 'sync-skills-*' | grep -q sync"
 check "stops at the PR with exit 1" rc_is 1
 

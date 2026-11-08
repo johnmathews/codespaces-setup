@@ -429,6 +429,7 @@ ci/
   ci.yml                # shellcheck + shfmt + lint-steps + skill gates on push/PR
 docs/
   development.md        # CI checks, local lint commands, how to add a step
+  issue-labels.md       # The issue label scheme: where it lives, applying it to a repo
 tests/
   setup-resilience/             # The runner's behaviour: failure accounting, timeouts,
                                 # interrupts, the retry pass (headless, in CI)
@@ -437,6 +438,7 @@ tests/
   engineering-team-triggering/  # Does the skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
   engineering-team-drift/       # Rule-ownership drift-scan: index can't lie about a rule's home; worktree cmds keep --path-format=absolute (headless, in CI)
   engineering-team-command-links/ # Link-check: the commands' and other skills' (/sitrep) cross-references into the engineering-team skill still resolve (headless, in CI)
+  engineering-team-issue-labels/  # issue_labels.py against a fake gh: apply, check and verify for the issue label scheme (headless, in CI)
   design-system-triggering/     # Does the design-system skill's description: fire on the right prompts? (LLM measure on-demand; parsers CI-checked)
 journal/                # Dated development-journal entries
 setup.sh                # Main entry point AND the update path – self-updates its own

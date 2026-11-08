@@ -17,17 +17,17 @@ This is a multi-phase workflow with a loop-back (Phase 5 can return to Phase 0),
 the single biggest reliability risk is losing your place or silently skipping a
 phase. Before starting Phase 0, create a todo list — one item per phase — and keep it
 current: mark a phase in-progress when you enter it and completed when it genuinely
-passed (not when you skipped past it). The **eleven rows of the Phase 9 summary table
+passed (not when you skipped past it). The **twelve rows of the Phase 9 summary table
 are the required checklist** — CI/CD, Documentation, Journal, Tests (pre-review),
-Security & Privacy, Code Review, Tests (post-review), Lint, Commit & PR, CI (on the
-PR), Housekeeping. A phase that does not apply is `N/A` **with a reason**, not a phase
+Security & Privacy, Code Review, Tests (post-review), Lint, Follow-up issues, Commit &
+PR, CI (on the PR), Housekeeping. A phase that does not apply is `N/A` **with a reason**, not a phase
 you get to drop from the list. If the run ends and any row is unaccounted for, you did
 not finish the wrap-up.
 
 ## Phase checklist (the scannable version)
 
 The phases below run in this fixed order. The letter suffixes are historical and
-**not** a hierarchy: `7b` and `8c` are full, standalone phases (they each get a
+**not** a hierarchy: `7a`, `7b` and `8c` are full, standalone phases (they each get a
 summary row), while `8a`/`8b` are the two mutually-exclusive branches *inside*
 Phase 8 (lands by pull request, or not). Phase 0 (Sanity) and Phase 9 (the summary table
 itself) are the only phases without their own summary row.
@@ -41,6 +41,7 @@ itself) are the only phases without their own summary row.
 5    Code Review — architecture/robustness/security/dup/naming (loops to 0, max 2x)
 6    Tests (post-review) — re-run suite after review fixes
 7    Lint — detect and run the project's linter
+7a   Follow-up issues — file what this session found and did not fix, under the label scheme
 7b   Journal — write the dated entry AFTER all work phases (never before)
 8    Commit & open a PR — never pushes to main
        8a  lands by pull request (branch → push → PR → watch CI)
@@ -313,6 +314,22 @@ scripts, `pyproject.toml`, etc.) and run it. If no linter is found, recommend th
 If the linter fails, attempt to fix the issues. If fixes are not straightforward, proceed anyway — pre-commit hooks
 will catch remaining problems. This phase should not block shipping.
 
+## Phase 7a — Follow-up issues
+
+File a GitHub issue for each follow-up this session found and did not fix: a review finding left unfixed, a security
+or documentation warning, a defect seen in passing, or a test that still fails for a reason outside this change. In an
+engineering-team run, also file each entry in `$RUN_DIR/follow-ups.md` and each [SUSPECTED] finding the run did not
+settle.
+
+**Every rule for this phase lives in `~/.claude/skills/engineering-team/references/issues.md`**: what is not an issue
+(§2, so nothing fixed in this change and nothing an open issue already covers), the labels (§3), the body (§5) and the
+steps (§6). Those steps run `issue_labels.py apply` and `check` before `gh issue create`, then `verify` after it. Do not
+file without them, and do not invent a label. If an area label is missing, ask the user.
+
+Filing runs before the journal and the PR, so both can cite the issue numbers. If the project cannot take issues (no
+remote, issues turned off, or its `CLAUDE.md` names another tracker), list the follow-ups in full in the Phase 9 notes
+instead and mark this row `N/A` with that reason. Record each issue number and its labels for Phase 9.
+
 ## Phase 7b — Development Journal
 
 Now that all phases that produce meaningful work are complete, write the journal entry. The project should have a
@@ -508,6 +525,7 @@ the session wrap-up. Use the following structure:
 | Code Review         | ...    | ...                                                  |
 | Tests (post-review) | ...    | ...                                                  |
 | Lint                | ...    | ...                                                  |
+| Follow-up issues    | ...    | ...                                                  |
 | Commit & PR         | ...    | ...                                                  |
 | CI (on the PR)      | ...    | ...                                                  |
 | Housekeeping (8c)   | ...    | ...                                                  |
@@ -520,7 +538,7 @@ the session wrap-up. Use the following structure:
 - `Warned` — issues flagged but not blocking
 - `N/A` — phase did not apply (e.g., no test suite, no Dockerfile)
 
-**This table is a set of claims, so the claim rules apply to it.** Ten verdicts get written here in one go, which
+**This table is a set of claims, so the claim rules apply to it.** Twelve verdicts get written here in one go, which
 makes it the easiest place in the whole workflow to assert more than you checked:
 
 - **`OK` means the phase ran and passed — not that it looked fine.** A phase you skipped is `N/A` with the reason,
@@ -537,6 +555,7 @@ makes it the easiest place in the whole workflow to assert more than you checked
 - Documentation: must cite the freshness audit — `"Audited 4 changed modules + new env var vs docs/README/CLAUDE.md; fixed 1 stale default, added 1 README link"` or, when genuinely clean, `"Audited N changed surfaces vs docs — all current"` (never a bare `"No changes needed"`, which signals the audit was skipped)
 - Security & Privacy: `"Added .env to .gitignore, moved API key to vault"` or `"No secrets found"`
 - Code Review: `"Simplified error handling in deploy.yml"` or `"No issues found"`
+- Follow-up issues: `"Filed #57 (bug, severity: medium, reliability) and #58 (investigation, severity: high); all verified"` or `"None found"`
 - Commit & PR: `"2 commits, PR #42 opened on feat/xyz"` or `"2 commits on feat/xyz; lands by direct push — run /merge-push"` or `"2 commits, no remote — committed locally"`
 - CI (on the PR): `"lint-types-test + docs-check green on #42"` or `"lint failed on #42, fixed, green on retry"` or `"No workflows configured"` (name the checks — `"CI passed"` alone is not a result)
 - Housekeeping: `"Reaped 2 merged worktrees (feat/a, feat/b); skipped feat/c — uncommitted changes"` or `"No stale worktrees"`

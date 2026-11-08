@@ -659,7 +659,8 @@ the run dir, not what the conversation now feels like it is about.
   remove the (empty) worktree, set `phase: complete`, clear
   `current.txt` — then say in one line that the scope was evaluation, where
   the report is, and that Phase 2 (planning) is the next phase if they want
-  it. Offer; do not start.
+  it. Offer; do not start. You may also offer to file the findings as issues,
+  and file only on a yes (`../references/issues.md` §2).
 
   This is the step that used to not exist. Phase 4 is the only other place
   that closes a run and it runs **only after Phase 3**, so an

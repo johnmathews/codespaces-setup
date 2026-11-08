@@ -383,7 +383,7 @@ run_check() {
 }
 ET="$DEST_PREFIX/skills/engineering-team/scripts"
 DS="$DEST_PREFIX/skills/design-system/scripts"
-for s in check_report check_run check_plan check_board check_footprint context_usage model_usage; do run_check python3 "$ET/$s.py" --selftest; done
+for s in check_report check_run check_plan check_board check_footprint context_usage model_usage issue_labels; do run_check python3 "$ET/$s.py" --selftest; done
 run_check python3 "$DS/check_design_system.py" --selftest
 run_check python3 "$DS/design_preview.py" --selftest
 run_check node "$DS/render_previews.mjs" --selftest
@@ -402,6 +402,7 @@ run_check python3 tests/engineering-team-triggering/run.py --selftest
 run_check python3 tests/design-system-triggering/run.py --selftest
 run_check python3 tests/engineering-team-drift/drift_scan.py
 run_check python3 tests/engineering-team-command-links/check_command_links.py
+run_check python3 tests/engineering-team-issue-labels/run.py
 
 changed="$(git -C "$WT" diff --cached --name-only | sed -E "s#^$DEST_PREFIX/(skills/[^/]+|commands/[^/]+).*#\1#" | sort -u)"
 subject="Sync Claude skills and commands from ~/.claude"

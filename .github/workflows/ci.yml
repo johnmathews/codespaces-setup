@@ -140,6 +140,13 @@ jobs:
           python3 configs/claude/skills/engineering-team/scripts/check_footprint.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/context_usage.py --selftest
           python3 configs/claude/skills/engineering-team/scripts/model_usage.py --selftest
+          python3 configs/claude/skills/engineering-team/scripts/issue_labels.py --selftest
+
+      - name: issue label script (end-to-end, fake gh)
+        # Runs the real issue_labels.py against a fake gh on PATH: apply's dry
+        # run and idempotence, drift reset without renaming, and check/verify
+        # going red on each scheme violation. No network or GitHub login.
+        run: python3 tests/engineering-team-issue-labels/run.py
 
       - name: design-system scripts (selftest)
         # The skill's gate and preview builder are copied into each project that
