@@ -120,7 +120,12 @@ prevent — a unit "reported complete" in chat is invisible to every later run.
 - Announce "W<n> done: <title>" AFTER your lead-engineer review step
   passes and the full test suite is green → `status: done`.
 - Announce "W<n> abandoned: <reason>" instead of "done" if the unit
-  cannot complete in this session → `status: abandoned` with `why:`.
+  cannot complete in this session → `status: abandoned` with `why:`. File
+  it as an issue and add `issue: <n>` to the unit, unless the user dropped
+  it on purpose (`../references/issues.md` §1).
+- Anything found along the way that this run will not fix goes in
+  `$RUN_DIR/follow-ups.md` when it is found, with its severity and grade.
+  `/done` files them in Phase 4 (`../references/issues.md` §1 and §2).
 - Every started unit must be reported as either done or abandoned before
   the session ends — never leave a unit's status unaccounted for. With
   `run.yaml` this is now checkable rather than remembered: before ending,

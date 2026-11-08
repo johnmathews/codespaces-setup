@@ -95,6 +95,11 @@ and the lint because the skill that usually runs them is absent. Those are
 the steps the unit-by-unit dev loop does not cover, which is the entire
 reason Step 1 exists.
 
+`/done`'s Phase 7a files this run's follow-ups as issues. Point it at
+`$RUN_DIR/follow-ups.md` and at every [SUSPECTED] finding the run did not
+settle, which is filed as `investigation` (`../references/issues.md`). An
+inline `/done` does the same.
+
 After `/done` (or its inline equivalent) completes, verify:
 1. `git status` shows a clean working tree (zero uncommitted changes).
 2. `git log --oneline main..HEAD` shows clean, well-described commits.
@@ -209,7 +214,11 @@ Present a brief summary to the user:
   Silence here reads as "resolved", and the finding then disappears: it is not
   in the diff, and nobody re-reads a closed run's report. Naming it costs a
   line and is the only thing keeping an unproven claim from ageing into an
-  assumed one.
+  assumed one. Give the `investigation` issue it was filed as.
+- **Every issue this run filed**, with its number and labels, grouped as out
+  of scope, abandoned, and follow-up. Any follow-up that could not be filed
+  (no remote, issues turned off, another tracker) is listed here in full
+  instead (`../references/issues.md` §2).
 
 Then close the run out — the four steps in "Closing a run" in `../SKILL.md`,
 performed in the **main checkout** (which is where `$RUN_DIR` lives — never

@@ -432,6 +432,13 @@ sequence. Solo is simpler; parallel is worth it here because lane A is the
 long pole. Which?
 ```
 
+**List the issues this run will file.** Each finding the plan leaves out of
+scope becomes a GitHub issue, so name them at the gate with the labels each
+will carry. Approving the plan approves them, so file them right after the
+user says go and write each number beside its finding in the plan. When, what
+is not an issue, the labels and the steps are all in
+`../references/issues.md`. Follow it rather than restating it here.
+
 Do not start Phase 3 work, dispatch subagents, or create a worktree while
 the question is outstanding.
 
@@ -452,6 +459,8 @@ Read `scope:` from `$RUN_DIR/run.yaml`, not the mood of the conversation.
   worktree, set `phase: complete`, clear `current.txt` — then say in one line
   that the scope was planning, where the plan is, and that Phase 3
   (development) is the next phase if they want it. Offer; do not start.
+  Before closing, list the out-of-scope findings and offer to file them as
+  issues (`../references/issues.md` §1). File only on a yes.
 - **`scope: full`** — do not close anything. Take the Step 4 gate, then
   announce Phase 3.
 
