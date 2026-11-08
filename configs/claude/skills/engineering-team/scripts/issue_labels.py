@@ -11,9 +11,10 @@ and holds no copy of it, so a change to the list is a change to the doc.
         Read `gh label list`, then create each missing scheme label and reset
         any drifted colour or description with `gh label create --force`.
         Never renames a label and never touches one outside the scheme.
-    issue_labels.py check --labels "bug,severity: high,..." [--body-file F] [--repo R]
-        Check a label set, and optionally an issue body, before filing.
-    issue_labels.py verify --issue N [--expect "..."] [--repo R]
+    issue_labels.py check --labels "bug,severity: high,..." [--label NAME]... [--body-file F] [--repo R]
+        Check a label set, and optionally an issue body, before filing. Use the
+        repeatable --label for a name that holds a comma.
+    issue_labels.py verify --issue N [--expect "..."] [--expect-label NAME]... [--repo R]
         Read `gh issue view N --json labels,body` and run the same checks on
         what was filed. With --expect, also confirm exactly those labels landed.
     issue_labels.py --selftest
@@ -51,6 +52,10 @@ class SchemeError(Exception):
 
 class GhError(Exception):
     """A `gh` call failed."""
+
+
+class UsageError(Exception):
+    """The command line asks for something the script cannot do."""
 
 
 @dataclass(frozen=True)
@@ -96,7 +101,7 @@ def parse_scheme(text: str) -> list[Label]:
 
 def load_scheme(path: Path) -> list[Label]:
     try:
-        return parse_scheme(path.read_text())
+        return parse_scheme(path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise SchemeError(f"cannot read {path}: {exc}") from exc
 
@@ -114,16 +119,42 @@ def gh(args: list[str], repo: str | None) -> str:
     return out.stdout
 
 
+LABEL_LIMIT = 1000
+
+
+def gh_json(args: list[str], repo: str | None) -> object:
+    """A `gh ... --json` call, parsed. Output that is not JSON is a `gh` error, never a check failure."""
+    text = gh(args, repo)
+    try:
+        return json.loads(text)
+    except ValueError as exc:
+        raise GhError(f"`gh {' '.join(args)}` did not print JSON: {text.strip()[:80]!r}") from exc
+
+
 def repo_labels(repo: str | None) -> dict[str, dict[str, str]]:
     """The repo's labels, keyed by lower-cased name (GitHub names are case-insensitive)."""
-    data = json.loads(gh(["label", "list", "--limit", "1000", "--json", "name,color,description"], repo))
+    data = gh_json(["label", "list", "--limit", str(LABEL_LIMIT), "--json", "name,color,description"], repo)
+    if not isinstance(data, list) or not all(isinstance(d, dict) and "name" in d for d in data):
+        raise GhError("`gh label list` returned an unexpected shape")
+    if len(data) >= LABEL_LIMIT:
+        # A cut-off list would make a present label look missing, and apply would then
+        # create it with the scheme's spelling, renaming the repo's. Refuse instead.
+        raise GhError(f"the repo has {LABEL_LIMIT} or more labels, so the list may be cut off")
     return {label["name"].lower(): label for label in data}
+
+
+def needs_repo(names: list[str], scheme: list[Label]) -> bool:
+    """Only an area label needs the repo's label list: scheme and triage labels are known."""
+    known = {label.name.lower() for label in scheme} | TRIAGE_DEFAULTS
+    return any(n.lower() not in known for n in names)
 
 
 # ---- checks ------------------------------------------------------------------
 
-def split_labels(raw: str) -> list[str]:
-    return [part.strip() for part in raw.split(",") if part.strip()]
+def split_labels(raw: str | None, single: list[str] | None = None) -> list[str]:
+    """Labels from a comma list plus repeated single flags. A name holding a comma needs the flag."""
+    names = [part.strip() for part in (raw or "").split(",") if part.strip()]
+    return names + [n.strip() for n in (single or []) if n.strip()]
 
 
 def check_labels(names: list[str], scheme: list[Label], existing: dict[str, dict[str, str]] | None) -> list[str]:
@@ -148,30 +179,40 @@ def check_labels(names: list[str], scheme: list[Label], existing: dict[str, dict
     return errors
 
 
+def body_sections(body: str) -> dict[str, list[tuple[str, bool]]]:
+    """Split a body at its `## ` headings, ignoring any inside a code fence.
+    Each line comes with whether it is fence or fenced code."""
+    sections: dict[str, list[tuple[str, bool]]] = {}
+    current: str | None = None
+    in_fence = False
+    for line in body.splitlines():
+        is_fence = line.strip().startswith("```")
+        if not in_fence and not is_fence and line.startswith("## "):
+            current = line[3:].strip().lower()
+            sections.setdefault(current, [])
+            continue
+        if current is not None:
+            sections[current].append((line, in_fence or is_fence))
+        if is_fence:
+            in_fence = not in_fence
+    return sections
+
+
 def check_body(body: str, names: list[str]) -> list[str]:
     """Problems with an issue body: evidence must be labelled claims, judgement apart."""
     errors: list[str] = []
-    lines = body.splitlines()
-    headings = {i: line.strip()[3:].strip().lower() for i, line in enumerate(lines)
-                if line.startswith("## ")}
-    evidence = next((i for i, h in headings.items() if h == "evidence"), None)
-    if evidence is None:
+    sections = body_sections(body)
+    if "evidence" not in sections:
         errors.append("no `## Evidence` section")
-    if not any(h in ("judgement", "judgment") for h in headings.values()):
+    if not ({"judgement", "judgment"} & sections.keys()):
         errors.append("no `## Judgement` section, so judgement is not kept apart from evidence")
-    if evidence is None:
+    if "evidence" not in sections:
         return errors
 
     claims: list[str] = []
-    in_fence = False
-    for line in lines[evidence + 1:]:
-        if line.startswith("## "):
-            break
-        if line.strip().startswith("```"):
-            in_fence = not in_fence
-            continue
-        if in_fence or not line.strip() or line[0].isspace():
-            continue  # code, blank, or a continuation of the item above
+    for line, fenced in sections["evidence"]:
+        if fenced or not line.strip() or line[0].isspace() or line.startswith("#"):
+            continue  # code, blank, a continuation of the item above, or a sub-heading
         item = LIST_ITEM.match(line)
         if item is None:
             errors.append(f"evidence holds prose, not a labelled claim: {line.strip()[:60]}")
@@ -235,25 +276,24 @@ def cmd_apply(scheme: list[Label], repo: str | None, dry_run: bool) -> int:
     return 0
 
 
-def cmd_check(scheme: list[Label], repo: str | None, labels: str, body_file: str | None) -> int:
-    names = split_labels(labels)
-    scheme_names = {label.name.lower() for label in scheme}
-    needs_repo = any(n.lower() not in scheme_names and n.lower() not in TRIAGE_DEFAULTS for n in names)
-    errors = check_labels(names, scheme, repo_labels(repo) if needs_repo else None)
+def cmd_check(scheme: list[Label], repo: str | None, names: list[str], body_file: str | None) -> int:
+    if not names:
+        raise UsageError("give the labels with --labels or --label")
+    errors = check_labels(names, scheme, repo_labels(repo) if needs_repo(names, scheme) else None)
     if body_file is not None:
-        errors += check_body(Path(body_file).read_text(), names)
+        errors += check_body(Path(body_file).read_text(encoding="utf-8"), names)
     return report(errors, f"labels{' and body' if body_file else ''} follow the scheme")
 
 
-def cmd_verify(scheme: list[Label], repo: str | None, issue: str, expect: str | None) -> int:
-    data = json.loads(gh(["issue", "view", issue, "--json", "labels,body"], repo))
+def cmd_verify(scheme: list[Label], repo: str | None, issue: str, expect: list[str] | None) -> int:
+    data = gh_json(["issue", "view", issue, "--json", "labels,body"], repo)
+    if not isinstance(data, dict) or not isinstance(data.get("labels"), list):
+        raise GhError(f"`gh issue view {issue}` returned an unexpected shape")
     names = [label["name"] for label in data["labels"]]
-    scheme_names = {label.name.lower() for label in scheme}
-    needs_repo = any(n.lower() not in scheme_names for n in names)
-    errors = check_labels(names, scheme, repo_labels(repo) if needs_repo else None)
+    errors = check_labels(names, scheme, repo_labels(repo) if needs_repo(names, scheme) else None)
     errors += check_body(data.get("body") or "", names)
     if expect is not None:
-        want = {n.lower(): n for n in split_labels(expect)}
+        want = {n.lower(): n for n in expect}
         have = {n.lower() for n in names}
         errors += [f"{want[n]}: expected on #{issue} but did not land" for n in want if n not in have]
         errors += [f"{n}: on #{issue} but not expected" for n in names if n.lower() not in want]
@@ -329,12 +369,14 @@ def main(argv: list[str]) -> int:
     p_apply.add_argument("--dry-run", action="store_true")
     p_check = sub.add_parser("check", help="check a label set and body before filing")
     p_check.add_argument("--repo")
-    p_check.add_argument("--labels", required=True)
+    p_check.add_argument("--labels", help="comma-separated label names")
+    p_check.add_argument("--label", action="append", help="one label name, repeatable (use it for a name with a comma)")
     p_check.add_argument("--body-file")
     p_verify = sub.add_parser("verify", help="check a filed issue")
     p_verify.add_argument("--repo")
     p_verify.add_argument("--issue", required=True)
-    p_verify.add_argument("--expect")
+    p_verify.add_argument("--expect", help="comma-separated labels that must be exactly the issue's")
+    p_verify.add_argument("--expect-label", action="append", help="one expected label, repeatable")
     args = parser.parse_args(argv)
 
     try:
@@ -344,9 +386,10 @@ def main(argv: list[str]) -> int:
         if args.command == "apply":
             return cmd_apply(scheme, args.repo, args.dry_run)
         if args.command == "check":
-            return cmd_check(scheme, args.repo, args.labels, args.body_file)
-        return cmd_verify(scheme, args.repo, args.issue, args.expect)
-    except (SchemeError, GhError, OSError) as exc:
+            return cmd_check(scheme, args.repo, split_labels(args.labels, args.label), args.body_file)
+        expect = None if args.expect is None and not args.expect_label else split_labels(args.expect, args.expect_label)
+        return cmd_verify(scheme, args.repo, args.issue, expect)
+    except (SchemeError, GhError, UsageError, OSError, UnicodeDecodeError) as exc:
         print(f"issue_labels: {exc}", file=sys.stderr)
         return 2
 

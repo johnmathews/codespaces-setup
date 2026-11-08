@@ -50,11 +50,12 @@ class Repo:
     """A temporary repo state plus a PATH that resolves `gh` to the fake."""
 
     def __init__(self, tmp: Path, labels: list[dict[str, str]] | None = None,
-                 issues: dict[str, dict[str, object]] | None = None, fail: bool = False) -> None:
+                 issues: dict[str, dict[str, object]] | None = None, fail: bool = False,
+                 garbage: bool = False) -> None:
         self.state = tmp / "state.json"
         self.log = tmp / "calls.log"
         self.log.write_text("")
-        self.state.write_text(json.dumps({"labels": labels or [], "issues": issues or {}, "fail": fail}))
+        self.state.write_text(json.dumps({"labels": labels or [], "issues": issues or {}, "fail": fail, "garbage": garbage}))
         bindir = tmp / "bin"
         bindir.mkdir()
         gh = bindir / "gh"
@@ -175,6 +176,20 @@ def test_broken_scheme_exits_2(tmp: Path) -> None:
     expect("bug" in out.stderr, f"error does not name the label: {out.stderr}")
 
 
+def test_non_json_from_gh_exits_2(tmp: Path) -> None:
+    repo = Repo(tmp, garbage=True)
+    out = repo.run("apply", "--dry-run")
+    expect(out.returncode == 2, f"expected exit 2 on non-JSON gh output, got {out.returncode}: {out.stderr}")
+    expect("Traceback" not in out.stderr, f"a traceback leaked: {out.stderr}")
+
+
+def test_truncated_label_list_exits_2(tmp: Path) -> None:
+    many = [{"name": f"area-{i}", "color": "ffffff", "description": "x"} for i in range(1000)]
+    repo = Repo(tmp, labels=many)
+    out = repo.run("apply", "--dry-run")
+    expect(out.returncode == 2, f"a 1000-label list was trusted as complete: {out.returncode}")
+
+
 # ---- check -----------------------------------------------------------------
 
 HOME = [{"name": "home-assistant", "color": "41BDF5", "description": "HA"},
@@ -205,11 +220,49 @@ def test_check_label_set_violations(tmp: Path) -> None:
         "bug,severity: high,severity: low": "severity",   # two severities
         "bug,severity: high,wontfix": "wontfix",          # triage default
         "bug,severity: high,made-up-area": "made-up-area",  # invented area
+        "Bug,BUG,severity: high": "twice",               # same label, two spellings
     }
     for labels, word in cases.items():
         out = check(repo, labels)
         expect(out.returncode == 1, f"{labels!r}: expected exit 1, got {out.returncode}")
         expect(word in out.stdout, f"{labels!r}: output does not name {word!r}: {out.stdout}")
+
+
+def test_check_is_case_insensitive(tmp: Path) -> None:
+    repo = Repo(tmp, labels=canonical() + HOME)
+    out = check(repo, "Bug,Severity: High,Home-Assistant")
+    expect(out.returncode == 0, f"case variants rejected: {out.stdout}{out.stderr}")
+
+
+def test_check_label_flag_keeps_commas(tmp: Path) -> None:
+    repo = Repo(tmp, labels=canonical() + [{"name": "api, v2", "color": "ffffff", "description": "x"}])
+    out = repo.run("check", "--label", "bug", "--label", "severity: low", "--label", "api, v2")
+    expect(out.returncode == 0, f"a label with a comma was split: {out.stdout}{out.stderr}")
+
+
+def test_check_triage_label_needs_no_gh(tmp: Path) -> None:
+    repo = Repo(tmp, fail=True)
+    out = check(repo, "bug,severity: low,wontfix")
+    expect(out.returncode == 1, f"expected a check failure without calling gh, got {out.returncode}")
+
+
+def test_check_missing_body_file_exits_2(tmp: Path) -> None:
+    repo = Repo(tmp, labels=canonical())
+    out = repo.run("check", "--labels", "bug,severity: low", "--body-file", str(tmp / "nope.md"))
+    expect(out.returncode == 2, f"expected exit 2 for a missing body file, got {out.returncode}")
+
+
+def test_body_fences_and_formatting(tmp: Path) -> None:
+    repo = Repo(tmp, labels=canonical())
+    fenced = GOOD_BODY.replace(
+        "- Read in repo: `backup.sh:42` returns early on a degraded pool",
+        "- Verified live: the log printed\n\n```\n## not a heading\n```\n\n"
+        "- **Read in repo:** `backup.sh:42` returns early\n\n### Detail\n\n- Inferred: x. Settled by: y")
+    out = check(repo, "investigation,severity: high", fenced)
+    expect(out.returncode == 0, f"fence, bold label or sub-heading broke the body check: {out.stdout}")
+    fake_judgement = GOOD_BODY.replace("## Judgement", "```\n## Judgement\n```")
+    out = check(repo, "bug,severity: high", fake_judgement)
+    expect(out.returncode == 1, f"a fenced `## Judgement` counted as the section: {out.stdout}")
 
 
 def test_check_body_violations(tmp: Path) -> None:
@@ -256,6 +309,13 @@ def test_verify_reds_on_a_missing_label(tmp: Path) -> None:
     out = repo.run("verify", "--issue", "7", "--expect", "bug,severity: high,security")
     expect(out.returncode == 1, f"expected exit 1, got {out.returncode}")
     expect("security" in out.stdout, f"output does not name the missing label: {out.stdout}")
+
+
+def test_verify_reds_on_an_extra_label(tmp: Path) -> None:
+    issues = {"7": {"labels": ["bug", "severity: high", "security"], "body": GOOD_BODY}}
+    repo = Repo(tmp, labels=canonical(), issues=issues)
+    out = repo.run("verify", "--issue", "7", "--expect", "bug,severity: high")
+    expect(out.returncode == 1 and "not expected" in out.stdout, f"an unexpected label passed: {out.stdout}")
 
 
 def test_verify_reds_on_scheme_violation(tmp: Path) -> None:

@@ -173,7 +173,8 @@ L=~/.claude/skills/engineering-team/scripts/issue_labels.py
    first to see what it would change.
 4. **Check the labels and the body.** Run
    `python3 $L check --labels "bug,severity: high,security" --body-file <file>`.
-   It must exit 0. If it reports an area that does not exist, ask the user.
+   It must exit 0. If it reports an area that does not exist, ask the user. For
+   an area whose name holds a comma, pass it with `--label "<name>"` instead.
 5. **File it.** Run
    `gh issue create --title "<title>" --body-file <file> --label bug --label "severity: high" --label security`.
 6. **Confirm what landed.** Run

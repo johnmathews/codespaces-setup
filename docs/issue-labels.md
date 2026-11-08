@@ -1,5 +1,7 @@
 # Issue labels
 
+**Status:** active. **Last updated:** 2026-11-08. **Last verified:** 2026-11-08 (`issue_labels.py --selftest`, `tests/engineering-team-issue-labels/run.py`, and `apply --dry-run` against `johnmathews/home-server`, read-only). **Covers:** `configs/claude/skills/engineering-team/references/issues.md`, `configs/claude/skills/engineering-team/scripts/issue_labels.py`, `tests/engineering-team-issue-labels/**`.
+
 > Purpose
 >
 > How the skills and commands in `configs/claude/` file GitHub issues with one
@@ -54,7 +56,9 @@ makes no changes. It keeps the repo's spelling of a name, so it never renames,
 and it never touches a label outside the scheme.
 
 Filing an issue also uses `check` before `gh issue create` and `verify` after
-it. `issues.md` §6 gives the steps.
+it. `issues.md` §6 gives the steps. Both take labels as a comma list
+(`--labels`, `--expect`) or one at a time (`--label`, `--expect-label`), and a
+name that holds a comma needs the one-at-a-time form.
 
 ## 4. Changing the scheme
 

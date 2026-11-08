@@ -1,6 +1,6 @@
 # Development
 
-**Status:** active. **Last updated:** 2026-10-31. **Last verified:** 2026-10-31 (the sync-skills test, shellcheck and shfmt below executed; the design-system and skill-version commands 2026-10-24; the rest last executed 2026-09-01). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `.github/workflows/smoke.yml`, `tests/setup-resilience/**`, `configs/claude/skills/design-system/scripts/**`, `configs/claude/scripts/**`, `tests/sync-skills/**`.
+**Status:** active. **Last updated:** 2026-11-08. **Last verified:** 2026-11-08 (the engineering-team gates, the issue-label test, the drift-scan and the link-check below executed; the sync-skills test, shellcheck and shfmt 2026-10-31; the design-system and skill-version commands 2026-10-24; the rest last executed 2026-09-01). **Covers:** `setup.sh`, `scripts/**`, `ci/**`, `.github/workflows/ci.yml`, `.github/workflows/smoke.yml`, `tests/setup-resilience/**`, `configs/claude/skills/design-system/scripts/**`, `configs/claude/scripts/**`, `tests/sync-skills/**`, `configs/claude/skills/engineering-team/scripts/issue_labels.py`, `tests/engineering-team-issue-labels/**`.
 
 
 This repo is a set of provisioning shell scripts — there is no application code,

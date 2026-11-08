@@ -3,14 +3,14 @@
 
 It keeps a repo's labels and issues in the JSON file named by FAKE_GH_STATE and
 appends every call, as a JSON array of its arguments, to FAKE_GH_LOG. It speaks
-only the four calls issue_labels.py makes:
+only the three calls issue_labels.py makes:
 
     gh label list --limit N --json name,color,description [-R repo]
     gh label create NAME --color C --description D --force [-R repo]
     gh issue view N --json labels,body [-R repo]
 
 A state with "fail": true makes every call exit 1, the way a real `gh` does
-when it is not logged in.
+when it is not logged in. One with "garbage": true prints text that is not JSON.
 """
 
 import json
@@ -27,6 +27,10 @@ def main(argv: list[str]) -> int:
     if state.get("fail"):
         print("gh: To get started with GitHub CLI, please run:  gh auth login", file=sys.stderr)
         return 1
+
+    if state.get("garbage"):
+        print("not json")
+        return 0
 
     args = list(argv)
     if "-R" in args:

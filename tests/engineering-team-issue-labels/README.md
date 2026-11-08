@@ -31,8 +31,17 @@ checks without `gh`.
   claim, prose under Evidence, no Evidence or Judgement section, or an
   `investigation` issue with no `Inferred:` claim.
 - A scheme-only label set is checked without calling `gh`.
-- `verify` passes when the expected labels landed, and fails when one is
-  missing, when the issue breaks the scheme, or when the issue does not exist.
+- A label name holding a comma survives the repeatable `--label` flag.
+- Labels match case-insensitively, and one label in two spellings is a
+  duplicate.
+- The body check ignores `## ` lines inside a code fence, so a fenced
+  `## Judgement` does not count as the section. It accepts a bold label and a
+  sub-heading under Evidence.
+- `gh` output that is not JSON exits 2, as does a label list of 1000 or more,
+  which may be cut off. A missing body file exits 2.
+- `verify` passes when the expected labels landed. It fails (exit 1) when one is
+  missing, an unexpected one is on the issue, or the issue breaks the scheme. It
+  exits 2 when the issue does not exist.
 
 ## 3. Running it
 
