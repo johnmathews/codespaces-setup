@@ -150,12 +150,12 @@ Show the result in this order, so the last thing on screen is the answer to "can
 
 1. **Handover file:** its absolute path.
 2. **Session name:** the name from Step 4.
-3. **Start it:** give this terminal command with both flags and the session name, followed by
+3. **Start it:** give this terminal command with all options shown, followed by
    "then paste". Use the absolute worktree or checkout path where the new session will work,
    and shell-quote the path and name:
 
    ```bash
-   cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --remote-control --name "<session name>"
+   cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --model default --remote-control --name "<session name>"
    ```
 
    Show this command; don't run it. Start a fresh session with it rather than offering an

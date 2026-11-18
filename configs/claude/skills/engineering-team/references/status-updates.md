@@ -388,7 +388,8 @@ Handing over is cheap by design. `run.yaml`, the plan and
    start command. If neither the command nor its instructions are available,
    write the same hand-over file by hand (in `$RUN_DIR/handover-<utc>.md` for
    a run, otherwise under `~/.claude/handovers/`) and show the same launch
-   command: `cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --remote-control --name "<session name>"`.
+   command: `cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --model default --remote-control --name "<session name>"`.
+   Show the command; don't run it.
 5. **Tell the user what is being carried over.** List what existed only in chat
    and where it now lives, so the user can trust the hand-over.
 
