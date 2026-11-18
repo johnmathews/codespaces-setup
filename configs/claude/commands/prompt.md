@@ -150,14 +150,17 @@ Show the result in this order, so the last thing on screen is the answer to "can
 
 1. **Handover file:** its absolute path.
 2. **Session name:** the name from Step 4.
-3. **Start it:** a command for a terminal, followed by "then paste":
+3. **Start it:** give this terminal command with both flags and the session name, followed by
+   "then paste". Use the absolute worktree or checkout path where the new session will work,
+   and shell-quote the path and name:
 
    ```bash
-   cd <absolute worktree path> && claude -n "<session name>"
+   cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --remote-control --name "<session name>"
    ```
 
-   In a session that is already open (the IDE or desktop app), paste first, then run
-   `/rename <session name>`.
+   Show this command; don't run it. Start a fresh session with it rather than offering an
+   already-open IDE or desktop session as an equivalent: `/rename` changes the name,
+   not the remote-control or permission settings.
 4. **The paste line** in a fenced code block, and then either "Copied to the clipboard." or "Not
    copied: no clipboard command here. Copy the line above."
 5. **The full prompt** block (left out when a sitrep triggered the hand-over).
@@ -220,5 +223,7 @@ pasting contents beats pointing at them.
 implement the stale plan.
 
 **In Step 5,** give each lane its own session name (`<plan-short-name>-lane-<x>`), show each lane's
-start command and prompt, and don't copy anything to the clipboard: there is more than one prompt.
+start command using the same template and flags, followed by its prompt. Use the lane's worktree
+if it already exists, or the checkout from which the lane will set up its worktree. Don't copy
+anything to the clipboard: there is more than one prompt.
 The close verdict is always "Keep this session open: it is the coordinator for these lanes."

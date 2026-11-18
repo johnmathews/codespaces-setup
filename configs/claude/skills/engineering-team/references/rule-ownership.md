@@ -55,6 +55,7 @@ should point here.
 
 | Invariant | Canonical home | Also stated in |
 |---|---|---|
+| User-facing errors explain what failed and why, with a next step when possible | §"User-facing errors: what and why" | phases 2, 3 (acceptance criteria and review) |
 | A claim may not be stronger than the check behind it (runtime claim needs a runtime observation) | §"Verification integrity" rule 2 | `documentation-model.md` §8 (the doc-stamp specialization); `worktree.md`; phases 1, 4 |
 | A check that cannot fail is not evidence; "green" is a named, executed check | §"Verification integrity" rules 1 & 3 | `worktree.md`; `wide-survey.md`; phases 1, 4 |
 | A new gate ships with a test proving it goes red | §"Verification integrity" (rule 1 corollary) | `documentation-model.md` §6; `worktree.md`; phases 1, 2 |

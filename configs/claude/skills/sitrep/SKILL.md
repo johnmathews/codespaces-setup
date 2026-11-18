@@ -66,8 +66,10 @@ user asked a specific question, answer it in one line first.
 steps 2 to 5. That runs the `/prompt` procedure, which writes the prompt to a file and copies the
 one-line paste version to the clipboard. After the sitrep, show `/prompt`'s Step 5 report without the
 full prompt block: the file path, the new session's name, its start command, the paste line, whether
-it was copied, and last, whether this session can be closed. The full text stays in the file. If this
-session uses the engineering-team skill, the hand-over prompt must start with `/engineering-team`.
+it was copied, and last, whether this session can be closed. Use the Step 5 start command as written,
+including both flags and the session name; if `/prompt` is unavailable, use the §4.4 fallback. Show
+the command, don't run it. The full text stays in the file. If this session uses the engineering-team
+skill, the hand-over prompt must start with `/engineering-team`.
 
 After it is sent, carry on with any work that was in progress, unless the report raised something the
 user has to answer first.

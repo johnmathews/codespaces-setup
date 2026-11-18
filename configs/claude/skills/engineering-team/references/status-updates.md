@@ -384,9 +384,11 @@ Handing over is cheap by design. `run.yaml`, the plan and
    file and shows it as a copyable block and as a one-line "read this file"
    version. **If this session uses the engineering-team skill, the hand-over
    must too**: the prompt starts with `/engineering-team` and names the run to
-   resume. `prompt.md` Step 3 owns that rule. If `/prompt` isn't available,
-   write the same file by hand to `$RUN_DIR/handover-<utc>.md` with the same
-   contents.
+   resume. `prompt.md` Step 3 owns that rule, and Step 5 owns the terminal
+   start command. If neither the command nor its instructions are available,
+   write the same hand-over file by hand (in `$RUN_DIR/handover-<utc>.md` for
+   a run, otherwise under `~/.claude/handovers/`) and show the same launch
+   command: `cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --remote-control --name "<session name>"`.
 5. **Tell the user what is being carried over.** List what existed only in chat
    and where it now lives, so the user can trust the hand-over.
 

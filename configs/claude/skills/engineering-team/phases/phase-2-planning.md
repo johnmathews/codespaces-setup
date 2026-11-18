@@ -228,6 +228,9 @@ it deliberately excludes as by what it includes.
   in the subagent's brief and reviews the unit against it. (A verification unit's
   **How it goes red** plays this part.) `scripts/check_plan.py` warns about a unit
   missing either of these two fields.
+  When a unit adds or changes user-facing errors, include an acceptance criterion
+  for what users see on a representative failure; apply the
+  [User-facing errors rule](../references/general-guidelines.md#user-facing-errors-what-and-why).
 
 **Verification units** — Not every unit's deliverable is a diff. Some units
 exist to produce an **observation**, and the field list above cannot carry
