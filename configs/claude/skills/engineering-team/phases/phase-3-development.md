@@ -402,6 +402,11 @@ commit, push or open a PR, because the lead reviews the diff and `/done` commits
 it in Phase 4; and stop and report, rather than decide, when the unit can't be
 done inside its footprint or without breaking a constraint.
 
+**When the unit adds or changes user-facing errors**, the brief must tell the
+implementer to read and apply the
+[User-facing errors rule](../references/general-guidelines.md#user-facing-errors-what-and-why),
+using its absolute path. Don't assume the subagent has loaded this phase doc.
+
 **Before the first dispatch, check the run's files**: `scripts/check_run.py
 "$RUN_DIR"` and `scripts/check_plan.py`. A plan whose unit list disagrees with
 `run.yaml` sends every subagent in with a wrong picture of who owns what.
@@ -435,6 +440,10 @@ Each implementing subagent should:
 As Lead Engineer, review each completed unit before marking it done. Check:
 - Does the implementation match the plan, and does it meet each of the unit's
   acceptance criteria?
+- For user-facing errors added or changed by the unit, trigger a representative
+  failure and check the message the user actually sees against the
+  [User-facing errors rule](../references/general-guidelines.md#user-facing-errors-what-and-why).
+  An exit code, HTTP status, or log entry alone doesn't verify the message.
 - Does it keep to the plan's constraints and the user's request in
   `request.md`? Check this against the files, not memory: a rule the lead
   forgot is a rule the review misses.

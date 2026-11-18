@@ -4,6 +4,20 @@
 > the user reports something urgent or when phase docs reference a guideline
 > by name.
 
+## User-facing errors: what and why
+
+Every user-facing error you add or change, in any interface, must explain in
+plain language **what** failed (the operation and relevant input or resource)
+and **why** it failed (the known cause or unmet condition). Give a concrete
+next step when the user can do something about it. For example, instead of
+"Upload failed", say "Couldn't upload the report: it's larger than the 10 MB
+limit. Choose a smaller file and try again."
+
+If the underlying cause is unknown, say what the application observed and
+what it couldn't determine; don't guess. Keep secrets, private data, and
+raw stack traces out of user-facing messages. For unexpected failures, use
+protected diagnostics and give a reference ID when one is available.
+
 ## Verification integrity
 
 These four rules govern what you are allowed to claim. They exist because
