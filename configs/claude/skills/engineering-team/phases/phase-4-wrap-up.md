@@ -304,6 +304,11 @@ This is not a summary — it is the *input* to the next `/engineering-team`
 invocation. Put the body in one fenced code block so the user can copy it
 cleanly.
 
+Before the prompt block, show the named session's terminal start command
+from `/prompt` Step 5, or the fallback in `references/status-updates.md` §4.4
+if `/prompt` is unavailable. Keep the command separate from the prompt and
+don't run it.
+
 The prompt must be self-contained — fresh-session-Claude has no memory of
 this conversation, only what the prompt says plus what it can read from
 the codebase. Brief it like a smart colleague who just walked into the room.
