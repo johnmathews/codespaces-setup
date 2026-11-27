@@ -34,6 +34,7 @@ concurrent write to reconcile, so there is never a conflict to resolve.
 | `status-<lane>.md` | that one lane | its ticks, **surprises**, blockers |
 | `journal/YYMMDD-*.md` | that one lane (via `/done`) | the durable, committed record |
 | PR body and comments | that one lane | live progress, visible cross-session via `gh` |
+| Tracking issue body (`issues.md` §10) | coordinator | the plan's progress for readers outside the run; lanes only comment |
 | Memory (auto-memory) | coordinator | cross-session recall; the hook a fresh session loads |
 
 No file is written by two sessions. That single fact is the whole trick.
@@ -134,7 +135,8 @@ lost, because nothing load-bearing lived in its conversation.
 Owns exactly one lane: one `status-<lane>.md`, one worktree, one branch, one PR.
 
 1. Read the plan and your lane's contract. **Never write the plan or the
-   dashboard** — if the plan is wrong, report it; don't fix it.
+   dashboard**, or the tracking issue's body — if the plan is wrong, report it;
+   don't fix it. Comment on the tracking issue at your lane's milestones.
 2. Work only inside your declared footprint. If you must touch a file outside it,
    that is a **surprise** — record it, flag it on the PR, and say where the fix
    lands.

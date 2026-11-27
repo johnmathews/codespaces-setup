@@ -322,9 +322,14 @@ engineering-team run, also file each entry in `$RUN_DIR/follow-ups.md` and each 
 settle. When an open issue already covers a follow-up, update that issue instead of filing a new one. Also update any
 issue this change fixes in part or whose facts it changes.
 
+**If the work has a tracking issue** (`tracking_issue:` in `run.yaml`, or the issue a hand-over prompt named), post the
+milestone this session reached on it (§10.3 of the file below): a unit done, a PR opened or merged, or the work
+finished. Name it in the PR body, with a closing word (`Closes #<n>`, `Fixes <KEY-n>`) only when the PR finishes the
+plan.
+
 **Every rule for this phase lives in `~/.claude/skills/engineering-team/references/issues.md`**: which tracker, GitHub or
 Linear (§1), what is not an issue (§2), the labels (§3), the title (§5), the TL;DR-first body (§6), updating an issue
-(§7), and the steps for GitHub (§8) and Linear (§9). Those steps check every body and comment with `issue_labels.py`
+(§7), the steps for GitHub (§8) and Linear (§9), and tracking issues (§10). Those steps check every body and comment with `issue_labels.py`
 before it is posted, and check again what landed. Do not file without them, and do not invent a label. If an area
 label is missing, ask the user.
 

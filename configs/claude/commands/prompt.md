@@ -43,6 +43,9 @@ from on-disk artifacts, running these in parallel where possible:
    on so they can be linked in the prompt.
 6. **Anything still running:** background shells, dev servers, subagents, Workflows, monitors, and
    session-only scheduled tasks this session started. Step 5's close verdict depends on them.
+7. **Issues:** the open issue that covers this work, if any: `tracking_issue:` and each unit's
+   `issue:` in `run.yaml`, a `Closes`/`Fixes` line in the open PR's body, or a search of the
+   project's tracker. Step 3b needs it.
 
 ## Step 2 — Ask if anything is unclear
 
@@ -82,6 +85,23 @@ it would otherwise lose:
   use "Step 4b — Lane hand-off prompts" at the end of this file instead of Step 4.
 - Otherwise, write an ordinary handover prompt with no skill assumption.
 
+## Step 3b — Make sure the work has an issue
+
+Every prompt that hands work on names the issue that tracks it, and the new session keeps that
+issue current. The rules live in `~/.claude/skills/engineering-team/references/issues.md` §10:
+
+1. **An open issue covers the work:** use it. If a person wrote it, comment on it and never edit its
+   body (§7 item 6).
+2. **None does:** file a tracking issue now, following §10.2 and the filing steps for the project's
+   tracker (§8 GitHub, §9 Linear). In an engineering-team run, write its number or identifier to
+   `run.yaml` as `tracking_issue:`. One issue covers the whole plan, never one per unit.
+3. **Nothing is handed over**, such as a question or a discussion, or the project takes no issues:
+   the prompt says "No issue:" and why.
+
+Then post the hand-over as a milestone on the issue (§10.3): a `**TL;DR:**` comment saying what this
+session finished and what the next one starts with, and an edit that brings the body's `Status:`
+line and checklist up to date.
+
 ## Step 4 — Write the prompt
 
 Write the prompt to a markdown file. The file is the hand-over; anything shown in chat is a
@@ -118,6 +138,10 @@ Use absolute paths everywhere in it. The prompt must be self-contained and inclu
    the files, so spend the effort here.
 8. **Links to relevant documentation:** paths to plan/design/reference docs and any external links.
 9. **Concrete next action:** the first thing the new session should do.
+10. **Issue:** the tracking issue's number or identifier and URL (or "No issue:" and why, from Step
+    3b), with the instruction to post a milestone update on it at each milestone in
+    `~/.claude/skills/engineering-team/references/issues.md` §10.3, and to carry the issue into any
+    prompt it writes in turn.
 
 Keep it complete but not bloated: prefer pointing to on-disk artifacts over duplicating them.
 **Read the file back once before showing it.** The paste step is a human gate only if what the user
@@ -164,9 +188,10 @@ Show the result in this order, so the last thing on screen is the answer to "can
 4. **The paste line** in a fenced code block, and then either "Copied to the clipboard." or "Not
    copied: no clipboard command here. Copy the line above."
 5. **The full prompt** block (left out when a sitrep triggered the hand-over).
-6. **What you included**, in a few numbered lines, and **anything you were uncertain about**, in case
+6. **The issue** the prompt names, and whether this step filed it or updated it.
+7. **What you included**, in a few numbered lines, and **anything you were uncertain about**, in case
    the user wants to adjust it before starting the new session.
-7. **Can this session be closed?** The last line, in one of two forms:
+8. **Can this session be closed?** The last line, in one of two forms:
    - **"This session can be closed once the new session has read the handover file. Don't keep
      working here after that."** Use it only when the file is written and read back, Step 2b is
      done, nothing this session started is still running, and nothing is half applied (a rebase or
@@ -202,7 +227,11 @@ must state:
 5. **The contract, in one line:** read the plan, never write it; keep your status file and PR
    updated; run `/done` when finished; never touch another lane's worktree.
 6. **Any scope fence** — "do NOT execute X", "do NOT touch Y, lane C owns it".
-7. **The coordination protocol, inlined in full** — not a pointer to it. The receiving
+7. **The run's tracking issue** (Step 3b) and its tracker: comment on it at the lane's own
+   milestones (`issues.md` §10.3, which names the checks to run first, with `--linear` on Linear),
+   and never edit its body. The coordinator owns the body, as it owns the
+   dashboard.
+8. **The coordination protocol, inlined in full** — not a pointer to it. The receiving
    session is fresh and loads only the skill's router, so it learns about the blocking
    pre-PR gate only if it happens to route to the phase doc that mentions one; a worker
    that never gets there opens an ungated PR believing it followed the plan. The block

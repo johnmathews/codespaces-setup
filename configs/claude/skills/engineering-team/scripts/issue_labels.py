@@ -18,10 +18,11 @@ it, so a change to the list is a change to the doc.
     issue_labels.py verify --issue N [--expect "..."] [--expect-label NAME]... [--repo R]
         Read `gh issue view N --json labels,body` and run the same checks on
         what was filed. With --expect, also confirm exactly those labels landed.
-    issue_labels.py check-body --body-file F [--type T]
+    issue_labels.py check-body --body-file F [--type T] [--linear]
         Check a body alone, for a tracker the label checks do not fit (Linear).
-        `--type investigation` also requires an `Inferred:` claim. No `gh`.
-    issue_labels.py check-comment --body-file F
+        `--type investigation` also requires an `Inferred:` claim. `--linear`
+        adds the checks for a reader without the repo (§9.4). No `gh`.
+    issue_labels.py check-comment --body-file F [--linear]
         Check an update comment: it opens with a `**TL;DR:**` line. No `gh`.
     issue_labels.py --selftest
         Parse the real scheme and prove each check can go red. No `gh` needed.
@@ -58,6 +59,14 @@ COMMENT_TLDR = re.compile(r"^\*\*TL;DR(?::\*\*|\*\*:)\s*(.*)$")
 CHECKBOX = re.compile(r"^\[[ xX]\]\s+")
 # A screenshot on its own line, bare or wrapped in a link: ![alt](url) or [![alt](url)](url)
 IMAGE_LINE = re.compile(r"^(?:!\[[^\]]*\]\([^)]*\)|\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\))\s*$")
+# Internal references a reader without the repo cannot resolve (issues.md §9.4)
+INTERNAL_REF = re.compile(r"\b(?:W\d+|F\d+|(?i:ADR|RFC)[- ]?\d+)\b")
+GLOSS = re.compile(r"^\s*(?:\(|[—–:]\s|-\s)")  # "W2 (retry...)", "W2 — retry...", "W2: retry..."
+INLINE_CODE = re.compile(r"`[^`]*`")
+PATH_IN_CODE = re.compile(r"`[^`]*(?:/|\.[A-Za-z]{1,5}(?::\d+)?)[^`]*`")
+BARE_PATH = re.compile(r"(?<![\w`])[\w.-]+(?:/[\w.-]+)+\.[A-Za-z]{1,5}(?::\d+)?\b")  # src/export.py:88
+MD_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+PO_MIN_WORDS = 4
 FOOTER = object()  # marks "past the closing `---`" while splitting a body
 FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 THEMATIC_BREAK = re.compile(r"^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$")
@@ -355,9 +364,79 @@ def check_appendix(o: Outline) -> list[str]:
     return errors
 
 
-def check_body(body: str, names: list[str]) -> list[str]:
+def ref_key(ref: str) -> str:
+    return re.sub(r"[- ]", "", ref.upper())
+
+
+def unglossed_refs(texts: list[str]) -> list[str]:
+    """Internal references whose first use carries no meaning (issues.md §9.4).
+    Inline code is ignored, since a command or path is not a reference."""
+    errors: list[str] = []
+    seen: set[str] = set()
+    for text in texts:
+        plain = MD_LINK.sub(r"\1", INLINE_CODE.sub(" ", text))
+        for m in INTERNAL_REF.finditer(plain):
+            key = ref_key(m.group(0))
+            if key in seen:
+                continue
+            seen.add(key)
+            if not GLOSS.match(plain[m.end():]):
+                errors.append(f"{m.group(0)} has no meaning at its first use; write `{m.group(0)} (<what it is>)`")
+    return errors
+
+
+def check_plan(lines: list[tuple[str, bool]]) -> list[str]:
+    """A tracking issue's plan (issues.md §10.2): one checklist item per unit,
+    each ID followed by its meaning in plain words."""
+    errors: list[str] = []
+    items, prose = list_items(lines)
+    for line in prose:
+        errors.append(f"the Plan holds prose, not a checklist item: {line[:60]}")
+    if not items:
+        errors.append("the Plan has no items")
+    for raw in items:
+        if not CHECKBOX.match(raw):
+            errors.append(f"a Plan item must be a checklist item (`- [ ]` or `- [x]`): {raw[:60]}")
+            continue
+        text = MD_LINK.sub(r"\1", INLINE_CODE.sub(" ", CHECKBOX.sub("", raw).replace("~~", "").strip()))
+        ref = INTERNAL_REF.match(text)
+        rest = text[ref.end():] if ref else text
+        glossed = not ref or (GLOSS.match(rest) and re.search(r"\w", GLOSS.sub("", rest, count=1)))
+        if not text or not glossed:
+            errors.append(f"a Plan item needs its meaning in plain words, such as `W3 (cache totals)`: {raw[:60]}")
+    return errors
+
+
+def check_po(o: Outline) -> list[str]:
+    """Checks for a reader without the repo, such as a product owner on Linear
+    (issues.md §9.4)."""
+    errors: list[str] = []
+    tldr = next((h for h in o.order if h in TLDR_HEADINGS), None)
+    if tldr is not None:
+        for line, fenced in o.sections[tldr]:
+            if fenced:
+                continue
+            ref = INTERNAL_REF.search(INLINE_CODE.sub(" ", line))
+            if ref:
+                errors.append(f"the TL;DR names an internal reference ({ref.group(0)}); say it in product words")
+            if PATH_IN_CODE.search(line) or BARE_PATH.search(INLINE_CODE.sub(" ", line)):
+                errors.append(f"the TL;DR names a file path; say it in product words: {line.strip()[:60]}")
+    texts = [line for h in o.order if h != "appendix" for line, fenced in o.sections[h] if not fenced]
+    errors += unglossed_refs(texts)
+    if "evidence" in o.sections:
+        _, claims = check_claims(o.sections["evidence"], "evidence")
+        for claim in claims:
+            body = claim.split(":", 1)[1] if ":" in claim else claim
+            words = re.findall(r"[A-Za-z][\w'-]*", INLINE_CODE.sub(" ", body))
+            if len(words) < PO_MIN_WORDS:
+                errors.append(f"an Evidence claim needs its meaning in plain words, not only code: {claim[:60]}")
+    return errors
+
+
+def check_body(body: str, names: list[str], linear: bool = False) -> list[str]:
     """Problems with an issue body (issues.md §6): a TL;DR first, evidence as
-    labelled claims, and any appendix marked as one and placed last."""
+    labelled claims (or a plan, for a tracking issue, §10), and any appendix
+    marked as one and placed last. `linear` adds the §9.4 checks."""
     errors: list[str] = []
     o = outline(body)
     if o.preamble:
@@ -370,9 +449,18 @@ def check_body(body: str, names: list[str]) -> list[str]:
             errors.append(f"`## TL;DR` must be the first section, but `## {o.order[0]}` comes first")
         errors += check_tldr(o.sections[tldr])
     errors += check_appendix(o)
+    if linear:
+        errors += check_po(o)
 
+    tracking = "plan" in o.sections
+    if tracking:
+        errors += check_plan(o.sections["plan"])
+        items, _ = list_items(o.sections[tldr]) if tldr else ([], [])
+        if not any(i.replace("**", "").lower().startswith("status:") for i in items):
+            errors.append("a tracking issue's TL;DR needs a `Status:` item (how far along, and whether on track)")
     if "evidence" not in o.sections:
-        errors.append("no `## Evidence` section")
+        if not tracking:
+            errors.append("no `## Evidence` section")
         return errors
     claim_errors, claims = check_claims(o.sections["evidence"], "evidence")
     errors += claim_errors
@@ -383,7 +471,7 @@ def check_body(body: str, names: list[str]) -> list[str]:
     return errors
 
 
-def check_comment(text: str) -> list[str]:
+def check_comment(text: str, linear: bool = False) -> list[str]:
     """Problems with an update comment (issues.md §7): it opens with a
     `**TL;DR:** <what changed>` line, and any list item is a labelled claim."""
     lines = text.strip().splitlines()
@@ -396,7 +484,10 @@ def check_comment(text: str) -> list[str]:
         return ["the comment's TL;DR line is empty; say what changed and what it means now"]
     rest = list(zip(lines[1:], fenced_lines(lines[1:])))
     errors, _ = check_claims(rest, "comment")
-    return [e for e in errors if "holds prose" not in e]  # a comment may explain in prose
+    errors = [e for e in errors if "holds prose" not in e]  # a comment may explain in prose
+    if linear:
+        errors += unglossed_refs([lines[0]] + [line for line, fenced in rest if not fenced])
+    return errors
 
 
 def report(errors: list[str], ok: str) -> int:
@@ -456,13 +547,13 @@ def cmd_check(scheme: list[Label], repo: str | None, names: list[str], body_file
     return report(errors, f"labels{' and body' if body_file else ''} follow the scheme")
 
 
-def cmd_check_body(body_file: str, kind: str | None) -> int:
-    errors = check_body(Path(body_file).read_text(encoding="utf-8"), [kind] if kind else [])
+def cmd_check_body(body_file: str, kind: str | None, linear: bool) -> int:
+    errors = check_body(Path(body_file).read_text(encoding="utf-8"), [kind] if kind else [], linear)
     return report(errors, "body follows the shape")
 
 
-def cmd_check_comment(body_file: str) -> int:
-    return report(check_comment(Path(body_file).read_text(encoding="utf-8")), "comment opens with a TL;DR")
+def cmd_check_comment(body_file: str, linear: bool) -> int:
+    return report(check_comment(Path(body_file).read_text(encoding="utf-8"), linear), "comment opens with a TL;DR")
 
 
 def cmd_verify(scheme: list[Label], repo: str | None, issue: str, expect: list[str] | None) -> int:
@@ -535,6 +626,19 @@ def selftest() -> int:
         expect(bool(check_body(broken, ["bug"])), f"check_body accepted {fault}")
     expect(not POINTS_BELOW.search("disk use drops below 5%"), "a plain 'below' counted as pointing below")
 
+    tracking = ("## TL;DR\n\n- Ship X.\n- Status: 1 of 2 done.\n- Next: y.\n\n"
+                "## Plan\n\n- [x] W1 (add the index)\n- [ ] W2 (page the list)\n")
+    expect(not check_body(tracking, ["enhancement"], linear=True), f"good tracking body rejected: {check_body(tracking, ['enhancement'], True)}")
+    for fault, broken in {
+        "no status": tracking.replace("- Status: 1 of 2 done.\n", ""),
+        "bare plan id": tracking.replace("- [ ] W2 (page the list)", "- [ ] W2"),
+        "plan item not a checklist": tracking.replace("- [ ] W2", "- W2"),
+    }.items():
+        expect(bool(check_body(broken, ["enhancement"])), f"check_body accepted a tracking issue with {fault}")
+    expect(bool(check_body(tracking.replace("- Next: y.", "- Next: W2 (page)."), [], linear=True)), "--linear accepted an ID in the TL;DR")
+    expect(bool(unglossed_refs(["W2 is done"])), "an unexplained W2 passed")
+    expect(not unglossed_refs(["W2 (retry) is done", "then W2 again", "`W3` in code"]), "a glossed or coded ref failed")
+
     comment = "**TL;DR:** Cause found: the check runs first.\n\n- Verified live: `x` printed `y`\n"
     expect(not check_comment(comment), f"good comment rejected: {check_comment(comment)}")
     for fault, broken in {
@@ -573,8 +677,10 @@ def main(argv: list[str]) -> int:
     p_body = sub.add_parser("check-body", help="check a body alone, for a tracker other than GitHub")
     p_body.add_argument("--body-file", required=True)
     p_body.add_argument("--type", help="the issue's type; `investigation` also needs an Inferred claim")
+    p_body.add_argument("--linear", action="store_true", help="also check it reads without the repo (issues.md §9.4)")
     p_comment = sub.add_parser("check-comment", help="check an update comment")
     p_comment.add_argument("--body-file", required=True)
+    p_comment.add_argument("--linear", action="store_true", help="also check internal references carry their meaning")
     p_verify = sub.add_parser("verify", help="check a filed issue")
     p_verify.add_argument("--repo")
     p_verify.add_argument("--issue", required=True)
@@ -589,9 +695,9 @@ def main(argv: list[str]) -> int:
         if args.command == "apply":
             return cmd_apply(scheme, args.repo, args.dry_run)
         if args.command == "check-body":
-            return cmd_check_body(args.body_file, args.type)
+            return cmd_check_body(args.body_file, args.type, args.linear)
         if args.command == "check-comment":
-            return cmd_check_comment(args.body_file)
+            return cmd_check_comment(args.body_file, args.linear)
         if args.command == "check":
             return cmd_check(scheme, args.repo, split_labels(args.labels, args.label), args.body_file)
         expect = None if args.expect is None and not args.expect_label else split_labels(args.expect, args.expect_label)

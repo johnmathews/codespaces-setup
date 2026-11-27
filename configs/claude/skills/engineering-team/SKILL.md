@@ -157,6 +157,7 @@ phase: 3                  # 1 | 2 | 3 | 4 | complete
 scope: full               # evaluate | plan | full  (from the user's verb; set once, in Phase 1)
 goal: "Make the billing pages fast and correct again."   # one sentence; every sitrep opens with it
 done_when: "All plan units merged to main with CI green; docs updated"   # the definition of done: plain-words items, split by ;
+tracking_issue: "ENG-212"  # optional: the issue that tracks this run's work (references/issues.md §10)
 units:                    # mirrors the improvement plan's frontmatter; absent until Phase 2
   - { id: W1, status: done }
   - { id: W2, status: in-progress }
@@ -460,6 +461,10 @@ leave the pointer in place; that is what lets a later session resume.
 
 There is no machine-readable marker contract. Instead:
 
+- **Tracking issue:** once `run.yaml` names a `tracking_issue:`, every session
+  working the run updates it at each milestone, and every prompt that hands
+  the work on names it (`references/issues.md` §10). A prompt that hands work
+  on files one first if there is none.
 - **Progress:** announce work-unit starts and completions in plain prose
   ("Starting W1: <title>", "W1 done — full suite green"). Never leave a
   started unit unaccounted for: by the end of the session each started

@@ -341,6 +341,101 @@ def test_markdown_edge_cases(tmp: Path) -> None:
     expect(out.returncode == 0, f"a tilde fence in a comment was read as a claim: {out.stdout}")
 
 
+TRACKING_BODY = """## TL;DR
+
+- Invoice pages take 8 s to load; the goal is under 1 s.
+- Status: 2 of 4 steps done, on track.
+- Next: cache customer totals.
+
+## Plan
+
+- [x] W1 (add an index for invoice lookups)
+- [x] W2 (stop loading every line item up front)
+- [ ] W3 (cache customer totals)
+- [ ] W4 — page the invoice list
+
+---
+
+Found by: engineering-team run manual-x, 2026-11-27
+"""
+
+LINEAR_BODY = """## TL;DR
+
+- Exports silently drop rows when a file is over 10 MB.
+- Impact: finance reports undercount revenue. Severity: high, because the loss is silent.
+- Next: stream the export instead of buffering it.
+
+## Evidence
+
+- Verified live: a 12 MB export kept 9,000 of 10,000 rows (`export --size 12M`)
+- Read in repo: the exporter stops at a fixed buffer size, W2 (retry failed exports) did not touch it (`export.py:88`)
+- Read in repo: ADR-7 (exports run on the job queue) puts the buffer limit there, and W2 is unrelated
+
+## Appendix
+
+### A.1 Raw output
+
+W9 shows up here unexplained, which is fine in the appendix.
+"""
+
+
+def test_tracking_issue(tmp: Path) -> None:
+    repo = Repo(tmp, labels=canonical())
+    out = check(repo, "enhancement,severity: medium", TRACKING_BODY)
+    expect(out.returncode == 0, f"a good tracking issue failed: {out.stdout}")
+    cases = {
+        "no status line": (TRACKING_BODY.replace("- Status: 2 of 4 steps done, on track.\n", "- On track.\n"), "Status:"),
+        "plan item not a checklist": (TRACKING_BODY.replace("- [ ] W3 (cache", "- W3 (cache"), "checklist"),
+        "plan id with no meaning": (TRACKING_BODY.replace("- [ ] W3 (cache customer totals)", "- [ ] W3"), "meaning"),
+        "plan holds prose": (TRACKING_BODY.replace("## Plan\n", "## Plan\n\nFour steps.\n"), "prose"),
+    }
+    for name, (body, reason) in cases.items():
+        out = check(repo, "enhancement,severity: medium", body)
+        expect(out.returncode == 1 and reason in out.stdout, f"{name}: expected a {reason!r} failure: {out.stdout}")
+    no_plan = TRACKING_BODY.replace("## Plan", "## Steps")
+    out = check(repo, "enhancement,severity: medium", no_plan)
+    expect(out.returncode == 1 and "no `## Evidence`" in out.stdout, f"a body with neither Plan nor Evidence passed: {out.stdout}")
+
+
+def test_linear_reader_without_the_repo(tmp: Path) -> None:
+    repo = Repo(tmp, fail=True)
+    out = run_with_file(repo, LINEAR_BODY, "check-body", "--linear")
+    expect(out.returncode == 0, f"a PO-readable body failed --linear: {out.stdout}{out.stderr}")
+    out = run_with_file(repo, TRACKING_BODY, "check-body", "--linear")
+    expect(out.returncode == 0, f"a tracking issue failed --linear: {out.stdout}")
+    out = run_with_file(repo, GOOD_BODY, "check-body")
+    expect(out.returncode == 0, f"--linear rules leaked into a plain check-body: {out.stdout}")
+    cases = {
+        "id in the tldr": (LINEAR_BODY.replace("- Next: stream", "- Next: finish W3 (streaming) and stream"), "TL;DR"),
+        "path in the tldr": (LINEAR_BODY.replace("- Next: stream the export", "- Next: fix `src/export.py`"), "path"),
+        "unexplained unit": (LINEAR_BODY.replace("W2 (retry failed exports) did not touch it", "W2 did not touch it"), "meaning"),
+        "unexplained adr": (LINEAR_BODY.replace("ADR-7 (exports run on the job queue)", "ADR-7"), "meaning"),
+        "claim that is only code": (LINEAR_BODY.replace(
+            "- Verified live: a 12 MB export kept 9,000 of 10,000 rows (`export --size 12M`)",
+            "- Verified live: `export --size 12M` printed `9000`"), "plain words"),
+    }
+    for name, (body, reason) in cases.items():
+        out = run_with_file(repo, body, "check-body", "--linear")
+        expect(out.returncode == 1 and reason in out.stdout, f"{name}: expected a {reason!r} failure: {out.stdout}")
+    more = {
+        "lower-case adr": (LINEAR_BODY.replace("ADR-7 (exports run on the job queue)", "adr-7"), "meaning"),
+        "bare path in the tldr": (LINEAR_BODY.replace("- Next: stream the export", "- Next: fix src/export.py"), "path"),
+    }
+    for name, (body, reason) in more.items():
+        out = run_with_file(repo, body, "check-body", "--linear")
+        expect(out.returncode == 1 and reason in out.stdout, f"{name}: expected a {reason!r} failure: {out.stdout}")
+    out = run_with_file(repo, TRACKING_BODY.replace("- [ ] W3 (cache customer totals)", "- [ ] [W3](https://x/3) cache"), "check-body")
+    expect(out.returncode == 1 and "meaning" in out.stdout, f"a link-wrapped plan ID with no meaning passed: {out.stdout}")
+    struck = TRACKING_BODY.replace("- [ ] W3 (cache customer totals)", "- [ ] ~~W3 (cache customer totals)~~ dropped: no time")
+    out = run_with_file(repo, struck, "check-body", "--linear")
+    expect(out.returncode == 0, f"a struck, explained plan item failed: {out.stdout}")
+    good = "**TL;DR:** W2 (retry failed exports) is done; 2 of 4 steps finished.\n"
+    out = run_with_file(repo, good, "check-comment", "--linear")
+    expect(out.returncode == 0, f"a glossed comment failed --linear: {out.stdout}")
+    out = run_with_file(repo, "**TL;DR:** W2 is done; 2 of 4 steps finished.\n", "check-comment", "--linear")
+    expect(out.returncode == 1 and "meaning" in out.stdout, f"an unexplained unit in a comment passed --linear: {out.stdout}")
+
+
 TLDR = GOOD_BODY.split("## Evidence")[0]
 REST = "## Evidence" + GOOD_BODY.split("## Evidence")[1]
 

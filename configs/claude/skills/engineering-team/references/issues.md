@@ -27,6 +27,10 @@ File an issue for work this run leaves undone, at the moment it is left undone:
    its severity and grade. A lane worker writes them in its own `status-<lane>.md`
    instead. `/done` files them in its follow-up issues phase. Outside an
    engineering-team run, `/done` files the follow-ups it finds itself.
+4. **Work that a generated prompt hands to another session**, from `/prompt`, a
+   lane hand-off, or Phase 4's next-unit prompt. The prompt names the open
+   issue that covers the work, or a tracking issue filed for it before the
+   prompt is written (§10).
 
 File in the repo whose code the issue concerns. If that is not the repo this
 session works in, ask the user first.
@@ -168,9 +172,11 @@ record, for the reader who has to check the claim or act on it.
 The sections, in this order:
 
 1. `## TL;DR`, always first.
-2. `## Evidence`.
+2. `## Evidence`. A tracking issue (§10) has `## Plan` here instead, and adds
+   Evidence only once there is a claim to record.
 3. Any other section only when it earns its place, such as a numbered
-   `## Steps to reproduce`.
+   `## Steps to reproduce`. `## Plan` is reserved for tracking issues, so a
+   bug's fix steps go under another heading, such as `## Suggested fix`.
 4. `## Appendix`, optional, always last.
 5. The footer, after a `---` line, with or without an appendix.
 
@@ -294,7 +300,8 @@ heading is not exactly `## Appendix` as the last section.
 ## 7. Updating an issue
 
 Update an open issue when a run finds new evidence for it (§2), settles an
-`investigation`, fixes part of it, changes its severity, or fixes it.
+`investigation`, fixes part of it, changes its severity, or fixes it. A tracking
+issue also gets milestone updates (§10.3).
 
 1. **Comment on what happened.** The comment opens with one line,
    `**TL;DR:** <what changed, and what it means now>`, of at least three words,
@@ -398,14 +405,16 @@ an issue needs a label that does not exist, ask the user.
 
 `L` is the script, as in §8.
 
+`--linear` on `check-body` and `check-comment` adds the checks of §9.4.
+
 1. **Find the team** from the `Team:` line (§1). Without one, list the teams and
    ask the user.
 2. **Look for an existing issue.** Search the team's open issues for the key
    words. If one covers it, update it (§7) and stop.
 3. **Pick the title** (§5) from the team's recent issues.
 4. **Write the body** to a file (§6), then run
-   `python3 $L check-body --body-file <file>`, adding `--type investigation` for
-   an investigation. It must exit 0.
+   `python3 $L check-body --linear --body-file <file>`, adding
+   `--type investigation` for an investigation. It must exit 0.
 5. **File it** with the create tool: the title, the file's text as the
    description, the team, the priority, the labels and any project.
 6. **Confirm what landed.** Fetch the issue, write its description to a file and
@@ -414,9 +423,116 @@ an issue needs a label that does not exist, ask the user.
 7. **Record the identifier**, such as `ENG-123`, where §8 step 8 records a
    number.
 
-**To update an issue** (§7), run `check-comment` on the comment before posting
-it with the comment tool, and `check-body` on an edited description before
-saving it with the update tool.
+**To update an issue** (§7), run `check-comment --linear` on the comment before
+posting it with the comment tool, and `check-body --linear` on an edited
+description before saving it with the update tool.
 
 A PR that later fixes the issue says `Fixes <KEY-n>` in its body. With Linear's
 GitHub integration, that links the PR and closes the issue when it merges.
+
+### 9.4 Written for a reader without the repo
+
+A product owner reads a Linear issue, and may have no access to the GitHub repo.
+They must understand the issue at their level without it. Internal references
+are welcome, because engineers use them, but each must explain itself:
+
+- **The TL;DR names no internal reference and no file path.** It says in product
+  words what is wrong or planned, the impact, and the next step.
+- **Every internal reference carries its meaning at its first use**: a work unit
+  as "W2 (retry failed exports)", a finding as "F3 (exports drop rows over
+  10 MB)", a decision as "ADR-7 (the job queue moved to Postgres)". A link to the
+  document may follow, but never replaces the words.
+- **Every Evidence claim says what it means in plain words.** The `file:line` or
+  command comes after the meaning, for the engineer who checks it. Long output
+  and repo-only detail go in the appendix.
+
+A comment is read on its own, so it explains its own references, even ones the
+body already explains. Its `**TL;DR:**` line may name a unit only with its
+meaning, such as "W2 (retry failed exports) is done".
+
+`check-body --linear` and `check-comment --linear` fail an internal reference
+(`W<n>`, `F<n>`, `ADR-<n>`, `RFC-<n>`) in the TL;DR or with no meaning at its
+first use, a file path in the TL;DR, and an Evidence claim with fewer than four
+plain words outside code.
+
+## 10. Tracking work across sessions
+
+### 10.1 When
+
+Whenever a skill or command writes a prompt that hands work to another session
+(§1 item 4), the work has an issue:
+
+1. **An open issue already covers it**: the prompt names it. Look in `run.yaml`
+   (`tracking_issue:`, and `issue:` on units), the PR body, and the tracker
+   (§8 step 1, §9.3 step 2). If a person wrote that issue, its body is theirs
+   (§7 item 6): post the status and the plan's checklist in comments instead of
+   editing it.
+2. **None does**: file a tracking issue before writing the prompt. In an
+   engineering-team run, write its number or identifier to `run.yaml` as
+   `tracking_issue:`.
+3. **No work is handed over**, as in a discussion or a question, or the project
+   takes no issues (§2): the prompt says "No issue:" and why.
+
+A run files one tracking issue for its whole plan, never one per unit.
+
+### 10.2 The tracking issue
+
+It follows §6 with a `## Plan` section in place of Evidence:
+
+- **TL;DR**: what the work delivers and why, a `Status:` line (how far along,
+  and whether it is on track), and the next step.
+- **`## Plan`**: one checklist item per unit, the ID followed by its meaning in
+  plain words, such as `- [ ] W3 (cache customer totals)`. Tick an item when its
+  unit is done. Strike an abandoned one, keeping its meaning, and say why:
+  `- [ ] ~~W4 (page the invoice list)~~ dropped: not needed after W3`.
+- **Title**: what the work delivers, in the repo's convention (§5).
+- **Labels**: the type and severity of the work as a whole (§3), or the priority
+  on Linear (§9.2).
+
+````markdown
+## TL;DR
+
+- Invoice pages take 8 s to load; the goal is under 1 s.
+- Status: 2 of 4 steps done, on track.
+- Next: cache customer totals.
+
+## Plan
+
+- [x] W1 (add an index for invoice lookups)
+- [x] W2 (stop loading every line item up front)
+- [ ] W3 (cache customer totals)
+- [ ] W4 (page the invoice list)
+
+## Evidence
+
+- Verified live: page load time fell from 8.2 s to 2.1 s after W1 and W2 (`k6 run load.js`, p95)
+````
+
+`issue_labels.py` checks it: a body with `## Plan` needs a `Status:` item in its
+TL;DR, and each Plan item is a checklist item whose ID carries its meaning.
+
+### 10.3 Milestone updates
+
+The session doing the work updates the tracking issue at each milestone, with a
+§7 comment and an edit that keeps the body's `Status:` line and checklist true.
+Check each comment with `check-comment` and each edited body with `check` or
+`check-body`, adding `--linear` on Linear (§9.4):
+
+1. **Work starts**: which unit, and on which branch.
+2. **A unit is done or abandoned**: tick or strike it, with the reason for an
+   abandoned one.
+3. **Blocked on someone**: what is needed, and from whom.
+4. **A PR merges**: link it, and what it delivered.
+5. **The work ends**: close it with a comment whose TL;DR says what was
+   delivered, or say what remains and who picks it up.
+
+A PR that finishes the plan says `Closes #<n>` or `Fixes <KEY-n>`. A PR that
+delivers part of it names the issue with no closing word, so the issue stays
+open.
+
+In a run with lanes, the coordinator alone edits the tracking issue's body, as
+it alone writes the dashboard (`multi-session.md`). A lane worker comments at
+its own milestones and never edits the body.
+
+Every prompt that hands the work on names the tracking issue and tells the next
+session to keep these updates going.

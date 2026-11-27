@@ -60,6 +60,16 @@ checks without `gh`.
   missing, an unexpected one is on the issue, or the issue breaks the scheme. It
   exits 2 when the issue does not exist.
 
+- A tracking issue (a body with `## Plan`) needs no Evidence, but fails with no
+  `Status:` item in its TL;DR, a Plan item that is not a checklist item, a bare
+  ID with no meaning, or prose in the Plan.
+- `--linear` fails an internal reference or a file path (in code or bare) in the
+  TL;DR, a `W<n>` or `ADR-<n>` (any case) with no meaning at its first use (the
+  appendix is exempt), and an Evidence claim that is only code. Without the
+  flag, none of these apply.
+- A link-wrapped plan ID with no meaning fails; a struck plan item that keeps
+  its meaning passes.
+
 ## 3. Running it
 
 ```bash
