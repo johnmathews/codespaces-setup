@@ -664,7 +664,13 @@ set -euo pipefail
 [[ "${PREFIX}" == "${HOME}/.local" ]]
 [[ "${PATH%%:*}" == "${HOME}/.local/bin" ]]
 [[ "${PWD}" == "${HOME}/.config/nvim" ]]
-[[ "${NODE_EXTRA_CA_CERTS}" == /etc/ssl/certs/ca-certificates.crt ]]
+# lib.sh trusts the system CA bundle only where it exists (Linux, behind the
+# proxy). macOS has no such file, so there the bundle must not be claimed.
+if [[ -f /etc/ssl/certs/ca-certificates.crt ]]; then
+  [[ "${NODE_EXTRA_CA_CERTS}" == /etc/ssl/certs/ca-certificates.crt ]]
+else
+  [[ "${NODE_EXTRA_CA_CERTS:-}" != /etc/ssl/certs/ca-certificates.crt ]]
+fi
 [[ "${RETRY_TIMEOUT}" == 300 ]]
 printf 'bootstrap\n' >>"${HOME}/calls"
 EOF

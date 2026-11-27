@@ -50,7 +50,8 @@ check "home .claude is a link to the persisted dir" test "$(readlink -f "${H}/.c
 check "transcript moved" test -f "${P}/projects/p/s1.jsonl"
 check "home .claude.json links into the persisted dir" test "$(readlink -f "${H}/.claude.json")" == "$(readlink -f "${P}/.claude.json")"
 check "home .claude.json content kept" grep -q '"a":1' "${P}/.claude.json"
-check "persisted dir is private" test "$(stat -c %a "${P}")" == 700
+# GNU stat (Linux) takes -c; BSD stat (macOS) rejects it and takes -f %Lp.
+check "persisted dir is private" test "$(stat -c %a "${P}" 2>/dev/null || stat -f %Lp "${P}")" == 700
 
 echo "2. after a rebuild"
 scenario rebuild

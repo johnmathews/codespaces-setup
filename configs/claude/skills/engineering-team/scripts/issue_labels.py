@@ -326,7 +326,11 @@ def check_claims(lines: list[tuple[str, bool]], where: str) -> tuple[list[str], 
         text = CHECKBOX.sub("", raw.replace("**", "").strip())
         if IMAGE_LINE.match(text):
             continue  # a screenshot written as a list item
-        claims.append(text)
+        struck = text.startswith("~~")  # wrong evidence, struck and kept (issues.md §7 item 3)
+        if struck:
+            text = text[2:].lstrip()
+        else:
+            claims.append(text)  # a struck claim is history, not a live claim
         if not text.startswith(EVIDENCE_LABELS):
             errors.append(f"{where} claim has no label ({' / '.join(EVIDENCE_LABELS)}): {text[:60]}")
     return errors, claims
@@ -625,6 +629,9 @@ def selftest() -> int:
     }.items():
         expect(bool(check_body(broken, ["bug"])), f"check_body accepted {fault}")
     expect(not POINTS_BELOW.search("disk use drops below 5%"), "a plain 'below' counted as pointing below")
+    struck = body.replace("- Verified live: ", "- ~~Inferred: wrong. Settled by: x~~\n- Verified live: ")
+    expect(not check_body(struck, ["bug"]), f"a struck claim rejected: {check_body(struck, ['bug'])}")
+    expect(bool(check_body(struck, ["investigation"])), "a struck Inferred claim counted as the open one")
 
     tracking = ("## TL;DR\n\n- Ship X.\n- Status: 1 of 2 done.\n- Next: y.\n\n"
                 "## Plan\n\n- [x] W1 (add the index)\n- [ ] W2 (page the list)\n")
