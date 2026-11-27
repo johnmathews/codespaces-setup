@@ -67,6 +67,8 @@ checks without `gh`.
   TL;DR, a `W<n>` or `ADR-<n>` (any case) with no meaning at its first use (the
   appendix is exempt), and an Evidence claim that is only code. Without the
   flag, none of these apply.
+- A struck Evidence claim (`- ~~Inferred: ...~~`) passes when it keeps its
+  label, and never counts as an open `Inferred:` claim.
 - A link-wrapped plan ID with no meaning fails; a struck plan item that keeps
   its meaning passes.
 

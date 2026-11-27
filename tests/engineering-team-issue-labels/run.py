@@ -509,6 +509,22 @@ def test_investigation_needs_an_inferred_claim(tmp: Path) -> None:
     expect(out.returncode == 0, f"investigation with an Inferred claim failed: {out.stdout}")
 
 
+def test_struck_evidence(tmp: Path) -> None:
+    """issues.md §7 item 3: wrong evidence is struck through, never deleted."""
+    repo = Repo(tmp, labels=canonical())
+    struck = GOOD_BODY.replace("- Read in repo: `backup.sh:42` returns early on a degraded pool",
+                               "- ~~Inferred: the cron job never runs. Settled by: its log~~\n"
+                               "- Read in repo: `backup.sh:42` returns early on a degraded pool")
+    out = check(repo, "bug,severity: high", struck)
+    expect(out.returncode == 0, f"a struck claim was rejected: {out.stdout}")
+    out = check(repo, "investigation,severity: high", struck)
+    expect(out.returncode == 1 and "Inferred" in out.stdout,
+           f"a struck Inferred claim counted as the open one: {out.stdout}")
+    unlabelled = GOOD_BODY.replace("- Read in repo: `backup.sh:42`", "- ~~`backup.sh:42`~~ `backup.sh:42`")
+    out = check(repo, "bug,severity: high", unlabelled)
+    expect(out.returncode == 1 and "has no label" in out.stdout, f"a struck claim with no label passed: {out.stdout}")
+
+
 def test_check_scheme_only_set_needs_no_gh(tmp: Path) -> None:
     repo = Repo(tmp, fail=True)
     out = check(repo, "bug,severity: low")
