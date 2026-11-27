@@ -2,10 +2,11 @@
 
 > Purpose
 >
-> The one place that says when a skill or command files a GitHub issue, which
-> labels it carries, what its body says, and the checks before and after filing.
-> Every other file that files issues points here. The canonical label list in §4
-> is also read by `scripts/issue_labels.py`, so it exists only here.
+> The one place that says when a skill or command files or updates an issue,
+> on GitHub or Linear: which labels it carries, how its title and body read, and
+> the checks before and after filing. Every other file that files issues points
+> here. The canonical label list in §4 is also read by
+> `scripts/issue_labels.py`, so it exists only here.
 
 ## 1. When to file an issue
 
@@ -30,21 +31,43 @@ File an issue for work this run leaves undone, at the moment it is left undone:
 File in the repo whose code the issue concerns. If that is not the repo this
 session works in, ask the user first.
 
+**Which tracker.** Read the `## Issues` section of the project's `CLAUDE.md`.
+Every line in it is optional:
+
+```markdown
+## Issues
+
+- Tracker: Linear
+- Team: ENG
+- Project: Billing
+- Areas: api, ui, infra
+- Titles: `Area: claim`
+```
+
+- `Tracker:` is `GitHub` (the default) or `Linear`. On Linear, follow §9.
+- `Team:` and `Project:` are Linear's team key and an optional project.
+- `Areas:` lists the area labels (§3).
+- `Titles:` states the title convention (§5).
+
+With no `Tracker:` line, file on GitHub. If the repo has no GitHub remote or has
+issues turned off, ask the user where follow-ups go, and offer to write the
+`## Issues` section with the answer.
+
 ## 2. What is not an issue
 
 - **Anything fixed in this run**, in the same PR or in another PR of the run.
 - **A unit still pending in this run's plan.** `run.yaml` tracks it, and it
   becomes an issue only if it is abandoned.
-- **Something an open issue already covers.** Comment on that issue with the new
-  evidence instead (§6 step 1).
+- **Something an open issue already covers.** Update that issue with the new
+  evidence instead (§7).
 - **Something the user decided against**, such as "not a problem" or "won't do".
   Record the decision in the plan.
 - **A question for the user.** Ask it.
 - **The findings of an evaluate-only run.** The report is that run's
   deliverable, so offer to file its findings and file only on a yes.
-- **Anything in a project that tracks work elsewhere.** If the project's
-  `CLAUDE.md` names another tracker or says not to file issues, or the repo has
-  issues turned off, list the follow-ups in the summary instead.
+- **Anything in a project that says not to file issues**, or whose `Tracker:` is
+  neither GitHub nor Linear. Write the follow-ups in the summary instead, each in
+  the shape of §6, so the user can paste it.
 
 **Batch Low findings.** Out-of-scope findings graded Low that share a type go in
 one issue with a checklist, labelled `severity: low`. Medium and above always get
@@ -62,8 +85,8 @@ Every issue carries:
    `maintenance` issue, the severity is the cost of leaving it undone. Grade a
    follow-up that has no severity yet with the same rubric before filing it.
 3. **Zero or more concern labels**: `security`, `reliability`, `performance`.
-4. **Zero or more area labels.** Take areas from an `Areas:` line under a
-   `## Issues` section of the project's `CLAUDE.md`. If there is none, take them
+4. **Zero or more area labels.** Take areas from the `Areas:` line of the
+   project's `CLAUDE.md` (§1). If there is none, take them
    from the repo's existing labels (`gh label list`) that are neither scheme
    labels nor GitHub's triage defaults (`duplicate`, `good first issue`,
    `help wanted`, `invalid`, `question`, `wontfix`). Never invent an area. If an
@@ -72,8 +95,9 @@ Every issue carries:
 
 A **[SUSPECTED] finding is filed as `investigation`**, whatever its type would be
 if it were true. Its severity is still the cost if it is true. The body states
-the unverified claim and what would settle it (§5). Whoever settles it swaps
-`investigation` for the real type, or closes the issue if the claim was false.
+the unverified claim and what would settle it (§6). Whoever settles it swaps
+`investigation` for the real type, or closes the issue if the claim was false
+(§7).
 
 | Type | Use it when |
 |---|---|
@@ -86,6 +110,8 @@ the unverified claim and what would settle it (§5). Whoever settles it swaps
 
 A vulnerable dependency is `dependencies` plus `security`. A security hole in the
 project's own code is `bug` plus `security`.
+
+On Linear, §9.2 maps this scheme to Linear's priority and labels.
 
 ## 4. The canonical labels
 
@@ -112,48 +138,193 @@ most 100 characters, which is GitHub's limit.
 Changing a name here renames nothing in any repo. The script would create a new
 label beside the old one, so ask the user before changing a name.
 
-## 5. The issue body
+## 5. The title
 
-The body keeps evidence and judgement apart. Every claim under **Evidence** is a
-list item that starts with exactly one of three labels, matching the grades in
+Follow the convention the tracker already uses:
+
+1. **A `Titles:` line** in the project's `CLAUDE.md` (§1) wins.
+2. **Otherwise read the last 30 titles**: on GitHub
+   `gh issue list --state all --limit 30 --json title -q '.[].title'`, on Linear
+   the team's recent issues. If at least half share a pattern, follow it, and
+   spell its area names the way those titles do. Common patterns are
+   `Area: claim`, `[Area] claim` and `type(scope): claim`.
+3. **Otherwise** write the claim alone.
+
+Whatever the pattern:
+
+- **State the claim, not the topic**: "Backup job skips `/etc` when the pool is
+  degraded", not "Backup issue".
+- **At most about 80 characters**, with no full stop at the end.
+- **No severity or type in the title**, such as `[Bug]` or `HIGH:`. The labels
+  carry them. The one exception is a convention that puts them there.
+- **No run-internal IDs** such as `F3` or `W2`. Nobody reading the tracker can
+  see the run.
+
+## 6. The issue body
+
+Write for a reader who reads the TL;DR and stops. Everything under it is the
+record, for the reader who has to check the claim or act on it.
+
+The sections, in this order:
+
+1. `## TL;DR`, always first.
+2. `## Evidence`.
+3. Any other section only when it earns its place, such as a numbered
+   `## Steps to reproduce`.
+4. `## Appendix`, optional, always last.
+5. The footer, after a `---` line, with or without an appendix.
+
+### 6.1 The TL;DR
+
+A TL;DR is adequate when a reader who stops there knows:
+
+1. **What** is wrong or missing.
+2. **The impact**: who or what it hits, and the severity with its reason.
+3. **The next step**: the fix, or for an `investigation`, the check that settles
+   it.
+
+Write it as 2 to 5 bullets, one fact each, in about 60 words; the check fails
+a TL;DR over 90. It must
+stand alone: no "see below", no term that only the Evidence defines, and no run
+IDs. An `investigation` TL;DR says that the claim is unverified.
+
+The judgement lives here: the severity and its reason, and the suggested fix.
+The type needs no reason, because its label says it.
+
+### 6.2 Evidence
+
+The Evidence section holds only claims, never opinion. Every claim is a list item
+that starts with exactly one of three labels, matching the grades in
 `general-guidelines.md` §"Grade every finding, and name what earned the grade":
 
 | Label | Grade | What the claim names |
 |---|---|---|
-| `Verified live:` | [VERIFIED] | The command that ran and its actual output |
+| `Verified live:` | [VERIFIED] | The command that ran and the line of output that matters |
 | `Read in repo:` | [SUPPORTED] | The primary source read but not run, such as `file:line`, a config or a CI log |
 | `Inferred:` | [SUSPECTED] | The inference, and what would settle it |
 
 An `investigation` issue has at least one `Inferred:` claim, which is the
-unverified claim itself. Opinions go under **Judgement**, never under Evidence.
+unverified claim itself. A batched Low issue (§2) writes each finding as a
+checklist item, such as `- [ ] Read in repo: ...`.
 
-```markdown
-<One or two sentences: what is wrong or missing, and what it costs.>
+Quote only the line of output that matters. When the full output is longer than
+about 10 lines, put it in the appendix and point to it, such as
+"(full output: A.1)". A screenshot line, and anything folded in `<details>`, may
+sit between the claims.
+
+### 6.3 Lists, diagrams and screenshots
+
+- **Lists everywhere.** Use numbered lists when order matters, such as steps to
+  reproduce or a sequence of events, and bullets otherwise. Give each item one
+  fact.
+- **A mermaid diagram** when the defect sits in a flow, in messages between
+  components, or in a change of state that would take more than a few sentences
+  to describe. GitHub and Linear both render a ```` ```mermaid ```` block. Keep
+  it to about 10 nodes and put it after the claim it shows. The claim stays in
+  words too, because a diagram is not evidence.
+- **A screenshot** for anything a user sees: a UI defect, a dashboard reading or
+  an error dialog. Put it under the Evidence item it supports, with alt text that
+  says what it shows.
+  - **Linear** uploads a markdown image to its own storage when the issue is
+    created. The image can be a URL Linear can fetch, or a `data:` URI.
+  - **GitHub:** `gh` cannot upload images. Link an image already in the repo
+    (`https://github.com/<owner>/<repo>/blob/<sha>/<path>?raw=true`). Otherwise
+    save it under `$RUN_DIR/screenshots/`, file the issue without it, and give
+    the user the path in the summary so they can drag it in. Never leave a
+    placeholder in the body.
+
+### 6.4 The appendix
+
+The appendix holds what a reader may need to check the record but not to act on
+it: full command output, long logs, a full config, a script that reproduces the
+defect, background, and options considered.
+
+- **One heading, `## Appendix`**, spelled exactly that, after every other
+  section. Only the footer comes after it.
+- **Numbered subsections**, `### A.1 <what it holds>`, `### A.2 ...`, so an
+  Evidence item can point to "A.1".
+- **On GitHub, fold each long block** in `<details><summary>...</summary>`, so
+  the page stays short. Linear's docs do not say that markdown can make a
+  collapsible section, so leave the subsections open there.
+- **No other heading may say "appendix"**, such as `### Appendix: logs` under
+  Evidence.
+- **Nothing above it depends on it.** An Evidence item quotes the line that
+  matters and points to the subsection for the rest.
+
+Move content to the appendix when the text above it would not fit on one screen,
+which is about 30 lines.
+
+### 6.5 The template
+
+````markdown
+## TL;DR
+
+- <What is wrong or missing, in one line.>
+- Impact: <who or what it hits>. Severity: <critical|high|medium|low>, because <the consequence if true>.
+- Next: <the fix, or the check that settles it>.
 
 ## Evidence
 
-- Verified live: `<command>` printed `<output>`
+- Verified live: `<command>` printed `<the line that matters>` (full output: A.1)
 - Read in repo: `<path>:<line>` <what it shows>
 - Inferred: <the claim>. Settled by: <the check that would settle it>
 
-## Judgement
+## Appendix
 
-- Severity: <Critical|High|Medium|Low>, because <the consequence if true>
-- Type: <type>, because <reason>
-- Suggested fix: <one or two lines, or "none yet">
+### A.1 <what it holds>
 
-## Why it is not fixed now
+<details><summary><one line></summary>
 
-<Out of scope in the plan for <run>, unit W<n> abandoned (<why>), or found
-during /done and left for later.>
-
-Found by: <engineering-team run <run-id> | /done on <branch>>, <YYYY-MM-DD>
+```text
+<the full output>
 ```
 
-The title states the claim in a few words, such as "Backup job skips the
-`/etc` snapshot when the pool is degraded".
+</details>
 
-## 6. Filing, step by step
+---
+
+Not fixed now: <out of scope for run <run-id> | W<n> abandoned: <why> | found by /done, left for later> · Found by: <engineering-team run <run-id> | /done on <branch>>, <YYYY-MM-DD>
+````
+
+`issue_labels.py` checks the shape: a body fails if its first section is not
+`## TL;DR`, if the TL;DR has fewer than 2 or more than 5 items or more than 90
+words, if it points below, if an Evidence item has no label, or if an appendix
+heading is not exactly `## Appendix` as the last section.
+
+## 7. Updating an issue
+
+Update an open issue when a run finds new evidence for it (§2), settles an
+`investigation`, fixes part of it, changes its severity, or fixes it.
+
+1. **Comment on what happened.** The comment opens with one line,
+   `**TL;DR:** <what changed, and what it means now>`, of at least three words,
+   followed by labelled
+   evidence items as in §6.2. Keep it short. On GitHub, fold long output in
+   `<details>`.
+2. **Keep the body true.** When the update changes anything the TL;DR says, such
+   as the cause, the severity, the next step or the scope, edit the body as well.
+   Rewrite the TL;DR, add the new claims to Evidence, and change the labels, or
+   the priority on Linear, to match. The comment records what changed and the
+   body says what is true now, because a reader opens the body, not the twelfth
+   comment.
+3. **Strike wrong evidence, never delete it.** Put `~~...~~` around a claim that
+   turned out wrong, and add the claim that corrects it.
+4. **Settle an `investigation`** by swapping its label for the real type (§3),
+   turning its `Inferred:` claim into a `Verified live:` claim or striking it,
+   and rewriting the TL;DR. If the claim was false, comment why and close the
+   issue.
+5. **Close it through the PR that fixes it**: `Closes #<n>` on GitHub,
+   `Fixes <KEY-n>` on Linear (§9.3). An issue closed without a PR gets a comment
+   whose TL;DR names what settled it.
+6. **Edit only a body this flow wrote.** A body whose footer says `Found by:
+   engineering-team run` or `Found by: /done` may be edited. On an issue a person
+   wrote, comment only, unless the user says yes. At work, a teammate's ticket
+   text is theirs.
+
+`issue_labels.py check-comment` checks a comment before it is posted, and
+`check` or `check-body` checks an edited body (§8, §9.3).
+
+## 8. Filing on GitHub, step by step
 
 Run these from the repo's checkout, or add `--repo <owner>/<name>` to each
 command. `L` is the deployed script:
@@ -163,25 +334,89 @@ L=~/.claude/skills/engineering-team/scripts/issue_labels.py
 ```
 
 1. **Look for an existing issue.** Run
-   `gh issue list --state open --search "<key words>"`. If one covers it, then
-   add the new evidence with `gh issue comment <n> --body-file <file>` and stop.
-2. **Write the body** to a file, in the shape of §5.
-3. **Make sure the scheme's labels exist.** Run `python3 $L apply`. It reads
+   `gh issue list --state open --search "<key words>"`. If one covers it, update
+   that issue as the end of this section shows, and stop.
+2. **Pick the title** (§5).
+3. **Write the body** to a file, in the shape of §6.
+4. **Make sure the scheme's labels exist.** Run `python3 $L apply`. It reads
    `gh label list`, then creates each missing scheme label and resets any
    drifted colour or description with `gh label create --force`. It never
    renames a label and never creates one outside §4. Run it with `--dry-run`
    first to see what it would change.
-4. **Check the labels and the body.** Run
+5. **Check the labels and the body.** Run
    `python3 $L check --labels "bug,severity: high,security" --body-file <file>`.
    It must exit 0. If it reports an area that does not exist, ask the user. For
    an area whose name holds a comma, pass it with `--label "<name>"` instead.
-5. **File it.** Run
+6. **File it.** Run
    `gh issue create --title "<title>" --body-file <file> --label bug --label "severity: high" --label security`.
-6. **Confirm what landed.** Run
+7. **Confirm what landed.** Run
    `python3 $L verify --issue <n> --expect "bug,severity: high,security"`. It
    reads `gh issue view <n> --json labels,body` and repeats the checks. If it
    fails, fix the issue with `gh issue edit <n>`, then verify again.
-7. **Record the number**: on the abandoned unit in `run.yaml`, beside the finding
+8. **Record the number**: on the abandoned unit in `run.yaml`, beside the finding
    in the plan's out-of-scope list, and in the summary.
 
+**To update an issue** (§7):
+
+1. Write the comment to a file, run `python3 $L check-comment --body-file <file>`,
+   then `gh issue comment <n> --body-file <file>`.
+2. If the body has to change, run
+   `gh issue view <n> --json body -q .body > <file>`, edit the file, check it
+   with `check --labels ... --body-file <file>`, then run
+   `gh issue edit <n> --body-file <file>` with any `--add-label` or
+   `--remove-label` the update needs. Finish with `verify`.
+
 A PR that later fixes the issue says `Closes #<n>` in its body.
+
+## 9. Filing on Linear
+
+### 9.1 The tools
+
+Use the Linear MCP server's tools. Find them with ToolSearch (`linear`). Linear's
+docs do not list the tool names, so pick each by what it does: list or search
+issues, get an issue, create an issue, update an issue, create a comment, list
+teams and list labels. If no Linear tools are connected, or they need signing
+in, ask the user to connect them. Do not fall back to the API with a token.
+Until they are connected, write the follow-ups in the summary in the shape of
+§6.
+
+### 9.2 Mapping the scheme
+
+| The scheme (§3) | On Linear |
+|---|---|
+| Severity label | The priority field: critical is Urgent, high is High, medium is Medium and low is Low |
+| Type label | The existing team or workspace label with that meaning, such as Bug, Feature or Improvement. If none matches, file with no type label and say so in the summary |
+| Concern labels | Only a label of that name that already exists |
+| Area labels | Existing labels only, or the `Project:` from §1 |
+| `investigation` | An existing label with that meaning, if there is one. The TL;DR says the claim is unverified either way |
+
+**Never create, rename or recolour a label in a Linear workspace.** The
+workspace is shared with a team. `issue_labels.py apply` is for GitHub only. If
+an issue needs a label that does not exist, ask the user.
+
+### 9.3 Steps
+
+`L` is the script, as in §8.
+
+1. **Find the team** from the `Team:` line (§1). Without one, list the teams and
+   ask the user.
+2. **Look for an existing issue.** Search the team's open issues for the key
+   words. If one covers it, update it (§7) and stop.
+3. **Pick the title** (§5) from the team's recent issues.
+4. **Write the body** to a file (§6), then run
+   `python3 $L check-body --body-file <file>`, adding `--type investigation` for
+   an investigation. It must exit 0.
+5. **File it** with the create tool: the title, the file's text as the
+   description, the team, the priority, the labels and any project.
+6. **Confirm what landed.** Fetch the issue, write its description to a file and
+   run `check-body` on it again. Check that the priority and labels match. If
+   anything is off, fix it with the update tool and check again.
+7. **Record the identifier**, such as `ENG-123`, where §8 step 8 records a
+   number.
+
+**To update an issue** (§7), run `check-comment` on the comment before posting
+it with the comment tool, and `check-body` on an edited description before
+saving it with the update tool.
+
+A PR that later fixes the issue says `Fixes <KEY-n>` in its body. With Linear's
+GitHub integration, that links the PR and closes the issue when it merges.

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Apply and check the engineering-team issue label scheme on a GitHub repo.
+"""Apply and check the engineering-team issue label scheme and issue shape.
 
 The scheme and its canonical label list live in one place,
-`references/issues.md` (§3 and the table in §4). This script parses that table
-and holds no copy of it, so a change to the list is a change to the doc.
+`references/issues.md` (§3 and the table in §4), as does the body shape (§6)
+and the update comment (§7). This script parses that table and holds no copy of
+it, so a change to the list is a change to the doc.
 
     issue_labels.py list [--json]
         Print the canonical labels.
@@ -17,6 +18,11 @@ and holds no copy of it, so a change to the list is a change to the doc.
     issue_labels.py verify --issue N [--expect "..."] [--expect-label NAME]... [--repo R]
         Read `gh issue view N --json labels,body` and run the same checks on
         what was filed. With --expect, also confirm exactly those labels landed.
+    issue_labels.py check-body --body-file F [--type T]
+        Check a body alone, for a tracker the label checks do not fit (Linear).
+        `--type investigation` also requires an `Inferred:` claim. No `gh`.
+    issue_labels.py check-comment --body-file F
+        Check an update comment: it opens with a `**TL;DR:**` line. No `gh`.
     issue_labels.py --selftest
         Parse the real scheme and prove each check can go red. No `gh` needed.
 
@@ -32,7 +38,7 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 DEFAULT_SCHEME = Path(__file__).resolve().parent.parent / "references" / "issues.md"
@@ -40,6 +46,21 @@ GROUPS = ("type", "severity", "concern")
 # GitHub's default triage labels. They are the user's to apply and are never areas.
 TRIAGE_DEFAULTS = frozenset({"duplicate", "good first issue", "help wanted", "invalid", "question", "wontfix"})
 EVIDENCE_LABELS = ("Verified live:", "Read in repo:", "Inferred:")
+TLDR_HEADINGS = frozenset({"tl;dr", "tldr"})
+TLDR_ITEMS = (2, 5)    # issues.md §6.1: 2 to 5 bullets
+TLDR_MAX_WORDS = 90    # the hard ceiling; §6.1 asks for about 60
+# A TL;DR that defers to the text under it does not stand alone. "below" on its
+# own is too broad ("drops below 5%"), so only the deferring phrases count.
+POINTS_BELOW = re.compile(
+    r"\b(?:see|as)\s+(?:below|the\s+appendix|appendix)\b"
+    r"|\b(?:details|more|explained|described|shown)\s+below\b", re.IGNORECASE)
+COMMENT_TLDR = re.compile(r"^\*\*TL;DR(?::\*\*|\*\*:)\s*(.*)$")
+CHECKBOX = re.compile(r"^\[[ xX]\]\s+")
+# A screenshot on its own line, bare or wrapped in a link: ![alt](url) or [![alt](url)](url)
+IMAGE_LINE = re.compile(r"^(?:!\[[^\]]*\]\([^)]*\)|\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\))\s*$")
+FOOTER = object()  # marks "past the closing `---`" while splitting a body
+FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+THEMATIC_BREAK = re.compile(r"^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$")
 MAX_DESCRIPTION = 100  # GitHub's limit on a label description
 
 TABLE_HEADER = re.compile(r"^\|\s*Group\s*\|\s*Name\s*\|\s*Colour\s*\|\s*Description\s*\|\s*$")
@@ -179,53 +200,203 @@ def check_labels(names: list[str], scheme: list[Label], existing: dict[str, dict
     return errors
 
 
-def body_sections(body: str) -> dict[str, list[tuple[str, bool]]]:
-    """Split a body at its `## ` headings, ignoring any inside a code fence.
-    Each line comes with whether it is fence or fenced code."""
-    sections: dict[str, list[tuple[str, bool]]] = {}
+@dataclass
+class Outline:
+    """A body split at its headings, ignoring any inside a code fence."""
+    preamble: list[str]                                  # unfenced, non-blank lines before the first `## `
+    order: list[str]                                     # `## ` headings in order, lower-cased
+    sections: dict[str, list[tuple[str, bool]]]          # each line, and whether it is fence or fenced code
+    headings: list[tuple[int, str]]                      # every unfenced heading: (level, text)
+    footer: list[str] = field(default_factory=list)      # lines after a top-level `---`
+
+
+def fenced_lines(lines: list[str]) -> list[bool]:
+    """Whether each line is a code-fence line or inside one (CommonMark: a fence
+    of ``` or ~~~, closed by the same character at least as long, with nothing
+    after it; a backtick fence's info string holds no backtick)."""
+    marks: list[bool] = []
+    opener: tuple[str, int] | None = None
+    for line in lines:
+        m = FENCE.match(line.rstrip("\r"))
+        if opener is None:
+            if m and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+                opener = (m.group(1)[0], len(m.group(1)))
+                marks.append(True)
+            else:
+                marks.append(False)
+        else:
+            marks.append(True)
+            if m and m.group(1)[0] == opener[0] and len(m.group(1)) >= opener[1] and not m.group(2).strip():
+                opener = None
+    return marks
+
+
+def outline(body: str) -> Outline:
+    out = Outline([], [], {}, [])
     current: str | None = None
-    in_fence = False
-    for line in body.splitlines():
-        is_fence = line.strip().startswith("```")
-        if not in_fence and not is_fence and line.startswith("## "):
-            current = line[3:].strip().lower()
-            sections.setdefault(current, [])
+    lines = body.splitlines()
+    for line, fenced in zip(lines, fenced_lines(lines)):
+        heading = None if fenced else re.match(r"^ {0,3}(#{1,6})\s+(.*?)(?:\s+#+)?\s*$", line)
+        if heading:
+            level, text = len(heading.group(1)), heading.group(2).strip()
+            out.headings.append((level, text))
+            if level == 2:
+                current = text.lower()
+                out.order.append(current)
+                out.sections.setdefault(current, [])
+                continue
+        if not fenced and current is not None and THEMATIC_BREAK.match(line):
+            current = FOOTER  # issues.md §6.5: the footer follows a `---` and belongs to no section
             continue
-        if current is not None:
-            sections[current].append((line, in_fence or is_fence))
-        if is_fence:
-            in_fence = not in_fence
-    return sections
+        if current == FOOTER:
+            out.footer.append(line)
+        elif current is not None:
+            out.sections[current].append((line, fenced))
+        elif line.strip():
+            out.preamble.append(line.strip())  # anything before the first section, fenced or not
+    return out
+
+
+def list_items(lines: list[tuple[str, bool]]) -> tuple[list[str], list[str]]:
+    """The top-level list items of a section, with their continuation lines
+    joined on, and every other unfenced line, which is prose.
+
+    A line belongs to the item above it when it is indented, or when it follows
+    the item with no blank line between (a hard-wrapped item). An indented line
+    with no item above it is prose, so indenting cannot hide text from the checks.
+    Fenced code, headings and thematic breaks are neither."""
+    items: list[str] = []
+    prose: list[str] = []
+    in_item = False      # the item above can still take a continuation line
+    after_blank = False
+    for line, fenced in lines:
+        if fenced:
+            continue
+        if not line.strip():
+            after_blank = True
+            continue
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        if stripped.startswith("#") or THEMATIC_BREAK.match(line):
+            in_item, after_blank = False, False
+            continue
+        item = LIST_ITEM.match(stripped)
+        if item and indent <= 3 and not (in_item and indent >= 2):
+            items.append(item.group(1).strip())
+            in_item = True
+        elif in_item and (indent >= 2 or not after_blank):
+            items[-1] += " " + stripped
+        else:
+            prose.append(stripped)
+            in_item = False
+        after_blank = False
+    return items, prose
+
+
+def check_claims(lines: list[tuple[str, bool]], where: str) -> tuple[list[str], list[str]]:
+    """Every list item must start with an evidence label. Returns (errors, claims).
+
+    A screenshot line is allowed, and so is anything inside <details>, which is
+    where long output is folded."""
+    errors: list[str] = []
+    claims: list[str] = []
+    kept: list[tuple[str, bool]] = []
+    depth = 0
+    for line, fenced in lines:
+        lower = line.strip().lower()
+        if not fenced:
+            depth += lower.count("<details") - lower.count("</details>")
+            depth = max(depth, 0)
+            if lower.startswith("<") or IMAGE_LINE.match(line.strip()):
+                continue
+        kept.append((line, fenced or depth > 0))
+    items, prose = list_items(kept)
+    for line in prose:
+        errors.append(f"{where} holds prose, not a labelled claim: {line[:60]}")
+    for raw in items:
+        text = CHECKBOX.sub("", raw.replace("**", "").strip())
+        if IMAGE_LINE.match(text):
+            continue  # a screenshot written as a list item
+        claims.append(text)
+        if not text.startswith(EVIDENCE_LABELS):
+            errors.append(f"{where} claim has no label ({' / '.join(EVIDENCE_LABELS)}): {text[:60]}")
+    return errors, claims
+
+
+def check_tldr(lines: list[tuple[str, bool]]) -> list[str]:
+    errors: list[str] = []
+    items, prose = list_items(lines)
+    if prose:
+        errors.append(f"the TL;DR holds prose; write it as 2 to 5 bullets: {prose[0][:60]}")
+    low, high = TLDR_ITEMS
+    if not low <= len(items) <= high:
+        errors.append(f"the TL;DR has {len(items)} item(s); it needs 2 to 5 (what, impact and severity, next step)")
+    words = sum(len(text.split()) for text in items + prose)
+    if words > TLDR_MAX_WORDS:
+        errors.append(f"the TL;DR is {words} words; keep it under {TLDR_MAX_WORDS} and move detail to Evidence")
+    for text in items + prose:
+        if POINTS_BELOW.search(text):
+            errors.append(f"the TL;DR points below instead of standing alone: {text[:60]}")
+    return errors
+
+
+def check_appendix(o: Outline) -> list[str]:
+    errors: list[str] = []
+    named = [(level, text) for level, text in o.headings if "appendix" in text.lower()]
+    for level, text in named:
+        if level != 2 or text.lower() != "appendix":
+            errors.append(f"an appendix heading must be exactly `## Appendix`, not `{'#' * level} {text}`")
+    count = sum(1 for level, text in named if level == 2 and text.lower() == "appendix")
+    if count > 1:
+        errors.append(f"the body has {count} appendix headings; use one `## Appendix` with A.1, A.2 subsections")
+    if "appendix" in o.order and o.order[-1] != "appendix":
+        after = o.order[o.order.index("appendix") + 1]
+        errors.append(f"`## Appendix` must be the last section, but `## {after}` comes after it")
+    return errors
 
 
 def check_body(body: str, names: list[str]) -> list[str]:
-    """Problems with an issue body: evidence must be labelled claims, judgement apart."""
+    """Problems with an issue body (issues.md §6): a TL;DR first, evidence as
+    labelled claims, and any appendix marked as one and placed last."""
     errors: list[str] = []
-    sections = body_sections(body)
-    if "evidence" not in sections:
-        errors.append("no `## Evidence` section")
-    if not ({"judgement", "judgment"} & sections.keys()):
-        errors.append("no `## Judgement` section, so judgement is not kept apart from evidence")
-    if "evidence" not in sections:
-        return errors
+    o = outline(body)
+    if o.preamble:
+        errors.append(f"the body must open with `## TL;DR`, but text comes before it: {o.preamble[0][:60]}")
+    tldr = next((h for h in o.order if h in TLDR_HEADINGS), None)
+    if tldr is None:
+        errors.append("no `## TL;DR` section; the body opens with one (what, impact and severity, next step)")
+    else:
+        if o.order[0] != tldr:
+            errors.append(f"`## TL;DR` must be the first section, but `## {o.order[0]}` comes first")
+        errors += check_tldr(o.sections[tldr])
+    errors += check_appendix(o)
 
-    claims: list[str] = []
-    for line, fenced in sections["evidence"]:
-        if fenced or not line.strip() or line[0].isspace() or line.startswith("#"):
-            continue  # code, blank, a continuation of the item above, or a sub-heading
-        item = LIST_ITEM.match(line)
-        if item is None:
-            errors.append(f"evidence holds prose, not a labelled claim: {line.strip()[:60]}")
-            continue
-        text = item.group(1).replace("**", "").strip()
-        claims.append(text)
-        if not text.startswith(EVIDENCE_LABELS):
-            errors.append(f"evidence claim has no label ({' / '.join(EVIDENCE_LABELS)}): {text[:60]}")
+    if "evidence" not in o.sections:
+        errors.append("no `## Evidence` section")
+        return errors
+    claim_errors, claims = check_claims(o.sections["evidence"], "evidence")
+    errors += claim_errors
     if not claims:
         errors.append("the Evidence section has no claims")
     if "investigation" in (n.lower() for n in names) and not any(c.startswith("Inferred:") for c in claims):
         errors.append("an investigation issue needs an `Inferred:` claim stating the unverified claim")
     return errors
+
+
+def check_comment(text: str) -> list[str]:
+    """Problems with an update comment (issues.md §7): it opens with a
+    `**TL;DR:** <what changed>` line, and any list item is a labelled claim."""
+    lines = text.strip().splitlines()
+    if not lines:
+        return ["the comment is empty"]
+    first = COMMENT_TLDR.match(lines[0].strip())
+    if first is None:
+        return [f"the comment must open with `**TL;DR:** <what changed>`, not: {lines[0].strip()[:60]}"]
+    if len(first.group(1).split()) < 3:
+        return ["the comment's TL;DR line is empty; say what changed and what it means now"]
+    rest = list(zip(lines[1:], fenced_lines(lines[1:])))
+    errors, _ = check_claims(rest, "comment")
+    return [e for e in errors if "holds prose" not in e]  # a comment may explain in prose
 
 
 def report(errors: list[str], ok: str) -> int:
@@ -285,6 +456,15 @@ def cmd_check(scheme: list[Label], repo: str | None, names: list[str], body_file
     return report(errors, f"labels{' and body' if body_file else ''} follow the scheme")
 
 
+def cmd_check_body(body_file: str, kind: str | None) -> int:
+    errors = check_body(Path(body_file).read_text(encoding="utf-8"), [kind] if kind else [])
+    return report(errors, "body follows the shape")
+
+
+def cmd_check_comment(body_file: str) -> int:
+    return report(check_comment(Path(body_file).read_text(encoding="utf-8")), "comment opens with a TL;DR")
+
+
 def cmd_verify(scheme: list[Label], repo: str | None, issue: str, expect: list[str] | None) -> int:
     data = gh_json(["issue", "view", issue, "--json", "labels,body"], repo)
     if not isinstance(data, dict) or not isinstance(data.get("labels"), list):
@@ -334,23 +514,41 @@ def selftest() -> int:
                    ["bug", "severity: low", "made-up"], ["bug", "bug", "severity: low"]):
         expect(bool(check_labels(labels, scheme, repo)), f"check_labels accepted {labels}")
 
-    body = ("Summary.\n\n## Evidence\n\n- Verified live: `x` printed `y`\n"
-            "- Read in repo: `a.py:1`\n\n## Judgement\n\n- Severity: Low\n")
+    body = ("## TL;DR\n\n- The backup skips /etc.\n- Severity: low, because x.\n- Next: y.\n\n"
+            "## Evidence\n\n- Verified live: `x` printed `y`\n- [ ] Read in repo: `a.py:1`\n\n"
+            "![shot](https://example.com/a.png)\n\n## Appendix\n\n### A.1 Output\n\n- z\n")
     expect(not check_body(body, ["bug"]), f"good body rejected: {check_body(body, ['bug'])}")
     expect(bool(check_body(body, ["investigation"])), "investigation with no Inferred claim accepted")
     for fault, broken in {
-        "unlabelled claim": body.replace("- Read in repo: ", "- "),
+        "unlabelled claim": body.replace("- Verified live: ", "- "),
         "prose": body.replace("## Evidence\n", "## Evidence\n\nLooks bad.\n"),
-        "no judgement": body.replace("## Judgement", "## Notes"),
         "no evidence": body.replace("## Evidence", "## Facts"),
+        "no tldr": body.replace("## TL;DR", "## Summary"),
+        "text before the tldr": "Summary.\n\n" + body,
+        "one-item tldr": body.replace("- Severity: low, because x.\n- Next: y.\n", ""),
+        "long tldr": body.replace("- Next: y.", "- Next: " + "y " * 100),
+        "tldr points below": body.replace("- Next: y.", "- Next: see below."),
+        "appendix not last": body + "\n## Notes\n\n- n\n",
+        "appendix misnamed": body.replace("## Appendix", "## Appendix: logs"),
+        "appendix sub-heading": body.replace("## Evidence\n", "## Evidence\n\n### Appendix\n"),
     }.items():
         expect(bool(check_body(broken, ["bug"])), f"check_body accepted {fault}")
+    expect(not POINTS_BELOW.search("disk use drops below 5%"), "a plain 'below' counted as pointing below")
+
+    comment = "**TL;DR:** Cause found: the check runs first.\n\n- Verified live: `x` printed `y`\n"
+    expect(not check_comment(comment), f"good comment rejected: {check_comment(comment)}")
+    for fault, broken in {
+        "no tldr": comment.replace("**TL;DR:** ", ""),
+        "empty tldr": "**TL;DR:**\n\n- Verified live: x\n",
+        "unlabelled claim": comment.replace("- Verified live: ", "- "),
+    }.items():
+        expect(bool(check_comment(broken)), f"check_comment accepted {fault}")
 
     for failure in failures:
         print(f"FAIL {failure}")
     if failures:
         return 1
-    print(f"issue_labels selftest OK ({len(scheme)} labels parsed; label, body and table checks seeded red)")
+    print(f"issue_labels selftest OK ({len(scheme)} labels parsed; label, body, comment and table checks seeded red)")
     return 0
 
 
@@ -372,6 +570,11 @@ def main(argv: list[str]) -> int:
     p_check.add_argument("--labels", help="comma-separated label names")
     p_check.add_argument("--label", action="append", help="one label name, repeatable (use it for a name with a comma)")
     p_check.add_argument("--body-file")
+    p_body = sub.add_parser("check-body", help="check a body alone, for a tracker other than GitHub")
+    p_body.add_argument("--body-file", required=True)
+    p_body.add_argument("--type", help="the issue's type; `investigation` also needs an Inferred claim")
+    p_comment = sub.add_parser("check-comment", help="check an update comment")
+    p_comment.add_argument("--body-file", required=True)
     p_verify = sub.add_parser("verify", help="check a filed issue")
     p_verify.add_argument("--repo")
     p_verify.add_argument("--issue", required=True)
@@ -385,6 +588,10 @@ def main(argv: list[str]) -> int:
             return cmd_list(scheme, args.json)
         if args.command == "apply":
             return cmd_apply(scheme, args.repo, args.dry_run)
+        if args.command == "check-body":
+            return cmd_check_body(args.body_file, args.type)
+        if args.command == "check-comment":
+            return cmd_check_comment(args.body_file)
         if args.command == "check":
             return cmd_check(scheme, args.repo, split_labels(args.labels, args.label), args.body_file)
         expect = None if args.expect is None and not args.expect_label else split_labels(args.expect, args.expect_label)

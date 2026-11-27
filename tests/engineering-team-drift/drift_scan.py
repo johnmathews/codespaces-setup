@@ -111,13 +111,19 @@ SIGNATURES: dict[str, tuple[str, str]] = {
     "lands-by-default": ("references/shipping.md",
                          r"Until the user confirms, a repo with a remote lands by pull request"),
     # Issue filing: the label scheme's two counting rules, the [SUSPECTED] ->
-    # investigation mapping, and the three evidence labels in the body.
+    # investigation mapping, the three evidence labels in the body, the TL;DR
+    # that opens it, and the update rule that keeps that TL;DR true.
     "issue-label-scheme": ("references/issues.md",
                            r"Exactly one type label.{0,400}Exactly one severity label"),
     "suspected-is-investigation": ("references/issues.md",
                                    r"\[SUSPECTED\] finding is filed as `investigation`"),
     "issue-evidence-labels": ("references/issues.md",
                               r"`Verified live:`.{0,200}`Read in repo:`.{0,200}`Inferred:`"),
+    # The body opens with a TL;DR; an update edits the body when its TL;DR goes stale.
+    "issue-tldr-first": ("references/issues.md",
+                         r"`## TL;DR`, always first"),
+    "issue-update-keeps-body-true": ("references/issues.md",
+                                     r"When the update changes anything the TL;DR says"),
 }
 
 
