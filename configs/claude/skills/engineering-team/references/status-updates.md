@@ -381,15 +381,17 @@ Handing over is cheap by design. `run.yaml`, the plan and
 4. **Prepare the hand-over prompt yourself; don't just offer it.** Run the
    `/prompt` command's procedure (the `prompt` skill, if the Skill tool lists
    it, or `~/.claude/commands/prompt.md`). It writes the prompt to a markdown
-   file and shows it as a copyable block and as a one-line "read this file"
-   version. **If this session uses the engineering-team skill, the hand-over
+   file and shows the start command and a one-line "read this file" version,
+   each in its own code block so the user can take them with `/copy`. **If
+   this session uses the engineering-team skill, the hand-over
    must too**: the prompt starts with `/engineering-team` and names the run to
    resume. `prompt.md` Step 3 owns that rule, and Step 5 owns the terminal
    start command. If neither the command nor its instructions are available,
    write the same hand-over file by hand (in `$RUN_DIR/handover-<utc>.md` for
    a run, otherwise under `~/.claude/handovers/`) and show the same launch
    command: `cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --model default --remote-control --name "<session name>"`.
-   Show the command; don't run it.
+   Show the command, as the reply's first code block and the paste line as
+   its second; don't run it.
 5. **Tell the user what is being carried over.** List what existed only in chat
    and where it now lives, so the user can trust the hand-over.
 
