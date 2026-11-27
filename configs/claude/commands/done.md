@@ -316,19 +316,22 @@ will catch remaining problems. This phase should not block shipping.
 
 ## Phase 7a — Follow-up issues
 
-File a GitHub issue for each follow-up this session found and did not fix: a review finding left unfixed, a security
+File an issue for each follow-up this session found and did not fix: a review finding left unfixed, a security
 or documentation warning, a defect seen in passing, or a test that still fails for a reason outside this change. In an
 engineering-team run, also file each entry in `$RUN_DIR/follow-ups.md` and each [SUSPECTED] finding the run did not
-settle.
+settle. When an open issue already covers a follow-up, update that issue instead of filing a new one. Also update any
+issue this change fixes in part or whose facts it changes.
 
-**Every rule for this phase lives in `~/.claude/skills/engineering-team/references/issues.md`**: what is not an issue
-(§2, so nothing fixed in this change and nothing an open issue already covers), the labels (§3), the body (§5) and the
-steps (§6). Those steps run `issue_labels.py apply` and `check` before `gh issue create`, then `verify` after it. Do not
-file without them, and do not invent a label. If an area label is missing, ask the user.
+**Every rule for this phase lives in `~/.claude/skills/engineering-team/references/issues.md`**: which tracker, GitHub or
+Linear (§1), what is not an issue (§2), the labels (§3), the title (§5), the TL;DR-first body (§6), updating an issue
+(§7), and the steps for GitHub (§8) and Linear (§9). Those steps check every body and comment with `issue_labels.py`
+before it is posted, and check again what landed. Do not file without them, and do not invent a label. If an area
+label is missing, ask the user.
 
 Filing runs before the journal and the PR, so both can cite the issue numbers. If the project cannot take issues (no
-remote, issues turned off, or its `CLAUDE.md` names another tracker), list the follow-ups in full in the Phase 9 notes
-instead and mark this row `N/A` with that reason. Record each issue number and its labels for Phase 9.
+tracker, issues turned off, or a tracker other than GitHub or Linear), list the follow-ups in full in the Phase 9 notes
+instead, each in the body shape of §6, and mark this row `N/A` with that reason. Record each issue number or Linear
+identifier, and its labels, for Phase 9.
 
 ## Phase 7b — Development Journal
 
@@ -555,7 +558,7 @@ makes it the easiest place in the whole workflow to assert more than you checked
 - Documentation: must cite the freshness audit — `"Audited 4 changed modules + new env var vs docs/README/CLAUDE.md; fixed 1 stale default, added 1 README link"` or, when genuinely clean, `"Audited N changed surfaces vs docs — all current"` (never a bare `"No changes needed"`, which signals the audit was skipped)
 - Security & Privacy: `"Added .env to .gitignore, moved API key to vault"` or `"No secrets found"`
 - Code Review: `"Simplified error handling in deploy.yml"` or `"No issues found"`
-- Follow-up issues: `"Filed #57 (bug, severity: medium, reliability) and #58 (investigation, severity: high); all verified"` or `"None found"`
+- Follow-up issues: `"Filed #57 (bug, severity: medium, reliability) and #58 (investigation, severity: high); updated #41; all verified"` or `"Filed ENG-212 (Bug, priority High); verified"` or `"None found"`
 - Commit & PR: `"2 commits, PR #42 opened on feat/xyz"` or `"2 commits on feat/xyz; lands by direct push — run /merge-push"` or `"2 commits, no remote — committed locally"`
 - CI (on the PR): `"lint-types-test + docs-check green on #42"` or `"lint failed on #42, fixed, green on retry"` or `"No workflows configured"` (name the checks — `"CI passed"` alone is not a result)
 - Housekeeping: `"Reaped 2 merged worktrees (feat/a, feat/b); skipped feat/c — uncommitted changes"` or `"No stale worktrees"`

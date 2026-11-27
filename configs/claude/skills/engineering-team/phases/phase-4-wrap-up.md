@@ -215,10 +215,11 @@ Present a brief summary to the user:
   in the diff, and nobody re-reads a closed run's report. Naming it costs a
   line and is the only thing keeping an unproven claim from ageing into an
   assumed one. Give the `investigation` issue it was filed as.
-- **Every issue this run filed**, with its number and labels, grouped as out
-  of scope, abandoned, and follow-up. Any follow-up that could not be filed
-  (no remote, issues turned off, another tracker) is listed here in full
-  instead (`../references/issues.md` §2).
+- **Every issue this run filed or updated**, with its number (or Linear
+  identifier) and labels, grouped as out of scope, abandoned, and follow-up.
+  Any follow-up that could not be filed (no tracker, issues turned off, a
+  tracker other than GitHub or Linear) is listed here in full instead
+  (`../references/issues.md` §2).
 
 Then close the run out — the four steps in "Closing a run" in `../SKILL.md`,
 performed in the **main checkout** (which is where `$RUN_DIR` lives — never

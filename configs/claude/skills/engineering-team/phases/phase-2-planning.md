@@ -436,8 +436,8 @@ long pole. Which?
 ```
 
 **List the issues this run will file.** Each finding the plan leaves out of
-scope becomes a GitHub issue, so name them at the gate with the labels each
-will carry. Approving the plan approves them, so file them right after the
+scope becomes an issue, on GitHub or the project's Linear team, so name them
+at the gate with the title and labels each will carry. Approving the plan approves them, so file them right after the
 user says go and write each number beside its finding in the plan. When, what
 is not an issue, the labels and the steps are all in
 `../references/issues.md`. Follow it rather than restating it here.

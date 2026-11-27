@@ -565,10 +565,12 @@ Load these on demand when their topic becomes relevant:
   (lands by pull request, direct push or local only, and its environments),
   how to work it out when it is missing, and who writes it. The sitrep's
   shipping steps, `/merge-push` and `/done` read it.
-- `references/issues.md` — **filing GitHub issues**: when a run files one
-  (out-of-scope findings, abandoned units, unfixed follow-ups) and when it
-  does not, the label scheme and canonical label list, the issue body, and
-  the checks before and after filing with `scripts/issue_labels.py`.
+- `references/issues.md` — **filing and updating issues, on GitHub or
+  Linear**: when a run files one (out-of-scope findings, abandoned units,
+  unfixed follow-ups) and when it does not, the label scheme and canonical
+  label list, the title convention, the TL;DR-first body and its appendix,
+  how an update keeps the body true, and the checks before and after filing
+  with `scripts/issue_labels.py`.
 - `references/general-guidelines.md` — cross-cutting rules, verification
   integrity, how findings are graded, and the triage entry point for
   urgent reports.
