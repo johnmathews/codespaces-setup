@@ -163,20 +163,34 @@ sessions at once and tells them apart by this name, so don't reuse the current s
    triggered the hand-over, leave this block out**: the sitrep stays one screen, and the file holds
    the full text.
 
-**Copy the paste line to the clipboard, every time.** Use the first clipboard command that exists:
-`pbcopy` (macOS), `wl-copy` (Wayland), `xclip -selection clipboard`, `xsel --clipboard --input`, or
-`clip.exe` (WSL). Pipe it with `printf '%s'` so no trailing newline is copied (a newline would send
-the paste the moment it lands). If none exists, as in most Codespaces, don't copy; Step 5 says so.
+**Copy the start command (Step 5 item 3) to the clipboard, every time.** It is the first thing the
+user needs, in a new terminal; the paste line is then one `/copy` away (Step 5). Use the first
+clipboard command that exists: `pbcopy` (macOS), `wl-copy` (Wayland), `xclip -selection clipboard`,
+`xsel --clipboard --input`, or `clip.exe` (WSL). Pipe it with `printf '%s'` so no trailing newline
+is copied (a newline would run the command the moment it lands). If none exists, as in most
+Codespaces, don't copy; Step 5 says so.
 
 ## Step 5 — Report
+
+The user copies the start command and the paste line with Claude Code's `/copy` command rather than
+by selecting text. `/copy` copies from this session's **last reply**, and when that reply holds code
+blocks it offers a picker of them. So:
+
+- **Write the report as one reply, after the turn's last tool call** (the clipboard copy, the issue
+  update), so it is the last reply when the user runs `/copy`.
+- **The start command is the reply's first code block and the paste line its second.** No code
+  block comes before them, so they are always items 1 and 2 in the picker.
+- **Each of the two blocks holds exactly the text to paste**, on one line, with nothing else: no
+  `$` prompt, no comment, no second command. A terminal wraps a long line on screen, but `/copy`
+  copies the text as written, so the wrap never reaches the clipboard.
 
 Show the result in this order, so the last thing on screen is the answer to "can I close this?":
 
 1. **Handover file:** its absolute path.
 2. **Session name:** the name from Step 4.
-3. **Start it:** give this terminal command with all options shown, followed by
-   "then paste". Use the absolute worktree or checkout path where the new session will work,
-   and shell-quote the path and name:
+3. **Start it:** this terminal command with all options shown, alone in a `bash` code block,
+   followed by "then paste:". Use the absolute worktree or checkout path where the new session
+   will work, and shell-quote the path and name:
 
    ```bash
    cd "<absolute worktree or checkout path>" && claude --dangerously-skip-permissions --model default --remote-control --name "<session name>"
@@ -185,9 +199,13 @@ Show the result in this order, so the last thing on screen is the answer to "can
    Show this command; don't run it. Start a fresh session with it rather than offering an
    already-open IDE or desktop session as an equivalent: `/rename` changes the name,
    not the remote-control or permission settings.
-4. **The paste line** in a fenced code block, and then either "Copied to the clipboard." or "Not
-   copied: no clipboard command here. Copy the line above."
-5. **The full prompt** block (left out when a sitrep triggered the hand-over).
+4. **The paste line** alone in a `text` code block, and then one line saying how to copy each:
+   - copied: "The start command is on the clipboard. For the paste line, run `/copy` and pick the
+     second block."
+   - not copied: "No clipboard command here. Run `/copy` and pick the first block for the start
+     command, then `/copy` again and pick the second for the paste line."
+5. **The full prompt** block (left out when a sitrep triggered the hand-over). It comes after the
+   two, so the picker lists it third.
 6. **The issue** the prompt names, and whether this step filed it or updated it.
 7. **What you included**, in a few numbered lines, and **anything you were uncertain about**, in case
    the user wants to adjust it before starting the new session.
@@ -253,6 +271,8 @@ implement the stale plan.
 
 **In Step 5,** give each lane its own session name (`<plan-short-name>-lane-<x>`), show each lane's
 start command using the same template and flags, followed by its prompt. Use the lane's worktree
-if it already exists, or the checkout from which the lane will set up its worktree. Don't copy
-anything to the clipboard: there is more than one prompt.
+if it already exists, or the checkout from which the lane will set up its worktree. Put each start
+command and each prompt in its own code block, lane by lane, so `/copy`'s picker lists them as
+lane A's command, lane A's prompt, lane B's command, and so on; say that order in one line. Don't
+copy anything to the clipboard: there is more than one session to start.
 The close verdict is always "Keep this session open: it is the coordinator for these lanes."
