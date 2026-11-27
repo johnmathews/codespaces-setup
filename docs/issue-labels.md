@@ -1,6 +1,6 @@
 # Issue labels
 
-**Status:** active. **Last updated:** 2026-11-27. **Last verified:** 2026-11-27 (`issue_labels.py --selftest`, `tests/engineering-team-issue-labels/run.py`, and `check-body` on `codespaces-setup#112`, which fails as an old-shape body should; `apply --dry-run` against `johnmathews/home-server` 2026-11-08). **Covers:** `configs/claude/skills/engineering-team/references/issues.md`, `configs/claude/skills/engineering-team/scripts/issue_labels.py`, `tests/engineering-team-issue-labels/**`.
+**Status:** active. **Last updated:** 2026-11-27. **Last verified:** 2026-11-27 (`issue_labels.py --selftest`, `tests/engineering-team-issue-labels/run.py` (32 cases), and `check-body` on `codespaces-setup#112`, which fails as an old-shape body should; `apply --dry-run` against `johnmathews/home-server` 2026-11-08). **Covers:** `configs/claude/skills/engineering-team/references/issues.md`, `configs/claude/skills/engineering-team/scripts/issue_labels.py`, `tests/engineering-team-issue-labels/**`.
 
 > Purpose
 >
@@ -18,10 +18,11 @@
 | Its tests | `tests/engineering-team-issue-labels/` | End-to-end tests against a fake `gh`, run in CI |
 | Pointers | phases 1 to 4 of the skill, `commands/done.md` Phase 7a | Say when to file and link `issues.md`. None of them restates a rule |
 
-`references/rule-ownership.md` maps each rule to `issues.md`, and five
+`references/rule-ownership.md` maps each rule to `issues.md`, and seven
 drift-scan signatures fail CI if the core rules leave that file: the two label
 counts, `investigation` for a [SUSPECTED] finding, the evidence labels, the
-TL;DR-first body and the update rule.
+TL;DR-first body, the update rule, the Linear reader rule and the tracking
+issue a hand-over prompt names.
 
 ## 2. The scheme in brief
 
@@ -54,6 +55,17 @@ rewritten from the rubric on 2026-11-08, and `security` moved to purple
   `## Appendix`, last, with `### A.1` subsections, and a one-line footer.
 - **Updates:** a comment opens with a `**TL;DR:**` line. When it changes what
   the TL;DR says, the body is edited too. Only a body the flow wrote is edited.
+- **On Linear:** a product owner without repo access must understand it. The
+  TL;DR names no internal reference or file path; every `W<n>`, `F<n>`, ADR or
+  RFC carries its meaning at first use, such as "W2 (retry failed exports)";
+  every Evidence claim says what it means in plain words.
+- **Tracking issues:** every prompt that hands work to another session (`/prompt`,
+  a lane hand-off, Phase 4's next-unit prompt) names the issue that tracks the
+  work, filing one for the whole plan if none exists. It has a `Status:` line in
+  its TL;DR and a `## Plan` checklist, one plain-language line per unit. The
+  session doing the work posts a milestone update when work starts, a unit is
+  done or abandoned, it is blocked, a PR merges, and it ends. `issues.md` §10
+  defines it.
 
 A project's `CLAUDE.md` can hold an `## Issues` section with five optional
 lines: `Tracker:` (`GitHub`, the default, or `Linear`), `Team:` and `Project:`
@@ -80,8 +92,9 @@ Filing an issue also uses `check` before `gh issue create` and `verify` after
 it. Both check the labels and the body: the TL;DR first, labelled evidence, and
 an appendix that is exactly `## Appendix` and last. An update uses
 `check-comment`. On Linear, where the label checks do not apply, `check-body`
-checks the body alone, and `--type investigation` also requires an `Inferred:`
-claim. `issues.md` §8 and §9 give the steps. `check` and `verify` take labels
+checks the body alone, `--type investigation` also requires an `Inferred:`
+claim, and `--linear` adds the checks for a reader without the repo (also on
+`check-comment`). A body with `## Plan` is checked as a tracking issue. `issues.md` §8 and §9 give the steps. `check` and `verify` take labels
 as a comma list (`--labels`, `--expect`) or one at a time (`--label`,
 `--expect-label`), and a name that holds a comma needs the one-at-a-time form.
 

@@ -343,6 +343,9 @@ the codebase. Brief it like a smart colleague who just walked into the room.
    judgment call after reading the relevant code.
 8. **Scope notes** — Any explicit out-of-scope items, credential / live-system
    warnings, or "don't bake X into this unit" guidance.
+9. **Issue** — the run's tracking issue, filed now if there is none, with the
+   instruction to update it at each milestone (`../references/issues.md` §10).
+   Post this hand-over on it as a milestone before producing the prompt.
 
 **Tone:** the prompt is operational, not narrative. No lessons-learned
 preamble; no "great work last session" framing; no instructions about

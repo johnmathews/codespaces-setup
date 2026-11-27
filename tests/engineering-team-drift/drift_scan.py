@@ -124,6 +124,11 @@ SIGNATURES: dict[str, tuple[str, str]] = {
                          r"`## TL;DR`, always first"),
     "issue-update-keeps-body-true": ("references/issues.md",
                                      r"When the update changes anything the TL;DR says"),
+    # A Linear issue reads without the repo; every hand-over prompt names a tracking issue.
+    "linear-reads-without-repo": ("references/issues.md",
+                                  r"Every internal reference carries its meaning at its first use"),
+    "prompt-names-tracking-issue": ("references/issues.md",
+                                    r"Whenever a skill or command writes a prompt that hands work to another session"),
 }
 
 
