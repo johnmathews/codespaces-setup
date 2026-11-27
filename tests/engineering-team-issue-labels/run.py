@@ -28,21 +28,37 @@ SCHEME_NAMES = {
     "security", "reliability", "performance",
 }
 
-GOOD_BODY = """The nightly backup skips /etc when the pool is degraded.
+GOOD_BODY = """## TL;DR
+
+- The nightly backup skips /etc when the pool is degraded.
+- Impact: a restore loses /etc. Severity: high, because the loss is silent.
+- Next: back up /etc before the pool check.
 
 ## Evidence
 
 - Verified live: `zpool status` printed `DEGRADED`
 - Read in repo: `backup.sh:42` returns early on a degraded pool
 
-## Judgement
+## Appendix
 
-- Severity: High, because restores lose /etc
-- Type: bug
+### A.1 Full zpool status
 
-## Why it is not fixed now
+<details><summary>zpool status</summary>
 
-Out of scope in the plan.
+```text
+pool: tank
+```
+
+</details>
+
+---
+
+Not fixed now: out of scope in the plan. · Found by: engineering-team run manual-x, 2026-11-27
+"""
+
+GOOD_COMMENT = """**TL;DR:** Cause found: the pool check runs before the /etc copy.
+
+- Verified live: `backup.sh --dry-run` printed `skip /etc (pool DEGRADED)`
 """
 
 
@@ -196,6 +212,12 @@ HOME = [{"name": "home-assistant", "color": "41BDF5", "description": "HA"},
         {"name": "wontfix", "color": "ffffff", "description": "no"}]
 
 
+def run_with_file(repo: Repo, text: str, *args: str) -> subprocess.CompletedProcess[str]:
+    path = repo.state.parent / "text.md"
+    path.write_text(text)
+    return repo.run(*args, "--body-file", str(path))
+
+
 def check(repo: Repo, labels: str, body: str | None = None) -> subprocess.CompletedProcess[str]:
     args = ["check", "--labels", labels]
     if body is not None:
@@ -260,30 +282,134 @@ def test_body_fences_and_formatting(tmp: Path) -> None:
         "- **Read in repo:** `backup.sh:42` returns early\n\n### Detail\n\n- Inferred: x. Settled by: y")
     out = check(repo, "investigation,severity: high", fenced)
     expect(out.returncode == 0, f"fence, bold label or sub-heading broke the body check: {out.stdout}")
-    fake_judgement = GOOD_BODY.replace("## Judgement", "```\n## Judgement\n```")
-    out = check(repo, "bug,severity: high", fake_judgement)
-    expect(out.returncode == 1, f"a fenced `## Judgement` counted as the section: {out.stdout}")
+    fake_tldr = "```\n## TL;DR\n```\n\n" + GOOD_BODY.split("\n\n", 1)[1]
+    out = check(repo, "bug,severity: high", fake_tldr)
+    expect(out.returncode == 1, f"a fenced `## TL;DR` counted as the section: {out.stdout}")
+
+
+def test_body_accepts_checklist_image_diagram_and_no_appendix(tmp: Path) -> None:
+    repo = Repo(tmp, labels=canonical())
+    body = GOOD_BODY.replace(
+        "- Read in repo: `backup.sh:42` returns early on a degraded pool",
+        "- [ ] Read in repo: `backup.sh:42` returns early\n- [x] Read in repo: `cron:3` runs it nightly\n\n"
+        "![The restore dialog lists no /etc](https://example.com/a.png)\n\n"
+        "```mermaid\nflowchart LR\n  A --> B\n```")
+    out = check(repo, "bug,severity: low", body)
+    expect(out.returncode == 0, f"checklist, image or mermaid broke the body check: {out.stdout}")
+    out = check(repo, "bug,severity: high", GOOD_BODY.split("## Appendix")[0])
+    expect(out.returncode == 0, f"a body with no appendix failed: {out.stdout}")
+    footer = "\n---\n\n" + GOOD_BODY.split("---\n", 1)[1]
+    out = check(repo, "bug,severity: high", GOOD_BODY.split("## Appendix")[0] + footer)
+    expect(out.returncode == 0, f"a body with a footer and no appendix failed: {out.stdout}")
+    out = check(repo, "bug,severity: high", GOOD_BODY + "\n## Related\n\n- #12\n")
+    expect(out.returncode == 1, f"a section after the footer escaped the appendix-last check: {out.stdout}")
+
+
+def test_markdown_edge_cases(tmp: Path) -> None:
+    """Real bodies use more of markdown than the template: each of these broke
+    an earlier parser (found in review, 2026-11-27)."""
+    repo = Repo(tmp, labels=canonical())
+    claim = "- Read in repo: `backup.sh:42` returns early on a degraded pool"
+    accepted = {
+        "tilde fence": GOOD_BODY.replace(claim, claim + "\n\n~~~\nraw output\n## Appendix\n~~~"),
+        "raw output in details": GOOD_BODY.replace(
+            claim, claim + "\n\n<details><summary>log</summary>\n\nraw output line\n\n</details>"),
+        "hard-wrapped item": GOOD_BODY.replace(claim, "- Read in repo: `backup.sh:42` returns early\non a degraded pool"),
+        "image as a list item": GOOD_BODY.replace(claim, claim + "\n- ![The dialog](https://example.com/a.png)"),
+        "linked image": GOOD_BODY.replace(claim, claim + "\n\n[![The dialog](https://e.com/a.png)](https://e.com/a.png)"),
+        "four-backtick fence holding three": GOOD_BODY.replace(claim, claim + "\n\n````\n```\n## Appendix\n````"),
+        "nested item in the tldr": GOOD_BODY.replace("- Next: back up /etc", "  - with a nested note\n- Next: back up /etc"),
+        "crlf line endings": GOOD_BODY.replace("\n", "\r\n"),
+    }
+    for name, body in accepted.items():
+        out = check(repo, "bug,severity: high", body)
+        expect(out.returncode == 0, f"{name}: a valid body failed: {out.stdout}")
+    rejected = {
+        "indented prose hides in the tldr": (GOOD_BODY.replace("## TL;DR\n", "## TL;DR\n\n    hidden prose\n"), "prose"),
+        "an indented continuation counts toward the words": (GOOD_BODY.replace(
+            "\n## Evidence", "\n    " + "word " * 80 + "\n\n## Evidence"), "words"),
+        "a thematic break pads the tldr": (GOOD_BODY.replace(
+            "- Impact: a restore loses /etc. Severity: high, because the loss is silent.\n"
+            "- Next: back up /etc before the pool check.\n", "* * *\n"), "2 to 5"),
+        "inline triple backticks are not a fence": (GOOD_BODY.replace(
+            claim, claim + "\n\n```x``` y") + "\n## Notes\n\n- n\n", "last"),
+    }
+    for name, (body, reason) in rejected.items():
+        out = check(repo, "bug,severity: high", body)
+        expect(out.returncode == 1 and reason in out.stdout, f"{name}: expected a {reason!r} failure: {out.stdout}")
+    out = run_with_file(repo, GOOD_COMMENT + "\n~~~\n- not a claim\n~~~\n", "check-comment")
+    expect(out.returncode == 0, f"a tilde fence in a comment was read as a claim: {out.stdout}")
+
+
+TLDR = GOOD_BODY.split("## Evidence")[0]
+REST = "## Evidence" + GOOD_BODY.split("## Evidence")[1]
 
 
 def test_check_body_violations(tmp: Path) -> None:
     repo = Repo(tmp, labels=canonical())
     cases = {
-        "unlabelled claim": GOOD_BODY.replace("- Read in repo: `backup.sh:42`", "- `backup.sh:42`"),
-        "no evidence heading": GOOD_BODY.replace("## Evidence", "## Facts"),
-        "no judgement heading": GOOD_BODY.replace("## Judgement", "## Opinion"),
-        "prose in evidence": GOOD_BODY.replace("## Evidence\n", "## Evidence\n\nIt seems broken.\n"),
-        "empty evidence": GOOD_BODY.split("## Evidence")[0] + "## Evidence\n\n## Judgement\n\n- x\n",
+        "unlabelled claim": (GOOD_BODY.replace("- Read in repo: `backup.sh:42`", "- `backup.sh:42`"), "has no label"),
+        "no evidence heading": (GOOD_BODY.replace("## Evidence", "## Facts"), "no `## Evidence`"),
+        "prose in evidence": (GOOD_BODY.replace("## Evidence\n", "## Evidence\n\nIt seems broken.\n"), "holds prose"),
+        "empty evidence": (TLDR + "## Evidence\n\n## Appendix\n\n- x\n", "has no claims"),
+        "no tldr": (REST, "## TL;DR"),
+        "text before the tldr": ("The backup is broken.\n\n" + GOOD_BODY, "before"),
+        "evidence before the tldr": (REST.split("## Appendix")[0] + TLDR, "first section"),
+        "one-item tldr": (GOOD_BODY.replace("- Impact: a restore loses /etc. Severity: high, because the loss is silent.\n"
+                                            "- Next: back up /etc before the pool check.\n", ""), "2 to 5"),
+        "six-item tldr": (GOOD_BODY.replace("- Next:", "- a\n- b\n- c\n- Next:"), "2 to 5"),
+        "long tldr": (GOOD_BODY.replace("- Next: back up /etc", "- Next: " + "word " * 80 + "back up /etc"), "words"),
+        "tldr points below": (GOOD_BODY.replace("- Next: back up /etc before the pool check.", "- Next: see below."), "below"),
+        "prose tldr": (GOOD_BODY.replace("- The nightly backup", "The nightly backup"), "prose"),
+        "empty tldr": ("## TL;DR\n\n" + REST, "2 to 5"),
+        "appendix not last": (GOOD_BODY + "\n## Related\n\n- #12\n", "last"),
+        "appendix heading misspelled": (GOOD_BODY.replace("## Appendix", "## Appendix: logs"), "exactly"),
+        "appendix under evidence": (GOOD_BODY.replace("## Appendix", "### Appendix\n\n## Notes"), "exactly"),
+        "two appendices": (GOOD_BODY.replace("## Appendix", "## Appendix\n\n- x\n\n## Appendix"), "one `## Appendix`"),
     }
-    for name, body in cases.items():
+    for name, (body, reason) in cases.items():
         out = check(repo, "bug,severity: high", body)
         expect(out.returncode == 1, f"{name}: expected exit 1, got {out.returncode}: {out.stdout}")
+        expect(reason in out.stdout, f"{name}: failed, but not for {reason!r}: {out.stdout}")
+
+
+def test_check_body_command_skips_labels(tmp: Path) -> None:
+    repo = Repo(tmp, fail=True)  # any gh call fails, so a pass proves none was made
+    out = run_with_file(repo, GOOD_BODY, "check-body")
+    expect(out.returncode == 0, f"a good body failed check-body: {out.stdout}{out.stderr}")
+    out = run_with_file(repo, REST, "check-body")
+    expect(out.returncode == 1, f"check-body accepted a body with no TL;DR: {out.stdout}")
+    out = run_with_file(repo, GOOD_BODY, "check-body", "--type", "investigation")
+    expect(out.returncode == 1, f"check-body accepted an investigation with no Inferred claim: {out.stdout}")
+    out = repo.run("check-body", "--body-file", str(tmp / "nope.md"))
+    expect(out.returncode == 2, f"expected exit 2 for a missing body file, got {out.returncode}")
+
+
+def test_check_comment(tmp: Path) -> None:
+    repo = Repo(tmp, fail=True)
+    out = run_with_file(repo, GOOD_COMMENT, "check-comment")
+    expect(out.returncode == 0, f"a good comment failed: {out.stdout}{out.stderr}")
+    out = run_with_file(repo, "\n\n" + GOOD_COMMENT.replace("**TL;DR:**", "**TL;DR**:"), "check-comment")
+    expect(out.returncode == 0, f"`**TL;DR**:` after blank lines failed: {out.stdout}")
+    cases = {
+        "no tldr line": GOOD_COMMENT.replace("**TL;DR:** ", ""),
+        "tldr not first": "Update.\n\n" + GOOD_COMMENT,
+        "empty tldr": "**TL;DR:**\n\n- Verified live: x",
+        "tldr heading instead of line": GOOD_COMMENT.replace("**TL;DR:** ", "## TL;DR\n\n"),
+        "unlabelled claim": GOOD_COMMENT.replace("- Verified live: ", "- "),
+    }
+    for name, comment in cases.items():
+        out = run_with_file(repo, comment, "check-comment")
+        expect(out.returncode == 1, f"{name}: expected exit 1, got {out.returncode}: {out.stdout}")
+        reason = "has no label" if name == "unlabelled claim" else "TL;DR"
+        expect(reason in out.stdout, f"{name}: failed, but not for {reason!r}: {out.stdout}")
 
 
 def test_investigation_needs_an_inferred_claim(tmp: Path) -> None:
     repo = Repo(tmp, labels=canonical())
     out = check(repo, "investigation,severity: critical", GOOD_BODY)
     expect(out.returncode == 1, f"investigation with no Inferred claim passed: {out.stdout}")
-    body = GOOD_BODY.replace("## Judgement", "- Inferred: the restore drops /etc. Settled by: a test restore\n\n## Judgement")
+    body = GOOD_BODY.replace("## Appendix", "- Inferred: the restore drops /etc. Settled by: a test restore\n\n## Appendix")
     out = check(repo, "investigation,severity: critical", body)
     expect(out.returncode == 0, f"investigation with an Inferred claim failed: {out.stdout}")
 
