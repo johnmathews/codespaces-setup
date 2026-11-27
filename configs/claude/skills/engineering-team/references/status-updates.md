@@ -35,7 +35,7 @@ file's shape.
 - **Before any wait the user cannot see.** CI, a long test suite, a background
   build, a review round. Say what the wait is for and what happens after it.
 - **During a long stretch of quiet work, at least every ten minutes.** Check
-  `date` rather than guessing how long it has been.
+  the clock (§3.4) rather than guessing how long it has been.
 
 A pulse reports outcomes and waits. It never narrates tool calls ("Now reading
 `auth.py`, now running the tests").
@@ -163,7 +163,8 @@ W1 to W4, and lean on what we learned there. About 90k tokens so far.
   3. **The finish time**: an estimate with its basis.
      - Base it on the units left, how long the finished ones took, and waits
        already measured on this run, such as CI's usual time.
-     - Give clock times in the user's local timezone and name it. Check `date`.
+     - Give clock times in Amsterdam time, unless the user asks for another
+       zone. §3.4 has the commands.
      - With no basis yet, for example before the first unit has finished,
        write "Can't estimate yet; will know after W1, in about 10 minutes."
      - Round. "About", "around" and a range are honest. A precise time with
@@ -283,9 +284,32 @@ Before every sitrep, read the state from disk and from what is running now:
 - for the shipping steps: the project's `## Shipping` section, `git` (the branch against
   its remote, and whether `main` holds the work), `gh pr view` for the PR's
   state, and each environment's `Check:` command
-- `date`, for the times
+- the time now in Amsterdam (§3.4)
 
 If the sitrep and `run.yaml` disagree, fix `run.yaml` before sending.
+
+### 3.4 Times
+
+Every clock time said to the user is **Amsterdam time** (`Europe/Amsterdam`),
+whatever the machine's own zone, unless the user asks for another. Name the
+zone each time: "13:45 CET" in winter, "13:45 CEST" in summer. Let the
+command pick the name; never assume it from memory or from an older note.
+
+- **Now:** `TZ=Europe/Amsterdam date '+%H:%M %Z'`. Plain `date` is wrong in a
+  Codespace, whose clock runs on UTC.
+- **A finish time:** add the estimate to now, in that zone, so a change
+  between CET and CEST is handled for you:
+
+  ```bash
+  python3 -c 'import sys;from datetime import datetime,timedelta;from zoneinfo import ZoneInfo;print((datetime.now(ZoneInfo("Europe/Amsterdam"))+timedelta(minutes=int(sys.argv[1]))).strftime("%H:%M %Z"))' 40
+  ```
+
+- **A time from a log, CI or GitHub**, which report UTC: convert it before
+  saying it. Never quote a UTC time, or a time with no zone.
+
+Timestamps in file names and in machine-read files (`handover-<utc-timestamp>.md`,
+run IDs, `run.yaml`) stay in UTC: they sort and compare, and nobody reads
+them as a time of day.
 
 ## 4. Continue here, or start a new session?
 

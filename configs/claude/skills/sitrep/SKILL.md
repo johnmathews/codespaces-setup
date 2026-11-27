@@ -29,7 +29,9 @@ restate them, so the two cannot drift.
 Gather these in parallel. The report is built from what they say, not from what the conversation
 remembers:
 
-1. `date`, for times in the user's local timezone.
+1. **The time now in Amsterdam**, `TZ=Europe/Amsterdam date '+%H:%M %Z'`. Every time in the report
+   is Amsterdam time, named CET or CEST, unless the user asked for another zone; finish times and
+   UTC conversions follow `status-updates.md` §3.4.
 2. **An engineering-team run, if there is one.** Resolve the main checkout with
    `dirname "$(git rev-parse --path-format=absolute --git-common-dir)"`, then read
    `.engineering-team/current.txt` there and the run's `run.yaml`: `goal:`, `done_when:`, `phase:`,
